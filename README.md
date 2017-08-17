@@ -2,6 +2,8 @@
 
 Simulates a roller coaster using Catmull-Rom splines and OpenGL texture mapping
 
+![](demo.gif)
+
 ## Features
 - Models the track with Catmull-Rom splines calculated from user-provided spline files
 - Draws the splines using recursive division
