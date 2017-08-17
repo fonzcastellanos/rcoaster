@@ -1,0 +1,106 @@
+﻿Build started 1/3/2016 4:30:31 PM.
+     1>Project "D:\Document\csci420\csci420-homework\helloWorld\external\jpeg-9a-win32\jpeg.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Ox /Oy /GT /GL /D WIN32 /D NDEBUG /D _LIB /D _CRT_SECURE_NO_WARNINGS /Gm- /EHsc /MD /GS /Gy /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc120.pdb" /Gd /TC /analyze- /errorReport:prompt jaricom.c jcapimin.c jcapistd.c jcarith.c jccoefct.c jccolor.c jcdctmgr.c jchuff.c jcinit.c jcmainct.c jcmarker.c jcmaster.c jcomapi.c jcparam.c jcprepct.c jcsample.c jctrans.c jdapimin.c jdapistd.c jdarith.c jdatadst.c jdatasrc.c jdcoefct.c jdcolor.c jddctmgr.c jdhuff.c jdinput.c jdmainct.c jdmarker.c jdmaster.c jdmerge.c jdpostct.c jdsample.c jdtrans.c jerror.c jfdctflt.c jfdctfst.c jfdctint.c jidctflt.c jidctfst.c jidctint.c jmemmgr.c jmemnobs.c jquant1.c jutils.c
+         jaricom.c
+         jcapimin.c
+         jcapistd.c
+         jcarith.c
+         jccoefct.c
+         jccolor.c
+         jcdctmgr.c
+         jchuff.c
+         jcinit.c
+         jcmainct.c
+         jcmarker.c
+         jcmaster.c
+         jcomapi.c
+         jcparam.c
+         jcprepct.c
+         jcsample.c
+         jctrans.c
+         jdapimin.c
+         jdapistd.c
+         jdarith.c
+         Compiling...
+         jdatadst.c
+         jdatasrc.c
+         jdcoefct.c
+         jdcolor.c
+         jddctmgr.c
+         jdhuff.c
+         jdinput.c
+         jdmainct.c
+         jdmarker.c
+         jdmaster.c
+         jdmerge.c
+         jdpostct.c
+         jdsample.c
+         jdtrans.c
+         jerror.c
+         jfdctflt.c
+         jfdctfst.c
+         jfdctint.c
+         jidctflt.c
+         jidctfst.c
+         Compiling...
+         jidctint.c
+         jmemmgr.c
+         jmemnobs.c
+         jquant1.c
+         jutils.c
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /Od /Oy /GT /GL /D WIN32 /D NDEBUG /D _LIB /D _CRT_SECURE_NO_WARNINGS /Gm- /EHsc /MD /GS- /Gy /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc120.pdb" /Gd /TC /analyze- /errorReport:prompt jquant2.c
+         jquant2.c
+       Lib:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\Lib.exe /OUT:"D:\Document\csci420\csci420-homework\helloWorld\external\jpeg-9a-win32\Release\jpeg.lib" /NOLOGO /LTCG Release\jaricom.obj
+         Release\jcapimin.obj
+         Release\jcapistd.obj
+         Release\jcarith.obj
+         Release\jccoefct.obj
+         Release\jccolor.obj
+         Release\jcdctmgr.obj
+         Release\jchuff.obj
+         Release\jcinit.obj
+         Release\jcmainct.obj
+         Release\jcmarker.obj
+         Release\jcmaster.obj
+         Release\jcomapi.obj
+         Release\jcparam.obj
+         Release\jcprepct.obj
+         Release\jcsample.obj
+         Release\jctrans.obj
+         Release\jdapimin.obj
+         Release\jdapistd.obj
+         Release\jdarith.obj
+         Release\jdatadst.obj
+         Release\jdatasrc.obj
+         Release\jdcoefct.obj
+         Release\jdcolor.obj
+         Release\jddctmgr.obj
+         Release\jdhuff.obj
+         Release\jdinput.obj
+         Release\jdmainct.obj
+         Release\jdmarker.obj
+         Release\jdmaster.obj
+         Release\jdmerge.obj
+         Release\jdpostct.obj
+         Release\jdsample.obj
+         Release\jdtrans.obj
+         Release\jerror.obj
+         Release\jfdctflt.obj
+         Release\jfdctfst.obj
+         Release\jfdctint.obj
+         Release\jidctflt.obj
+         Release\jidctfst.obj
+         Release\jidctint.obj
+         Release\jmemmgr.obj
+         Release\jmemnobs.obj
+         Release\jquant1.obj
+         Release\jquant2.obj
+         Release\jutils.obj
+         jpeg.vcxproj -> D:\Document\csci420\csci420-homework\helloWorld\external\jpeg-9a-win32\Release\jpeg.lib
+     1>Done Building Project "D:\Document\csci420\csci420-homework\helloWorld\external\jpeg-9a-win32\jpeg.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:02.27

@@ -1,0 +1,17 @@
+﻿Build started 11/30/2015 7:43:01 PM.
+     1>Project "H:\tt\glew-1.13.0\glew-1.13.0\build\vc12\visualinfo.vcxproj" on node 4 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I..\..\include /Zi /nologo /W3 /WX- /Od /Oy- /D WIN32 /D WIN32_LEAN_AND_MEAN /D VC_EXTRA_LEAN /D GLEW_STATIC /D _CRT_SECURE_NO_WARNINGS /Gm- /EHsc /RTC1 /MDd /GS /Gy- /Zc:wchar_t /Zc:forScope /Fo"tmp\visualinfo\Debug\Win32\\" /Fd"tmp\visualinfo\Debug\Win32\vc120.pdb" /Gd /TC /analyze- /errorReport:prompt ..\..\src\visualinfo.c
+         visualinfo.c
+       ResourceCompile:
+         C:\Program Files (x86)\Windows Kits\8.1\bin\x86\rc.exe /D _DEBUG /l"0x0409" /nologo /fo"tmp\visualinfo\Debug\Win32\visualinfo.res" ..\visualinfo.rc 
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"..\..\bin\Debug\Win32\visualinfod.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:..\..\lib\Debug\Win32\ glew32sd.lib glu32.lib opengl32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"..\..\bin\Debug\Win32\visualinfod.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"..\..\bin\Debug\Win32\visualinfod.lib" /MACHINE:X86 /SAFESEH tmp\visualinfo\Debug\Win32\visualinfo.res
+         tmp\visualinfo\Debug\Win32\visualinfo.obj
+         "H:\tt\glew-1.13.0\glew-1.13.0\lib\Debug\Win32\glew32sd.lib"
+         visualinfo.vcxproj -> H:\tt\glew-1.13.0\glew-1.13.0\build\vc12\..\..\bin\Debug\Win32\visualinfod.exe
+     1>Done Building Project "H:\tt\glew-1.13.0\glew-1.13.0\build\vc12\visualinfo.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.93
