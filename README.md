@@ -24,7 +24,7 @@ Simulates a roller coaster using Catmull-Rom splines and OpenGL texture mapping
 ## Built With
 - [OpenGL](https://www.opengl.org/)
 - [OpenGL Mathematics (GLM)](https://glm.g-truc.net)
-- [Vega FEM's imageIO Library](http://run.usc.edu/vega/)
+- [Vega FEM's imageIO Library](http://barbic.usc.edu/vega/)
 
 ## Author
 Alfonso Castellanos
@@ -33,4 +33,4 @@ Alfonso Castellanos
 MIT @ [Alfonso Castellanos](https://github.com/TrulyFonz)
 
 ## Acknowledgements
-Professor Jernej Barbic for his [computer graphics class](http://www-bcf.usc.edu/~jbarbic/cs420-s17/)
+Professor Jernej Barbic for his [computer graphics class](http://barbic.usc.edu/cs420-s17/)
