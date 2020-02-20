@@ -30,7 +30,7 @@ Simulates a roller coaster using Catmull-Rom splines and OpenGL texture mapping
 Alfonso Castellanos
 
 ## License
-MIT @ [Alfonso Castellanos](https://github.com/TrulyFonz)
+MIT @ [Alfonso Castellanos](https://github.com/fonzcastellanos)
 
 ## Acknowledgements
 Professor Jernej Barbic for his [computer graphics class](http://barbic.usc.edu/cs420-s17/)
