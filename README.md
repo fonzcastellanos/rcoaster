@@ -31,7 +31,7 @@ rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
 ```
 
 ### Track File
-The track file allows you to designated which spline files should be loaded to create the track. 
+The track file allows you to designate which spline files should be loaded to create the track. 
 
 The example track file is `src/track.txt`, which looks like this (except without the comments)
  ```console
