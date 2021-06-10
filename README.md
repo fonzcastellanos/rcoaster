@@ -11,15 +11,38 @@ Simulates a roller coaster using Catmull-Rom splines and OpenGL texture mapping
 - Allows user to provide the ground, sky, and crossbar textures
 - Renders camera at a reasonable speed in a continuous path/orientation (~60-90 fps on early 2015 Macbook Pro)
 
-## Build
-- Execute `make`
-- Compiles for macOS and Linux
+## Prerequisites
+- OS: macOS, Linux
+- Programs: g++, make
 
+## Build
+```console
+cd src/
+make
+```
+Produces `rcoaster` executable in `src/`.
 ## Usage
-- `rcoaster <trackfile> <groundtexture> <skytexture> <crossbartexture>`
-- Sample splines files are in the `splines` directory
-- Sample texture files are in the `textures` directory
-- Modify track.txt with spline files of your choice
+```console
+rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
+```
+### Example
+```console
+./rcoaster track.txt textures/grass.jpg textures/sky.jpg textures/wood.jpg
+```
+
+### Track File
+The track file allows you to designated which spline files should be loaded to create the track. 
+
+The example track file is `src/track.txt`, which looks like this (except without the comments)
+ ```console
+1 <--- number of spline files to load in the order listed
+splines/custom.sp <-- path to a spline file
+```
+Sample splines files are in `src/splines/`. I tailored the spline file `custom.sp` to produce a track of reasonable size for my camera movement speed and thus it provides the best experience. The other spline files were provided to all students for testing and unfortunately produce tracks that are too small for my configuration.
+ 
+ ### Texture Files
+The texture files are JPG files. Sample texture files are in `src/textures/`.
+
 
 ## Built With
 - [OpenGL](https://www.opengl.org/)
