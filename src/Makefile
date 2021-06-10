@@ -1,4 +1,4 @@
-LIB_CODE_BASE=../openGLHelper-starterCode
+LIB_CODE_BASE=../openGLHelper
 
 RCOASTER_CXX_SRC=rcoaster.cpp
 RCOASTER_HEADER=
