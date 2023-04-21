@@ -6,42 +6,41 @@ MAKEFLAGS += --no-builtin-rules
 
 CXXFLAGS := -DGLM_FORCE_RADIANS
 
-LIB_CODE_BASE := openGLHelper
-LIB_CODE_SRC := $(wildcard $(LIB_CODE_BASE)/*.cpp)
-LIB_CODE_HEADERS := $(wildcard $(LIB_CODE_BASE)/*.h)
-LIB_CODE_OBJS := $(notdir $(LIB_CODE_SRC:.cpp=.o))
+helper_lib_src := $(wildcard openGLHelper/*.cpp)
+helper_lib_headers := $(wildcard openGLHelper/*.h)
+helper_lib_objs := $(notdir $(helper_lib_src:.cpp=.o))
 
-IMAGE_LIB_SRC := $(wildcard vendor/imageIO/*.cpp)
-IMAGE_LIB_HEADERS := $(wildcard vendor/imageIO/*.h)
-IMAGE_LIB_OBJS := $(notdir $(IMAGE_LIB_SRC:.cpp=.o))
+img_lib_src := $(wildcard vendor/imageIO/*.cpp)
+img_lib_headers := $(wildcard vendor/imageIO/*.h)
+img_lib_objs := $(notdir $(img_lib_src:.cpp=.o))
 
-HEADERS := $(LIB_CODE_HEADERS) $(IMAGE_LIB_HEADERS)
-OBJS := rcoaster.o $(LIB_CODE_OBJS) $(IMAGE_LIB_OBJS)
+headers := $(helper_lib_headers) $(img_lib_headers)
+objs := rcoaster.o $(helper_lib_objs) $(img_lib_objs)
 
 OPT := -O3
 
 uname_s := $(shell uname -s)
 ifeq ($(uname_s),Linux)
-  	INCLUDE := -Ivendor/glm/ -I$(LIB_CODE_BASE) -Ivendor/imageIO
+  	INCLUDE := -Ivendor/glm/ -IopenGLHelper -Ivendor/imageIO
   	LIB := -lGLEW -lGL -lglut -ljpeg
   	LDFLAGS :=
 else
-	INCLUDE := -Ivendor/glm/ -I$(LIB_CODE_BASE) -Ivendor/imageIO -Ivendor/jpeg-9a-mac/include
+	INCLUDE := -Ivendor/glm/ -IopenGLHelper -Ivendor/imageIO -Ivendor/jpeg-9a-mac/include
   	LIB := -framework OpenGL -framework GLUT vendor/jpeg-9a-mac/lib/libjpeg.a
   	CXXFLAGS += -Wno-deprecated-declarations
   	LDFLAGS := -Wl,-w
 endif
 
-rcoaster : $(OBJS)
+rcoaster : $(objs)
 	$(CXX) $(LDFLAGS) $^ $(OPT) $(LIB) -o $@
 
-rcoaster.o : rcoaster.cpp $(HEADER)
+rcoaster.o : rcoaster.cpp $(headers)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
-$(LIB_CODE_OBJS) : %.o : $(LIB_CODE_BASE)/%.cpp $(LIB_CODE_HEADERS)
+$(helper_lib_objs) : %.o : openGLHelper/%.cpp $(helper_lib_headers)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
-$(IMAGE_LIB_OBJS) :%.o : vendor/imageIO/%.cpp $(IMAGE_LIB_HEADERS)
+$(img_lib_objs) : %.o : vendor/imageIO/%.cpp $(img_lib_headers)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 clean:
