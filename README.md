@@ -22,11 +22,11 @@ make
 ```
 to produce the `rcoaster` binary.
 ## Usage
-```console
+```
 rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
 ```
 ### Example
-```console
+```sh
 ./rcoaster track.txt textures/grass.jpg textures/sky.jpg textures/wood.jpg
 ```
 
@@ -34,7 +34,7 @@ rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
 The track file allows you to designate which spline files should be loaded to create the track. 
 
 The example track file is [`track.txt`](track.txt), which looks like this (except without the comments)
- ```console
+ ```
 1 <--- number of spline files to load in the order listed
 splines/custom.sp <-- path to a spline file
 ```
