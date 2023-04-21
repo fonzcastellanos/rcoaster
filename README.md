@@ -16,11 +16,11 @@ Simulates a roller coaster using Catmull-Rom splines and OpenGL texture mapping
 - Programs: g++, make
 
 ## Build
-```console
-cd src/
+Execute
+```sh
 make
 ```
-Produces `rcoaster` executable in `src/`.
+to produce the `rcoaster` binary.
 ## Usage
 ```console
 rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
@@ -33,15 +33,15 @@ rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
 ### Track File
 The track file allows you to designate which spline files should be loaded to create the track. 
 
-The example track file is `src/track.txt`, which looks like this (except without the comments)
+The example track file is [`track.txt`](track.txt), which looks like this (except without the comments)
  ```console
 1 <--- number of spline files to load in the order listed
 splines/custom.sp <-- path to a spline file
 ```
-Sample splines files are in `src/splines/`. I tailored the spline file `custom.sp` to produce a track of reasonable size for my camera movement speed and thus it provides the best experience. The other spline files were provided to all students for testing and unfortunately produce tracks that are too small for my configuration.
+Sample splines files are in the `splines` directory. I tailored the spline file [`custom.sp`](splines/custom.sp) to produce a track of reasonable size for my camera movement speed and thus it provides the best experience. The other spline files were provided to all students for testing and unfortunately produce tracks that are too small for my configuration.
  
  ### Texture Files
-The texture files are JPG files. Sample texture files are in `src/textures/`.
+The texture files are JPG files. Sample texture files are in the `textures` directory.
 
 
 ## Built With
