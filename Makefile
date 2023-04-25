@@ -17,7 +17,7 @@ img_lib_objs := $(notdir $(img_lib_src:.cpp=.o))
 headers := $(helper_lib_headers) $(img_lib_headers)
 objs := main.o $(helper_lib_objs) $(img_lib_objs)
 
-OPT := -O3
+OPT := -O3 -std=c++17
 
 uname_s := $(shell uname -s)
 ifeq ($(uname_s),Linux)
@@ -30,6 +30,8 @@ else
   	CXXFLAGS += -Wno-deprecated-declarations
   	LDFLAGS := -Wl,-w
 endif
+
+all : main
 
 main : $(objs)
 	$(CXX) $(LDFLAGS) $^ $(OPT) $(LIB) -o $@
