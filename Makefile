@@ -15,7 +15,7 @@ img_lib_headers := $(wildcard vendor/imageIO/*.h)
 img_lib_objs := $(notdir $(img_lib_src:.cpp=.o))
 
 headers := $(helper_lib_headers) $(img_lib_headers)
-objs := rcoaster.o $(helper_lib_objs) $(img_lib_objs)
+objs := main.o $(helper_lib_objs) $(img_lib_objs)
 
 OPT := -O3
 
@@ -31,10 +31,10 @@ else
   	LDFLAGS := -Wl,-w
 endif
 
-rcoaster : $(objs)
+main : $(objs)
 	$(CXX) $(LDFLAGS) $^ $(OPT) $(LIB) -o $@
 
-rcoaster.o : rcoaster.cpp $(headers)
+main.o : main.cpp $(headers)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 $(helper_lib_objs) : %.o : openGLHelper/%.cpp $(helper_lib_headers)
@@ -44,4 +44,4 @@ $(img_lib_objs) : %.o : vendor/imageIO/%.cpp $(img_lib_headers)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 clean:
-	rm -rf *.o rcoaster
+	rm -rf *.o main
