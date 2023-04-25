@@ -1,6 +1,7 @@
 #include <glm/glm.hpp>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 #include "basicPipelineProgram.h"
@@ -419,11 +420,16 @@ const glm::mat4x4 kCatmullRomBasis(
 
 // Bounding sphere of spline
 glm::vec3 splineCenter;
-GLfloat splineRadius;
-glm::vec3 splineMinPoint(0.0, 0.0, 0.0);
-glm::vec3 splineMaxPoint(0.0, 0.0, 0.0);
+float splineRadius;
+glm::vec3 spline_min_point(std::numeric_limits<float>::max(),
+                           std::numeric_limits<float>::max(),
+                           std::numeric_limits<float>::max());
 
-const GLfloat tolerance = 0.0001;
+glm::vec3 spline_max_point(std::numeric_limits<float>::min(),
+                           std::numeric_limits<float>::min(),
+                           std::numeric_limits<float>::min());
+
+const float kTolerance = 0.0001;
 
 glm::vec3 CatmullRomPosition(float u, glm::mat4x3 *control) {
   glm::vec4 parameters(u * u * u, u * u, u, 1);
@@ -435,31 +441,27 @@ glm::vec3 CatmullRomTangent(float u, glm::mat4x3 *control) {
   return (*control) * kCatmullRomBasis * parameters;
 }
 
-void updateMaxMinPoints(glm::vec3 p) {
-  static bool firstCall = true;
-  if (firstCall) {
-    splineMinPoint = p;
-    splineMaxPoint = p;
-    firstCall = false;
-  } else {
-    if (p.x < splineMinPoint.x + tolerance) {
-      splineMinPoint.x = p.x;
-    }
-    if (p.x > splineMaxPoint.x + tolerance) {
-      splineMaxPoint.x = p.x;
-    }
-    if (p.y < splineMinPoint.y + tolerance) {
-      splineMinPoint.y = p.y;
-    }
-    if (p.y > splineMaxPoint.y + tolerance) {
-      splineMaxPoint.y = p.y;
-    }
-    if (p.z < splineMinPoint.z + tolerance) {
-      splineMinPoint.y = p.z;
-    }
-    if (p.z > splineMaxPoint.z + tolerance) {
-      splineMaxPoint.y = p.z;
-    }
+void UpdateMaxPoint(glm::vec3 *maxp, glm::vec3 *p) {
+  if (p->x > maxp->x + kTolerance) {
+    maxp->x = p->x;
+  }
+  if (p->y > maxp->y + kTolerance) {
+    maxp->y = p->y;
+  }
+  if (p->z > maxp->z + kTolerance) {
+    maxp->z = p->z;
+  }
+}
+
+void UpdateMinPoint(glm::vec3 *minp, glm::vec3 *p) {
+  if (p->x < minp->x + kTolerance) {
+    minp->x = p->x;
+  }
+  if (p->y < minp->y + kTolerance) {
+    minp->y = p->y;
+  }
+  if (p->z < minp->z + kTolerance) {
+    minp->z = p->z;
   }
 }
 
@@ -483,8 +485,10 @@ void Subdivide(float u0, float u1, float maxLineLength, glm::mat4x3 *control) {
     Subdivide(u0, umid, maxLineLength, control);
     Subdivide(umid, u1, maxLineLength, control);
   } else {
-    updateMaxMinPoints(p0);
-    updateMaxMinPoints(p1);
+    UpdateMaxPoint(&spline_max_point, &p0);
+    UpdateMinPoint(&spline_min_point, &p0);
+    UpdateMaxPoint(&spline_max_point, &p1);
+    UpdateMinPoint(&spline_min_point, &p1);
 
     Vertex v0 = {p0, kColor};
     Vertex v1 = {p1, kColor};
@@ -740,7 +744,7 @@ void CatmullRomSpline(Spline *spline) {
     Subdivide(0, 1, kMaxLineLen, &control);
   }
 
-  updateBoundingSphere(splineMaxPoint, splineMinPoint);
+  updateBoundingSphere(spline_max_point, spline_min_point);
 
   setupCamPath();
   setupRails();
