@@ -407,12 +407,15 @@ void drawCrossbar() {
 
 /****************** CATMULL-ROM SPLINE ******************/
 
-// Basis matrix
-const GLfloat s = 0.5;
-const glm::mat4x4 basisMatrix(glm::vec4(-s, 2 - s, s - 2, s),
-                              glm::vec4(2 * s, s - 3, 3 - 2 * s, -s),
-                              glm::vec4(-s, 0.0, s, 0.0),
-                              glm::vec4(0, 1.0, 0.0, 0.0));
+constexpr float kTension = 0.5;
+// clang-format off
+const glm::mat4x4 kCatmullRomBasis(
+  -kTension, 2 - kTension, kTension - 2, kTension, 
+  2 * kTension, kTension - 3, 3 - 2 * kTension, -kTension, 
+  -kTension, 0, kTension, 0, 
+  0, 1, 0, 0
+);
+// clang-format on
 
 // Bounding sphere of spline
 glm::vec3 splineCenter;
@@ -422,14 +425,14 @@ glm::vec3 splineMaxPoint(0.0, 0.0, 0.0);
 
 const GLfloat tolerance = 0.0001;
 
-glm::vec3 catmullRom(GLfloat u, glm::mat4x3 *controlMatrix) {
-  glm::vec4 parameterVector(u * u * u, u * u, u, 1.0);
-  return (*controlMatrix) * basisMatrix * parameterVector;
+glm::vec3 CatmullRomPosition(float u, glm::mat4x3 *control) {
+  glm::vec4 parameters(u * u * u, u * u, u, 1);
+  return (*control) * kCatmullRomBasis * parameters;
 }
 
-glm::vec3 tangentCatmullRom(GLfloat u, glm::mat4x3 *controlMatrix) {
-  glm::vec4 parameterVector(3 * u * u, 2 * u, 1.0, 0.0);
-  return (*controlMatrix) * basisMatrix * parameterVector;
+glm::vec3 CatmullRomTangent(float u, glm::mat4x3 *control) {
+  glm::vec4 parameters(3 * u * u, 2 * u, 1, 0);
+  return (*control) * kCatmullRomBasis * parameters;
 }
 
 void updateMaxMinPoints(glm::vec3 p) {
@@ -469,34 +472,34 @@ void updateBoundingSphere(glm::vec3 splineMaxPoint, glm::vec3 splineMinPoint) {
                       pow(splineMaxPoint.z - splineCenter.z, 2));
 }
 
-void subdivide(GLfloat u0, GLfloat u1, GLfloat maxLineLength,
-               glm::mat4x3 *controlMatrix) {
-  const static glm::vec4 vColor(1.0, 0.0, 0.0, 1.0);
+void Subdivide(float u0, float u1, float maxLineLength, glm::mat4x3 *control) {
+  static const glm::vec4 kColor(1, 0, 0, 1);
 
-  // Points
-  glm::vec3 p0 = catmullRom(u0, controlMatrix);
-  glm::vec3 p1 = catmullRom(u1, controlMatrix);
+  glm::vec3 p0 = CatmullRomPosition(u0, control);
+  glm::vec3 p1 = CatmullRomPosition(u1, control);
 
   if (glm::length(p1 - p0) > maxLineLength) {
-    GLfloat umid = (u0 + u1) / 2.0;
-    subdivide(u0, umid, maxLineLength, controlMatrix);
-    subdivide(umid, u1, maxLineLength, controlMatrix);
+    float umid = (u0 + u1) / 2;
+    Subdivide(u0, umid, maxLineLength, control);
+    Subdivide(umid, u1, maxLineLength, control);
   } else {
-    // Vertices
-    Vertex v0 = {p0, vColor};
-    Vertex v1 = {p1, vColor};
-
-    // Tangents
-    glm::vec3 t0 = tangentCatmullRom(u0, controlMatrix);
-    glm::vec3 t1 = tangentCatmullRom(u1, controlMatrix);
-
     updateMaxMinPoints(p0);
     updateMaxMinPoints(p1);
 
+    Vertex v0 = {p0, kColor};
+    Vertex v1 = {p1, kColor};
+
     splineVertices.push_back(v0);
     splineVertices.push_back(v1);
-    camTangents.push_back(glm::normalize(t0));
-    camTangents.push_back(glm::normalize(t1));
+
+    glm::vec3 t0 = CatmullRomTangent(u0, control);
+    glm::vec3 t1 = CatmullRomTangent(u1, control);
+
+    glm::vec3 t0_norm = glm::normalize(t0);
+    glm::vec3 t1_norm = glm::normalize(t1);
+
+    camTangents.push_back(t0_norm);
+    camTangents.push_back(t1_norm);
   }
 }
 
@@ -725,23 +728,16 @@ void setupCrossbars() {
   }
 }
 
-void catmullRomSpline(Spline *spline) {
-  const static float maxLineLength = 0.5;
-  glm::vec3 controlRows[4];
-  glm::mat4x3 controlMatrix;
+void CatmullRomSpline(Spline *spline) {
+  static constexpr float kMaxLineLen = 0.5;
   for (int i = 1; i < spline->numControlPoints - 2; ++i) {
-    controlRows[0] = glm::vec3(spline->points[i - 1].x, spline->points[i - 1].y,
-                               spline->points[i - 1].z);
-    controlRows[1] = glm::vec3(spline->points[i].x, spline->points[i].y,
-                               spline->points[i].z);
-    controlRows[2] = glm::vec3(spline->points[i + 1].x, spline->points[i + 1].y,
-                               spline->points[i + 1].z);
-    controlRows[3] = glm::vec3(spline->points[i + 2].x, spline->points[i + 2].y,
-                               spline->points[i + 2].z);
-    controlMatrix = glm::mat4x3(controlRows[0], controlRows[1], controlRows[2],
-                                controlRows[3]);
-
-    subdivide(0.0, 1.0, maxLineLength, &controlMatrix);
+    // clang-format off
+    glm::mat4x3 control(spline->points[i - 1].x, spline->points[i - 1].y, spline->points[i - 1].z, 
+                        spline->points[i].x, spline->points[i].y, spline->points[i].z,
+                        spline->points[i + 1].x, spline->points[i + 1].y, spline->points[i + 1].z,
+                        spline->points[i + 2].x, spline->points[i + 2].y, spline->points[i + 2].z);
+    // clang-format on
+    Subdivide(0, 1, kMaxLineLen, &control);
   }
 
   updateBoundingSphere(splineMaxPoint, splineMinPoint);
@@ -1211,7 +1207,7 @@ void init(int argc, char *argv[]) {
            splines[i].numControlPoints);
   }
 
-  catmullRomSpline(splines);
+  CatmullRomSpline(splines);
 
   glGenTextures(1, &texGround);
   initTexture(argv[2], texGround);
