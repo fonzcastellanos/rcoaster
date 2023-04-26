@@ -10,6 +10,7 @@
 #include "openGLHeader.h"
 #include "openGLMatrix.h"
 #include "texPipelineProgram.h"
+#include "types.hpp"
 
 #ifdef WIN32
 #ifdef _DEBUG
@@ -67,7 +68,7 @@ glm::vec3 camDir(0.0, 0.0, 0.0);
 glm::vec3 camNorm;
 glm::vec3 camBinorm;
 std::vector<glm::vec3> camPositions;
-std::vector<glm::vec3> camTangents;
+// std::vector<glm::vec3> camTangents;
 std::vector<glm::vec3> camNormals;
 std::vector<glm::vec3> camBinormals;
 
@@ -99,36 +100,36 @@ struct Vertex {
 
 /************************ SPLINE **********************/
 
-GLuint vaoSpline;
-GLuint vboSpline;
+// GLuint vaoSpline;
+// GLuint vboSpline;
 
-std::vector<Vertex> splineVertices;
+// std::vector<Vertex> splineVertices;
 
-void makeSpline() {
-  glGenVertexArrays(1, &vaoSpline);
-  glBindVertexArray(vaoSpline);
+// void makeSpline() {
+//   glGenVertexArrays(1, &vaoSpline);
+//   glBindVertexArray(vaoSpline);
 
-  glGenBuffers(1, &vboSpline);
-  glBindBuffer(GL_ARRAY_BUFFER, vboSpline);
-  glBufferData(GL_ARRAY_BUFFER, splineVertices.size() * sizeof(Vertex),
-               &splineVertices[0], GL_STATIC_DRAW);
+//   glGenBuffers(1, &vboSpline);
+//   glBindBuffer(GL_ARRAY_BUFFER, vboSpline);
+//   glBufferData(GL_ARRAY_BUFFER, splineVertices.size() * sizeof(Vertex),
+//                &splineVertices[0], GL_STATIC_DRAW);
 
-  GLuint program = basicProgram->GetProgramHandle();
-  GLuint posLoc = glGetAttribLocation(program, "position");
-  GLuint colorLoc = glGetAttribLocation(program, "color");
-  glEnableVertexAttribArray(posLoc);
-  glEnableVertexAttribArray(colorLoc);
-  GLintptr offset = 0;
-  glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        BUFFER_OFFSET(offset));
-  offset += sizeof(Vertex().position);
-  glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        BUFFER_OFFSET(offset));
+//   GLuint program = basicProgram->GetProgramHandle();
+//   GLuint posLoc = glGetAttribLocation(program, "position");
+//   GLuint colorLoc = glGetAttribLocation(program, "color");
+//   glEnableVertexAttribArray(posLoc);
+//   glEnableVertexAttribArray(colorLoc);
+//   GLintptr offset = 0;
+//   glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+//                         BUFFER_OFFSET(offset));
+//   offset += sizeof(Vertex().position);
+//   glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+//                         BUFFER_OFFSET(offset));
 
-  glBindVertexArray(0);
-}
+//   glBindVertexArray(0);
+// }
 
-void drawSpline() { glDrawArrays(GL_LINES, 0, splineVertices.size()); }
+// void drawSpline() { glDrawArrays(GL_LINES, 0, splineVertices.size()); }
 
 /********************** RAILS **********************/
 
@@ -408,6 +409,15 @@ void drawCrossbar() {
 
 /****************** CATMULL-ROM SPLINE ******************/
 
+struct SplineVertices {
+  std::vector<glm::vec3> positions;
+  std::vector<glm::vec3> tangents;
+};
+
+static uint Count(const SplineVertices *s) { return s->positions.size(); }
+
+static SplineVertices spline_vertices;
+
 constexpr float kTension = 0.5;
 // clang-format off
 const glm::mat4x4 kCatmullRomBasis(
@@ -417,6 +427,16 @@ const glm::mat4x4 kCatmullRomBasis(
   0, 1, 0, 0
 );
 // clang-format on
+
+static glm::vec3 CatmullRomPosition(float u, const glm::mat4x3 *control) {
+  glm::vec4 parameters(u * u * u, u * u, u, 1);
+  return (*control) * kCatmullRomBasis * parameters;
+}
+
+static glm::vec3 CatmullRomTangent(float u, const glm::mat4x3 *control) {
+  glm::vec4 parameters(3 * u * u, 2 * u, 1, 0);
+  return (*control) * kCatmullRomBasis * parameters;
+}
 
 // Bounding sphere of spline
 glm::vec3 splineCenter;
@@ -429,19 +449,9 @@ glm::vec3 spline_max_point(std::numeric_limits<float>::min(),
                            std::numeric_limits<float>::min(),
                            std::numeric_limits<float>::min());
 
-const float kTolerance = 0.0001;
+constexpr float kTolerance = 0.0001;
 
-glm::vec3 CatmullRomPosition(float u, glm::mat4x3 *control) {
-  glm::vec4 parameters(u * u * u, u * u, u, 1);
-  return (*control) * kCatmullRomBasis * parameters;
-}
-
-glm::vec3 CatmullRomTangent(float u, glm::mat4x3 *control) {
-  glm::vec4 parameters(3 * u * u, 2 * u, 1, 0);
-  return (*control) * kCatmullRomBasis * parameters;
-}
-
-void UpdateMaxPoint(glm::vec3 *maxp, glm::vec3 *p) {
+static void UpdateMaxPoint(glm::vec3 *maxp, const glm::vec3 *p) {
   if (p->x > maxp->x + kTolerance) {
     maxp->x = p->x;
   }
@@ -453,7 +463,7 @@ void UpdateMaxPoint(glm::vec3 *maxp, glm::vec3 *p) {
   }
 }
 
-void UpdateMinPoint(glm::vec3 *minp, glm::vec3 *p) {
+static void UpdateMinPoint(glm::vec3 *minp, glm::vec3 *p) {
   if (p->x < minp->x + kTolerance) {
     minp->x = p->x;
   }
@@ -466,35 +476,26 @@ void UpdateMinPoint(glm::vec3 *minp, glm::vec3 *p) {
 }
 
 void updateBoundingSphere(glm::vec3 splineMaxPoint, glm::vec3 splineMinPoint) {
-  splineCenter = glm::vec3((splineMaxPoint.x + splineMinPoint.x) / 2.0,
-                           (splineMaxPoint.y + splineMinPoint.y) / 2.0,
-                           (splineMaxPoint.z + splineMinPoint.z) / 2.0);
+  splineCenter = glm::vec3((splineMaxPoint.x + splineMinPoint.x) / 2,
+                           (splineMaxPoint.y + splineMinPoint.y) / 2,
+                           (splineMaxPoint.z + splineMinPoint.z) / 2);
   splineRadius = sqrt(pow(splineMaxPoint.x - splineCenter.x, 2) +
                       pow(splineMaxPoint.y - splineCenter.y, 2) +
                       pow(splineMaxPoint.z - splineCenter.z, 2));
 }
 
-void Subdivide(float u0, float u1, float maxLineLength, glm::mat4x3 *control) {
-  static const glm::vec4 kColor(1, 0, 0, 1);
-
+static void Subdivide(float u0, float u1, float max_line_len,
+                      const glm::mat4x3 *control, SplineVertices *vertices) {
   glm::vec3 p0 = CatmullRomPosition(u0, control);
   glm::vec3 p1 = CatmullRomPosition(u1, control);
 
-  if (glm::length(p1 - p0) > maxLineLength) {
-    float umid = (u0 + u1) / 2;
-    Subdivide(u0, umid, maxLineLength, control);
-    Subdivide(umid, u1, maxLineLength, control);
+  if (glm::length(p1 - p0) > max_line_len) {
+    float umid = (u0 + u1) * 0.5;
+    Subdivide(u0, umid, max_line_len, control, vertices);
+    Subdivide(umid, u1, max_line_len, control, vertices);
   } else {
-    UpdateMaxPoint(&spline_max_point, &p0);
-    UpdateMinPoint(&spline_min_point, &p0);
-    UpdateMaxPoint(&spline_max_point, &p1);
-    UpdateMinPoint(&spline_min_point, &p1);
-
-    Vertex v0 = {p0, kColor};
-    Vertex v1 = {p1, kColor};
-
-    splineVertices.push_back(v0);
-    splineVertices.push_back(v1);
+    vertices->positions.push_back(p0);
+    vertices->positions.push_back(p1);
 
     glm::vec3 t0 = CatmullRomTangent(u0, control);
     glm::vec3 t1 = CatmullRomTangent(u1, control);
@@ -502,29 +503,31 @@ void Subdivide(float u0, float u1, float maxLineLength, glm::mat4x3 *control) {
     glm::vec3 t0_norm = glm::normalize(t0);
     glm::vec3 t1_norm = glm::normalize(t1);
 
-    camTangents.push_back(t0_norm);
-    camTangents.push_back(t1_norm);
+    vertices->tangents.push_back(t0_norm);
+    vertices->tangents.push_back(t1_norm);
   }
 }
 
-void setupCamPath() {
-  int camInd = 0;
-  for (int i = 0; i < splineVertices.size(); i += 1) {
-    camPositions.push_back(splineVertices[i].position);
-    camPositions[camInd] -= splineCenter;
-    camPositions[camInd].y += splineRadius - groundRadius / 2.0;
-    if (camInd == 0) {
-      camNormals.push_back(glm::normalize(
-          glm::cross(camTangents[i], glm::vec3(0.0, 1.0, -0.5))));
+void setupCamPath(const SplineVertices *vertices) {
+  const std::vector<glm::vec3> &positions = vertices->positions;
+  const std::vector<glm::vec3> &tangents = vertices->tangents;
+
+  for (uint i = 0; i < Count(vertices); ++i) {
+    camPositions.push_back(positions[i]);
+    camPositions[i] -= splineCenter;
+    camPositions[i].y += splineRadius - groundRadius / 2.0;
+
+    if (i == 0) {
+      camNormals.push_back(
+          glm::normalize(glm::cross(tangents[i], glm::vec3(0.0, 1.0, -0.5))));
       camBinormals.push_back(
-          glm::normalize(glm::cross(camTangents[i], camNormals[camInd])));
+          glm::normalize(glm::cross(tangents[i], camNormals[i])));
     } else {
       camNormals.push_back(
-          glm::normalize(glm::cross(camBinormals[camInd - 1], camTangents[i])));
+          glm::normalize(glm::cross(camBinormals[i - 1], tangents[i])));
       camBinormals.push_back(
-          glm::normalize(glm::cross(camTangents[i], camNormals[camInd])));
+          glm::normalize(glm::cross(tangents[i], camNormals[i])));
     }
-    ++camInd;
   }
 }
 
@@ -632,12 +635,15 @@ void setupRails() {
   }
 }
 
-void setupCrossbars() {
-  const static float alpha = 0.1;
-  const static float beta = 1.5;
-  const static int num_vertices = 8;
-  const static float bar2barDist = 1.0;
-  const static float barDepth = 0.3;
+void setupCrossbars(const std::vector<glm::vec3> *spline_tangents) {
+  static constexpr float alpha = 0.1;
+  static constexpr float beta = 1.5;
+  static constexpr int num_vertices = 8;
+  static constexpr float bar2barDist = 1.0;
+  static constexpr float barDepth = 0.3;
+
+  const auto &spl_tangents = *spline_tangents;
+
   float distMoved = 0.0;
   glm::vec3 v[num_vertices];
   for (int j = 1; j < camPositions.size(); ++j) {
@@ -658,17 +664,18 @@ void setupCrossbars() {
 
       v[4] = camPositions[j] +
              alpha * (-beta * camNormals[j] + camBinormals[j] * 0.5f) +
-             camBinormals[j] + barDepth * camTangents[j];
+             camBinormals[j] + barDepth * spl_tangents[j];
       v[5] = camPositions[j] +
              alpha * (-camNormals[j] + camBinormals[j] * 0.5f) +
-             camBinormals[j] + barDepth * camTangents[j];
+             camBinormals[j] + barDepth * spl_tangents[j];
       v[6] = camPositions[j] +
              alpha * (-beta * camNormals[j] + camBinormals[j] * 0.5f) -
-             camBinormals[j] + barDepth * camTangents[j] -
+             camBinormals[j] + barDepth * spl_tangents[j] -
              alpha * camBinormals[j];
-      v[7] =
-          camPositions[j] + alpha * (-camNormals[j] + camBinormals[j] * 0.5f) -
-          camBinormals[j] + barDepth * camTangents[j] - alpha * camBinormals[j];
+      v[7] = camPositions[j] +
+             alpha * (-camNormals[j] + camBinormals[j] * 0.5f) -
+             camBinormals[j] + barDepth * spl_tangents[j] -
+             alpha * camBinormals[j];
 
       // top face
       crossbarVertices.push_back(v[6]);
@@ -732,23 +739,30 @@ void setupCrossbars() {
   }
 }
 
-void CatmullRomSpline(Spline *spline) {
+void CatmullRomSpline(const Spline *spline, SplineVertices *vertices) {
   static constexpr float kMaxLineLen = 0.5;
+
   for (int i = 1; i < spline->numControlPoints - 2; ++i) {
     // clang-format off
-    glm::mat4x3 control(spline->points[i - 1].x, spline->points[i - 1].y, spline->points[i - 1].z, 
-                        spline->points[i].x, spline->points[i].y, spline->points[i].z,
-                        spline->points[i + 1].x, spline->points[i + 1].y, spline->points[i + 1].z,
-                        spline->points[i + 2].x, spline->points[i + 2].y, spline->points[i + 2].z);
+    glm::mat4x3 control(
+      spline->points[i - 1].x, spline->points[i - 1].y, spline->points[i - 1].z,
+      spline->points[i].x, spline->points[i].y, spline->points[i].z,
+      spline->points[i + 1].x, spline->points[i + 1].y, spline->points[i + 1].z,
+      spline->points[i + 2].x, spline->points[i + 2].y, spline->points[i + 2].z
+    );
     // clang-format on
-    Subdivide(0, 1, kMaxLineLen, &control);
+    Subdivide(0, 1, kMaxLineLen, &control, vertices);
   }
 
+  for (uint i = 0; i < Count(&spline_vertices); ++i) {
+    UpdateMaxPoint(&spline_max_point, &spline_vertices.positions[i]);
+    UpdateMinPoint(&spline_min_point, &spline_vertices.positions[i]);
+  }
   updateBoundingSphere(spline_max_point, spline_min_point);
 
-  setupCamPath();
+  setupCamPath(vertices);
   setupRails();
-  setupCrossbars();
+  setupCrossbars(&vertices->tangents);
 }
 
 int loadSplines(char *argv) {
@@ -1063,7 +1077,7 @@ void idleFunc() {
   // do some stuff...
   if (camStep < camPositions.size()) {
     camPos = camPositions[camStep] + camNormals[camStep] * 2.0f;
-    camDir = camTangents[camStep];
+    camDir = spline_vertices.tangents[camStep];
     camNorm = camNormals[camStep];
     camBinorm = camBinormals[camStep];
     camStep += 3;
@@ -1211,7 +1225,7 @@ void init(int argc, char *argv[]) {
            splines[i].numControlPoints);
   }
 
-  CatmullRomSpline(splines);
+  CatmullRomSpline(splines, &spline_vertices);
 
   glGenTextures(1, &texGround);
   initTexture(argv[2], texGround);
@@ -1225,7 +1239,7 @@ void init(int argc, char *argv[]) {
   initBasicPipelineProgram();
   initTexPipelineProgram();
 
-  makeSpline();
+  // makeSpline();
   makeRails();
   makeCrossbars();
   makeGround();

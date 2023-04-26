@@ -31,12 +31,15 @@ else
   	LDFLAGS := -Wl,-w
 endif
 
-all : main
+all : main aabb.o
 
 main : $(objs)
 	$(CXX) $(LDFLAGS) $^ $(OPT) $(LIB) -o $@
 
-main.o : main.cpp $(headers)
+main.o : main.cpp types.hpp $(headers)
+	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
+
+aabb.o : aabb.cpp aabb.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 $(helper_lib_objs) : %.o : openGLHelper/%.cpp $(helper_lib_headers)
