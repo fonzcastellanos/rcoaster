@@ -67,10 +67,16 @@ glm::vec3 camPos(0.0, 0.0, 0.0);
 glm::vec3 camDir(0.0, 0.0, 0.0);
 glm::vec3 camNorm;
 glm::vec3 camBinorm;
-std::vector<glm::vec3> camPositions;
-// std::vector<glm::vec3> camTangents;
-std::vector<glm::vec3> camNormals;
-std::vector<glm::vec3> camBinormals;
+
+struct CameraPathVertices {
+  std::vector<glm::vec3> positions;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec3> binormals;
+};
+
+static uint Count(const CameraPathVertices *c) { return c->positions.size(); }
+
+static CameraPathVertices camera_path_vertices;
 
 // represents one control point along the spline
 struct Point {
@@ -137,7 +143,8 @@ GLuint vaoRail;
 GLuint vboRail;
 GLuint iboRail;
 
-std::vector<Vertex> railVertices;
+static std::vector<Vertex> rail_vertices;
+
 std::vector<GLuint> railIndices;
 
 void makeRails() {
@@ -146,8 +153,8 @@ void makeRails() {
 
   glGenBuffers(1, &vboRail);
   glBindBuffer(GL_ARRAY_BUFFER, vboRail);
-  glBufferData(GL_ARRAY_BUFFER, railVertices.size() * sizeof(Vertex),
-               &railVertices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
+               rail_vertices.data(), GL_STATIC_DRAW);
 
   GLuint program = basicProgram->GetProgramHandle();
   GLuint posLoc = glGetAttribLocation(program, "position");
@@ -490,7 +497,7 @@ static void Subdivide(float u0, float u1, float max_line_len,
   glm::vec3 p1 = CatmullRomPosition(u1, control);
 
   if (glm::length(p1 - p0) > max_line_len) {
-    float umid = (u0 + u1) * 0.5;
+    float umid = (u0 + u1) * 0.5f;
     Subdivide(u0, umid, max_line_len, control, vertices);
     Subdivide(umid, u1, max_line_len, control, vertices);
   } else {
@@ -508,66 +515,88 @@ static void Subdivide(float u0, float u1, float max_line_len,
   }
 }
 
-void setupCamPath(const SplineVertices *vertices) {
-  const std::vector<glm::vec3> &positions = vertices->positions;
-  const std::vector<glm::vec3> &tangents = vertices->tangents;
+static void MakeCameraPath(const SplineVertices *spline,
+                           CameraPathVertices *campath) {
+  uint vertex_count = Count(spline);
 
-  for (uint i = 0; i < Count(vertices); ++i) {
-    camPositions.push_back(positions[i]);
-    camPositions[i] -= splineCenter;
-    camPositions[i].y += splineRadius - groundRadius / 2.0;
+  campath->positions.resize(vertex_count);
+  campath->normals.resize(vertex_count);
+  campath->binormals.resize(vertex_count);
+
+  for (uint i = 0; i < vertex_count; ++i) {
+    campath->positions[i] = spline->positions[i];
+    campath->positions[i] -= splineCenter;
+    campath->positions[i].y += splineRadius - groundRadius * 0.5f;
 
     if (i == 0) {
-      camNormals.push_back(
-          glm::normalize(glm::cross(tangents[i], glm::vec3(0.0, 1.0, -0.5))));
-      camBinormals.push_back(
-          glm::normalize(glm::cross(tangents[i], camNormals[i])));
+      campath->normals[i] = glm::normalize(
+          glm::cross(spline->tangents[i], glm::vec3(0, 1, -0.5)));
+      campath->binormals[i] =
+          glm::normalize(glm::cross(spline->tangents[i], campath->normals[i]));
     } else {
-      camNormals.push_back(
-          glm::normalize(glm::cross(camBinormals[i - 1], tangents[i])));
-      camBinormals.push_back(
-          glm::normalize(glm::cross(tangents[i], camNormals[i])));
+      campath->normals[i] = glm::normalize(
+          glm::cross(campath->binormals[i - 1], spline->tangents[i]));
+      campath->binormals[i] =
+          glm::normalize(glm::cross(spline->tangents[i], campath->normals[i]));
     }
   }
 }
 
-void setupRails() {
-  const static float alpha = 0.1;
-  const static glm::vec4 railColor(0.5, 0.5, 0.5, 1.0);
-  const static int num_vertices = 8;
-  Vertex v[num_vertices];
-  for (int i = 0; i < num_vertices; ++i) {
-    v[i].color = railColor;
-  }
-  for (int i = 0; i < 2; ++i) {
-    for (int j = 0; j < camPositions.size(); ++j) {
-      v[0].position =
-          camPositions[j] + alpha * (-camNormals[j] + camBinormals[j] * 0.5f);
-      v[1].position = camPositions[j] + alpha * (camBinormals[j] * 0.5f);
-      v[2].position = camPositions[j] + alpha * (camBinormals[j]);
-      v[3].position =
-          camPositions[j] + alpha * (camNormals[j] + camBinormals[j]);
-      v[4].position =
-          camPositions[j] + alpha * (camNormals[j] - camBinormals[j]);
-      v[5].position = camPositions[j] + alpha * (-camBinormals[j]);
-      v[6].position = camPositions[j] + alpha * (-camBinormals[j] * 0.5f);
-      v[7].position =
-          camPositions[j] + alpha * (-camNormals[j] - camBinormals[j] * 0.5f);
+static void MakeRails(const CameraPathVertices *campath_vertices,
+                      std::vector<Vertex> *rail_vertices) {
+  static constexpr float kAlpha = 0.1;
+  static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
+  static constexpr uint kVertexCount = 8;
 
-      for (int k = 0; k < num_vertices; ++k) {
+  const auto &campath = *campath_vertices;
+  auto &rail = *rail_vertices;
+
+  uint campath_count = Count(&campath);
+
+  uint rail_count = 2 * campath_count * kVertexCount;
+  rail.resize(rail_count);
+
+  for (uint i = 0; i < rail_count; ++i) {
+    rail[i].color = kRailColor;
+  }
+
+  for (uint i = 0; i < 2; ++i) {
+    for (uint j = 0; j < campath_count; ++j) {
+      uint k = kVertexCount * (j + i * campath_count);
+      rail[k].position =
+          campath.positions[j] +
+          kAlpha * (-campath.normals[j] + campath.binormals[j] * 0.5f);
+      rail[k + 1].position =
+          campath.positions[j] + kAlpha * (campath.binormals[j] * 0.5f);
+      rail[k + 2].position =
+          campath.positions[j] + kAlpha * (campath.binormals[j]);
+      rail[k + 3].position =
+          campath.positions[j] +
+          kAlpha * (campath.normals[j] + campath.binormals[j]);
+      rail[k + 4].position =
+          campath.positions[j] +
+          kAlpha * (campath.normals[j] - campath.binormals[j]);
+      rail[k + 5].position =
+          campath.positions[j] + kAlpha * (-campath.binormals[j]);
+      rail[k + 6].position =
+          campath.positions[j] + kAlpha * (-campath.binormals[j] * 0.5f);
+      rail[k + 7].position =
+          campath.positions[j] +
+          kAlpha * (-campath.normals[j] - campath.binormals[j] * 0.5f);
+
+      for (uint l = 0; l < kVertexCount; ++l) {
         if (i == 0) {
-          v[k].position += camBinormals[j];
+          rail[k + l].position += campath.binormals[j];
         } else {
-          v[k].position -= camBinormals[j];
+          rail[k + l].position -= campath.binormals[j];
         }
-        railVertices.push_back(v[k]);
       }
     }
   }
 
-  for (int i = 0; i < 2; ++i) {
-    for (int j = i * railVertices.size() / 2;
-         j < railVertices.size() / (2 - i) - num_vertices; j += num_vertices) {
+  for (uint i = 0; i < 2; ++i) {
+    for (uint j = i * rail_count / 2; j + kVertexCount < rail_count / (2 - i);
+         j += kVertexCount) {
       // top face
       railIndices.push_back(j + 4);
       railIndices.push_back(j + 12);
@@ -635,7 +664,8 @@ void setupRails() {
   }
 }
 
-void setupCrossbars(const std::vector<glm::vec3> *spline_tangents) {
+void setupCrossbars(const CameraPathVertices *campath,
+                    const std::vector<glm::vec3> *spline_tangents) {
   static constexpr float alpha = 0.1;
   static constexpr float beta = 1.5;
   static constexpr int num_vertices = 8;
@@ -646,36 +676,40 @@ void setupCrossbars(const std::vector<glm::vec3> *spline_tangents) {
 
   float distMoved = 0.0;
   glm::vec3 v[num_vertices];
-  for (int j = 1; j < camPositions.size(); ++j) {
-    distMoved += glm::length(camPositions[j] - camPositions[j - 1]);
+  for (int j = 1; j < campath->positions.size(); ++j) {
+    distMoved += glm::length(campath->positions[j] - campath->positions[j - 1]);
     if (distMoved > bar2barDist) {
-      v[0] = camPositions[j] +
-             alpha * (-beta * camNormals[j] + camBinormals[j] * 0.5f) +
-             camBinormals[j];
-      v[1] = camPositions[j] +
-             alpha * (-camNormals[j] + camBinormals[j] * 0.5f) +
-             camBinormals[j];
-      v[2] = camPositions[j] +
-             alpha * (-beta * camNormals[j] + camBinormals[j] * 0.5f) -
-             camBinormals[j] - alpha * camBinormals[j];
-      v[3] = camPositions[j] +
-             alpha * (-camNormals[j] + camBinormals[j] * 0.5f) -
-             camBinormals[j] - alpha * camBinormals[j];
+      v[0] =
+          campath->positions[j] +
+          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) +
+          campath->binormals[j];
+      v[1] = campath->positions[j] +
+             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) +
+             campath->binormals[j];
+      v[2] =
+          campath->positions[j] +
+          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) -
+          campath->binormals[j] - alpha * campath->binormals[j];
+      v[3] = campath->positions[j] +
+             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) -
+             campath->binormals[j] - alpha * campath->binormals[j];
 
-      v[4] = camPositions[j] +
-             alpha * (-beta * camNormals[j] + camBinormals[j] * 0.5f) +
-             camBinormals[j] + barDepth * spl_tangents[j];
-      v[5] = camPositions[j] +
-             alpha * (-camNormals[j] + camBinormals[j] * 0.5f) +
-             camBinormals[j] + barDepth * spl_tangents[j];
-      v[6] = camPositions[j] +
-             alpha * (-beta * camNormals[j] + camBinormals[j] * 0.5f) -
-             camBinormals[j] + barDepth * spl_tangents[j] -
-             alpha * camBinormals[j];
-      v[7] = camPositions[j] +
-             alpha * (-camNormals[j] + camBinormals[j] * 0.5f) -
-             camBinormals[j] + barDepth * spl_tangents[j] -
-             alpha * camBinormals[j];
+      v[4] =
+          campath->positions[j] +
+          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) +
+          campath->binormals[j] + barDepth * spl_tangents[j];
+      v[5] = campath->positions[j] +
+             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) +
+             campath->binormals[j] + barDepth * spl_tangents[j];
+      v[6] =
+          campath->positions[j] +
+          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) -
+          campath->binormals[j] + barDepth * spl_tangents[j] -
+          alpha * campath->binormals[j];
+      v[7] = campath->positions[j] +
+             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) -
+             campath->binormals[j] + barDepth * spl_tangents[j] -
+             alpha * campath->binormals[j];
 
       // top face
       crossbarVertices.push_back(v[6]);
@@ -739,7 +773,7 @@ void setupCrossbars(const std::vector<glm::vec3> *spline_tangents) {
   }
 }
 
-void CatmullRomSpline(const Spline *spline, SplineVertices *vertices) {
+void EvalCatmullRomSpline(const Spline *spline, SplineVertices *vertices) {
   static constexpr float kMaxLineLen = 0.5;
 
   for (int i = 1; i < spline->numControlPoints - 2; ++i) {
@@ -753,16 +787,6 @@ void CatmullRomSpline(const Spline *spline, SplineVertices *vertices) {
     // clang-format on
     Subdivide(0, 1, kMaxLineLen, &control, vertices);
   }
-
-  for (uint i = 0; i < Count(&spline_vertices); ++i) {
-    UpdateMaxPoint(&spline_max_point, &spline_vertices.positions[i]);
-    UpdateMinPoint(&spline_min_point, &spline_vertices.positions[i]);
-  }
-  updateBoundingSphere(spline_max_point, spline_min_point);
-
-  setupCamPath(vertices);
-  setupRails();
-  setupCrossbars(&vertices->tangents);
 }
 
 int loadSplines(char *argv) {
@@ -1075,11 +1099,12 @@ void keyboardFunc(unsigned char key, int x, int y) {
 
 void idleFunc() {
   // do some stuff...
-  if (camStep < camPositions.size()) {
-    camPos = camPositions[camStep] + camNormals[camStep] * 2.0f;
+  if (camStep < camera_path_vertices.positions.size()) {
+    camPos = camera_path_vertices.positions[camStep] +
+             camera_path_vertices.normals[camStep] * 2.0f;
     camDir = spline_vertices.tangents[camStep];
-    camNorm = camNormals[camStep];
-    camBinorm = camBinormals[camStep];
+    camNorm = camera_path_vertices.normals[camStep];
+    camBinorm = camera_path_vertices.binormals[camStep];
     camStep += 3;
   }
 
@@ -1225,7 +1250,17 @@ void init(int argc, char *argv[]) {
            splines[i].numControlPoints);
   }
 
-  CatmullRomSpline(splines, &spline_vertices);
+  EvalCatmullRomSpline(&splines[0], &spline_vertices);
+
+  for (uint i = 0; i < Count(&spline_vertices); ++i) {
+    UpdateMaxPoint(&spline_max_point, &spline_vertices.positions[i]);
+    UpdateMinPoint(&spline_min_point, &spline_vertices.positions[i]);
+  }
+  updateBoundingSphere(spline_max_point, spline_min_point);
+
+  MakeCameraPath(&spline_vertices, &camera_path_vertices);
+  MakeRails(&camera_path_vertices, &rail_vertices);
+  setupCrossbars(&camera_path_vertices, &spline_vertices.tangents);
 
   glGenTextures(1, &texGround);
   initTexture(argv[2], texGround);
