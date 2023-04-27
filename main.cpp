@@ -476,53 +476,46 @@ static void MakeCameraPath(const SplineVertices *spline,
   }
 }
 
-static void MakeRails(const CameraPathVertices *campath_vertices,
-                      std::vector<Vertex> *rail_vertices) {
+static void MakeRails(const CameraPathVertices *campath,
+                      std::vector<Vertex> *rail) {
   static constexpr float kAlpha = 0.1;
   static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
   static constexpr uint kVertexCount = 8;
 
-  const auto &campath = *campath_vertices;
-  auto &rail = *rail_vertices;
+  auto &cp_pos = campath->positions;
+  auto &cp_binorm = campath->binormals;
+  auto &cp_norm = campath->normals;
 
-  uint campath_count = Count(&campath);
+  auto &rail_ = *rail;
 
-  uint rail_count = 2 * campath_count * kVertexCount;
-  rail.resize(rail_count);
+  uint cp_count = Count(campath);
+
+  uint rail_count = 2 * cp_count * kVertexCount;
+  rail->resize(rail_count);
 
   for (uint i = 0; i < rail_count; ++i) {
-    rail[i].color = kRailColor;
+    rail_[i].color = kRailColor;
   }
 
   for (uint i = 0; i < 2; ++i) {
-    for (uint j = 0; j < campath_count; ++j) {
-      uint k = kVertexCount * (j + i * campath_count);
-      rail[k].position =
-          campath.positions[j] +
-          kAlpha * (-campath.normals[j] + campath.binormals[j] * 0.5f);
-      rail[k + 1].position =
-          campath.positions[j] + kAlpha * (campath.binormals[j] * 0.5f);
-      rail[k + 2].position =
-          campath.positions[j] + kAlpha * (campath.binormals[j]);
-      rail[k + 3].position =
-          campath.positions[j] +
-          kAlpha * (campath.normals[j] + campath.binormals[j]);
-      rail[k + 4].position =
-          campath.positions[j] +
-          kAlpha * (campath.normals[j] - campath.binormals[j]);
-      rail[k + 5].position =
-          campath.positions[j] + kAlpha * (-campath.binormals[j]);
-      rail[k + 6].position =
-          campath.positions[j] + kAlpha * (-campath.binormals[j] * 0.5f);
-      rail[k + 7].position =
-          campath.positions[j] +
-          kAlpha * (-campath.normals[j] - campath.binormals[j] * 0.5f);
+    for (uint j = 0; j < cp_count; ++j) {
+      uint k = kVertexCount * (j + i * cp_count);
+      rail_[k].position =
+          cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f);
+      rail_[k + 1].position = cp_pos[j] + kAlpha * (cp_binorm[j] * 0.5f);
+      rail_[k + 2].position = cp_pos[j] + kAlpha * (cp_binorm[j]);
+      rail_[k + 3].position = cp_pos[j] + kAlpha * (cp_norm[j] + cp_binorm[j]);
+      rail_[k + 4].position = cp_pos[j] + kAlpha * (cp_norm[j] - cp_binorm[j]);
+      rail_[k + 5].position = cp_pos[j] + kAlpha * (-cp_binorm[j]);
+      rail_[k + 6].position = cp_pos[j] + kAlpha * (-cp_binorm[j] * 0.5f);
+      rail_[k + 7].position =
+          cp_pos[j] + kAlpha * (-cp_norm[j] - cp_binorm[j] * 0.5f);
 
       for (uint l = 0; l < kVertexCount; ++l) {
         if (i == 0) {
-          rail[k + l].position += campath.binormals[j];
+          rail_[k + l].position += cp_binorm[j];
         } else {
-          rail[k + l].position -= campath.binormals[j];
+          rail_[k + l].position -= cp_binorm[j];
         }
       }
     }
