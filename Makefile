@@ -42,7 +42,7 @@ main.o : main.cpp $(headers) types.hpp spline.hpp
 aabb.o : aabb.cpp aabb.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
-spline.o : spline.cpp spline.hpp
+spline.o : spline.cpp spline.hpp types.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 $(helper_lib_objs) : %.o : openGLHelper/%.cpp $(helper_lib_headers)

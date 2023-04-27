@@ -83,13 +83,6 @@ static uint Count(const CameraPathVertices *c) { return c->positions.size(); }
 
 static CameraPathVertices camera_path_vertices;
 
-// represents one control point along the spline
-struct Point {
-  double x;
-  double y;
-  double z;
-};
-
 // Vertex container
 struct Vertex {
   glm::vec3 position;
@@ -408,13 +401,6 @@ void drawCrossbar() {
 
 /****************** CATMULL-ROM SPLINE ******************/
 
-struct SplineVertices {
-  std::vector<glm::vec3> positions;
-  std::vector<glm::vec3> tangents;
-};
-
-static uint Count(const SplineVertices *s) { return s->positions.size(); }
-
 static SplineVertices spline_vertices;
 
 // Bounding sphere of spline
@@ -461,31 +447,6 @@ void updateBoundingSphere(glm::vec3 splineMaxPoint, glm::vec3 splineMinPoint) {
   splineRadius = sqrt(pow(splineMaxPoint.x - splineCenter.x, 2) +
                       pow(splineMaxPoint.y - splineCenter.y, 2) +
                       pow(splineMaxPoint.z - splineCenter.z, 2));
-}
-
-static void Subdivide(float u0, float u1, float max_line_len,
-                      const glm::mat4x3 *control, SplineVertices *vertices) {
-  glm::vec3 p0 = CatmullRomPosition(u0, control);
-  glm::vec3 p1 = CatmullRomPosition(u1, control);
-
-  if (glm::length(p1 - p0) > max_line_len) {
-    float umid = (u0 + u1) * 0.5f;
-
-    Subdivide(u0, umid, max_line_len, control, vertices);
-    Subdivide(umid, u1, max_line_len, control, vertices);
-  } else {
-    vertices->positions.push_back(p0);
-    vertices->positions.push_back(p1);
-
-    glm::vec3 t0 = CatmullRomTangent(u0, control);
-    glm::vec3 t1 = CatmullRomTangent(u1, control);
-
-    glm::vec3 t0_norm = glm::normalize(t0);
-    glm::vec3 t1_norm = glm::normalize(t1);
-
-    vertices->tangents.push_back(t0_norm);
-    vertices->tangents.push_back(t1_norm);
-  }
 }
 
 static void MakeCameraPath(const SplineVertices *spline,
@@ -746,24 +707,6 @@ void setupCrossbars(const CameraPathVertices *campath,
   }
 }
 
-void EvalCatmullRomSpline(const std::vector<Point> *spline,
-                          SplineVertices *vertices) {
-  auto &spline_ = *spline;
-  static constexpr float kMaxLineLen = 0.5;
-
-  for (int i = 1; i < spline->size() - 2; ++i) {
-    // clang-format off
-    glm::mat4x3 control(
-      spline_[i - 1].x, spline_[i - 1].y, spline_[i - 1].z,
-      spline_[i].x, spline_[i].y, spline_[i].z,
-      spline_[i + 1].x, spline_[i + 1].y, spline_[i + 1].z,
-      spline_[i + 2].x, spline_[i + 2].y, spline_[i + 2].z
-    );
-    // clang-format on
-    Subdivide(0, 1, kMaxLineLen, &control, vertices);
-  }
-}
-
 Status LoadSplines(const char *track_filepath,
                    std::vector<std::vector<Point>> *splines) {
   auto &splines_ = *splines;
@@ -819,7 +762,7 @@ Status LoadSplines(const char *track_filepath,
     splines_[j].resize(ctrl_point_count);
 
     uint i = 0;
-    while ((ret = std::fscanf(file, "%lf %lf %lf", &splines_[j][i].x,
+    while ((ret = std::fscanf(file, "%f %f %f", &splines_[j][i].x,
                               &splines_[j][i].y, &splines_[j][i].z)) > 0) {
       ++i;
     }

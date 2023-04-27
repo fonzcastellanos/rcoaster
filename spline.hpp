@@ -2,9 +2,24 @@
 #define ROLLER_COASTER_SPLINE_HPP
 
 #include <glm/glm.hpp>
+#include <vector>
 
-glm::vec3 CatmullRomPosition(float u, const glm::mat4x3 *control);
+#include "types.hpp"
 
-glm::vec3 CatmullRomTangent(float u, const glm::mat4x3 *control);
+struct Point {
+  float x;
+  float y;
+  float z;
+};
+
+struct SplineVertices {
+  std::vector<glm::vec3> positions;
+  std::vector<glm::vec3> tangents;
+};
+
+uint Count(const SplineVertices *s);
+
+void EvalCatmullRomSpline(const std::vector<Point> *spline,
+                          SplineVertices *vertices);
 
 #endif  // ROLLER_COASTER_SPLINE_HPP
