@@ -360,8 +360,8 @@ GLuint vaoCrossbar;
 GLuint vboCrossbar;
 GLuint texCrossbar;
 
-std::vector<glm::vec3> crossbarVertices;
-std::vector<glm::vec2> texCrossbarCoords;
+std::vector<glm::vec3> crossbar_positions;
+std::vector<glm::vec2> crossbar_tex_coords;
 
 void makeCrossbars() {
   glGenVertexArrays(1, &vaoCrossbar);
@@ -369,13 +369,13 @@ void makeCrossbars() {
 
   glGenBuffers(1, &vboCrossbar);
   glBindBuffer(GL_ARRAY_BUFFER, vboCrossbar);
-  GLuint vSize = crossbarVertices.size() * sizeof(glm::vec3);
-  GLuint tSize = texCrossbarCoords.size() * sizeof(glm::vec2);
+  GLuint vSize = crossbar_positions.size() * sizeof(glm::vec3);
+  GLuint tSize = crossbar_tex_coords.size() * sizeof(glm::vec2);
   glBufferData(GL_ARRAY_BUFFER, vSize + tSize, NULL, GL_STATIC_DRAW);
   GLintptr offset = 0;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, vSize, &crossbarVertices[0]);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, vSize, crossbar_positions.data());
   offset += vSize;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, tSize, &texCrossbarCoords[0]);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, tSize, crossbar_tex_coords.data());
 
   GLuint program = texProgram->GetProgramHandle();
   GLuint posLoc = glGetAttribLocation(program, "position");
@@ -393,7 +393,7 @@ void makeCrossbars() {
 }
 
 void drawCrossbar() {
-  for (int offset = 0; offset < crossbarVertices.size(); offset += 36) {
+  for (int offset = 0; offset < crossbar_positions.size(); offset += 36) {
     glDrawArrays(GL_TRIANGLES, offset, 36);
   }
 }
@@ -593,112 +593,111 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
   }
 }
 
-void setupCrossbars(const CameraPathVertices *campath,
-                    const std::vector<glm::vec3> *spline_tangents) {
-  static constexpr float alpha = 0.1;
-  static constexpr float beta = 1.5;
-  static constexpr int num_vertices = 8;
-  static constexpr float bar2barDist = 1.0;
-  static constexpr float barDepth = 0.3;
+static void MakeCrossbars(const CameraPathVertices *cam_path,
+                          const std::vector<glm::vec3> *spline_tangents,
+                          std::vector<glm::vec3> *crossbar_positions,
+                          std::vector<glm::vec2> *crossbar_tex_coords) {
+  static constexpr float kAlpha = 0.1;
+  static constexpr float kBeta = 1.5;
+  static constexpr int kVertexCount = 8;
+  static constexpr float kBarToBarDist = 1.0;
+  static constexpr float kBarDepth = 0.3;
 
-  const auto &spl_tangents = *spline_tangents;
+  const auto &s_tan = *spline_tangents;
 
-  float distMoved = 0.0;
-  glm::vec3 v[num_vertices];
-  for (int j = 1; j < campath->positions.size(); ++j) {
-    distMoved += glm::length(campath->positions[j] - campath->positions[j - 1]);
-    if (distMoved > bar2barDist) {
-      v[0] =
-          campath->positions[j] +
-          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) +
-          campath->binormals[j];
-      v[1] = campath->positions[j] +
-             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) +
-             campath->binormals[j];
-      v[2] =
-          campath->positions[j] +
-          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) -
-          campath->binormals[j] - alpha * campath->binormals[j];
-      v[3] = campath->positions[j] +
-             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) -
-             campath->binormals[j] - alpha * campath->binormals[j];
+  auto &cp_pos = cam_path->positions;
+  auto &cp_binorm = cam_path->binormals;
+  auto &cp_norm = cam_path->normals;
+  uint cp_count = Count(cam_path);
 
-      v[4] =
-          campath->positions[j] +
-          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) +
-          campath->binormals[j] + barDepth * spl_tangents[j];
-      v[5] = campath->positions[j] +
-             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) +
-             campath->binormals[j] + barDepth * spl_tangents[j];
-      v[6] =
-          campath->positions[j] +
-          alpha * (-beta * campath->normals[j] + campath->binormals[j] * 0.5f) -
-          campath->binormals[j] + barDepth * spl_tangents[j] -
-          alpha * campath->binormals[j];
-      v[7] = campath->positions[j] +
-             alpha * (-campath->normals[j] + campath->binormals[j] * 0.5f) -
-             campath->binormals[j] + barDepth * spl_tangents[j] -
-             alpha * campath->binormals[j];
+  auto &cb_pos = *crossbar_positions;
+  auto &cb_tex_coords = *crossbar_tex_coords;
 
-      // top face
-      crossbarVertices.push_back(v[6]);
-      crossbarVertices.push_back(v[5]);
-      crossbarVertices.push_back(v[2]);
-      crossbarVertices.push_back(v[5]);
-      crossbarVertices.push_back(v[1]);
-      crossbarVertices.push_back(v[2]);
+  glm::vec3 v[kVertexCount];
+  float dist_moved = 0;
+  for (uint j = 1; j < cp_count; ++j) {
+    dist_moved += glm::length(cp_pos[j] - cp_pos[j - 1]);
 
-      // right face
-      crossbarVertices.push_back(v[5]);
-      crossbarVertices.push_back(v[4]);
-      crossbarVertices.push_back(v[1]);
-      crossbarVertices.push_back(v[4]);
-      crossbarVertices.push_back(v[0]);
-      crossbarVertices.push_back(v[1]);
-
-      // bottom face
-      crossbarVertices.push_back(v[4]);
-      crossbarVertices.push_back(v[7]);
-      crossbarVertices.push_back(v[0]);
-      crossbarVertices.push_back(v[7]);
-      crossbarVertices.push_back(v[3]);
-      crossbarVertices.push_back(v[0]);
-
-      // left face
-      crossbarVertices.push_back(v[7]);
-      crossbarVertices.push_back(v[6]);
-      crossbarVertices.push_back(v[3]);
-      crossbarVertices.push_back(v[6]);
-      crossbarVertices.push_back(v[2]);
-      crossbarVertices.push_back(v[3]);
-
-      // back face
-      crossbarVertices.push_back(v[5]);
-      crossbarVertices.push_back(v[6]);
-      crossbarVertices.push_back(v[4]);
-      crossbarVertices.push_back(v[6]);
-      crossbarVertices.push_back(v[7]);
-      crossbarVertices.push_back(v[4]);
-
-      // front face
-      crossbarVertices.push_back(v[2]);
-      crossbarVertices.push_back(v[1]);
-      crossbarVertices.push_back(v[3]);
-      crossbarVertices.push_back(v[1]);
-      crossbarVertices.push_back(v[0]);
-      crossbarVertices.push_back(v[3]);
-
-      for (int i = 0; i < 6; ++i) {
-        texCrossbarCoords.push_back(glm::vec2(0.0, 1.0));
-        texCrossbarCoords.push_back(glm::vec2(1.0, 1.0));
-        texCrossbarCoords.push_back(glm::vec2(0.0, 0.0));
-        texCrossbarCoords.push_back(glm::vec2(1.0, 1.0));
-        texCrossbarCoords.push_back(glm::vec2(1.0, 0.0));
-        texCrossbarCoords.push_back(glm::vec2(0.0, 0.0));
-      }
-
-      distMoved = 0.0;
+    if (dist_moved <= kBarToBarDist) {
+      continue;
     }
+
+    v[0] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) +
+           cp_binorm[j];
+    v[1] =
+        cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) + cp_binorm[j];
+    v[2] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) -
+           cp_binorm[j] - kAlpha * cp_binorm[j];
+    v[3] = cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) -
+           cp_binorm[j] - kAlpha * cp_binorm[j];
+
+    v[4] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) +
+           cp_binorm[j] + kBarDepth * s_tan[j];
+    v[5] = cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) +
+           cp_binorm[j] + kBarDepth * s_tan[j];
+    v[6] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) -
+           cp_binorm[j] + kBarDepth * s_tan[j] - kAlpha * cp_binorm[j];
+    v[7] = cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) -
+           cp_binorm[j] + kBarDepth * s_tan[j] - kAlpha * cp_binorm[j];
+
+    // top face
+    cb_pos.push_back(v[6]);
+    cb_pos.push_back(v[5]);
+    cb_pos.push_back(v[2]);
+    cb_pos.push_back(v[5]);
+    cb_pos.push_back(v[1]);
+    cb_pos.push_back(v[2]);
+
+    // right face
+    cb_pos.push_back(v[5]);
+    cb_pos.push_back(v[4]);
+    cb_pos.push_back(v[1]);
+    cb_pos.push_back(v[4]);
+    cb_pos.push_back(v[0]);
+    cb_pos.push_back(v[1]);
+
+    // bottom face
+    cb_pos.push_back(v[4]);
+    cb_pos.push_back(v[7]);
+    cb_pos.push_back(v[0]);
+    cb_pos.push_back(v[7]);
+    cb_pos.push_back(v[3]);
+    cb_pos.push_back(v[0]);
+
+    // left face
+    cb_pos.push_back(v[7]);
+    cb_pos.push_back(v[6]);
+    cb_pos.push_back(v[3]);
+    cb_pos.push_back(v[6]);
+    cb_pos.push_back(v[2]);
+    cb_pos.push_back(v[3]);
+
+    // back face
+    cb_pos.push_back(v[5]);
+    cb_pos.push_back(v[6]);
+    cb_pos.push_back(v[4]);
+    cb_pos.push_back(v[6]);
+    cb_pos.push_back(v[7]);
+    cb_pos.push_back(v[4]);
+
+    // front face
+    cb_pos.push_back(v[2]);
+    cb_pos.push_back(v[1]);
+    cb_pos.push_back(v[3]);
+    cb_pos.push_back(v[1]);
+    cb_pos.push_back(v[0]);
+    cb_pos.push_back(v[3]);
+
+    for (uint i = 0; i < 6; ++i) {
+      cb_tex_coords.emplace_back(0, 1);
+      cb_tex_coords.emplace_back(1, 1);
+      cb_tex_coords.emplace_back(0, 0);
+      cb_tex_coords.emplace_back(1, 1);
+      cb_tex_coords.emplace_back(1, 0);
+      cb_tex_coords.emplace_back(0, 0);
+    }
+
+    dist_moved = 0;
   }
 }
 
@@ -1283,7 +1282,8 @@ int main(int argc, char **argv) {
 
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
   MakeRails(&camera_path_vertices, &rail_vertices, &rail_indices);
-  setupCrossbars(&camera_path_vertices, &spline_vertices.tangents);
+  MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
+                &crossbar_positions, &crossbar_tex_coords);
 
   init(argv);
 
