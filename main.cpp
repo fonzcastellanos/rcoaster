@@ -1,3 +1,5 @@
+#include <cstdio>
+#include <cstdlib>
 #include <glm/glm.hpp>
 #include <iomanip>
 #include <iostream>
@@ -28,6 +30,8 @@ char shaderBasePath[1024] = "openGLHelper";
 #endif
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
+
+enum Status { kStatusOk, kStatusIOError };
 
 GLuint screenshotCount = 0;
 GLuint record = 0;
@@ -86,18 +90,7 @@ struct Point {
   double z;
 };
 
-// spline struct
-// contains how many control points the spline has, and an array of control
-// points
-struct Spline {
-  int numControlPoints;
-  Point *points;
-};
-
-// the spline array
-Spline *splines;
-// total number of splines
-int numSplines;
+std::vector<std::vector<Point>> splines;
 
 // Vertex container
 struct Vertex {
@@ -479,6 +472,7 @@ static void Subdivide(float u0, float u1, float max_line_len,
 
   if (glm::length(p1 - p0) > max_line_len) {
     float umid = (u0 + u1) * 0.5f;
+
     Subdivide(u0, umid, max_line_len, control, vertices);
     Subdivide(umid, u1, max_line_len, control, vertices);
   } else {
@@ -754,68 +748,97 @@ void setupCrossbars(const CameraPathVertices *campath,
   }
 }
 
-void EvalCatmullRomSpline(const Spline *spline, SplineVertices *vertices) {
+void EvalCatmullRomSpline(const std::vector<Point> *spline,
+                          SplineVertices *vertices) {
+  auto &spline_ = *spline;
   static constexpr float kMaxLineLen = 0.5;
 
-  for (int i = 1; i < spline->numControlPoints - 2; ++i) {
+  for (int i = 1; i < spline->size() - 2; ++i) {
     // clang-format off
     glm::mat4x3 control(
-      spline->points[i - 1].x, spline->points[i - 1].y, spline->points[i - 1].z,
-      spline->points[i].x, spline->points[i].y, spline->points[i].z,
-      spline->points[i + 1].x, spline->points[i + 1].y, spline->points[i + 1].z,
-      spline->points[i + 2].x, spline->points[i + 2].y, spline->points[i + 2].z
+      spline_[i - 1].x, spline_[i - 1].y, spline_[i - 1].z,
+      spline_[i].x, spline_[i].y, spline_[i].z,
+      spline_[i + 1].x, spline_[i + 1].y, spline_[i + 1].z,
+      spline_[i + 2].x, spline_[i + 2].y, spline_[i + 2].z
     );
     // clang-format on
     Subdivide(0, 1, kMaxLineLen, &control, vertices);
   }
 }
 
-int loadSplines(char *argv) {
-  char *cName = (char *)malloc(128 * sizeof(char));
-  FILE *fileList;
-  FILE *fileSpline;
-  int iType, i = 0, j, iLength;
+Status LoadSplines(const char *track_filepath,
+                   std::vector<std::vector<Point>> *splines) {
+  auto &splines_ = *splines;
 
-  // load the track file
-  fileList = fopen(argv, "r");
-  if (fileList == NULL) {
-    printf("can't open file\n");
-    exit(1);
+  std::FILE *track_file = std::fopen(track_filepath, "r");
+  if (!track_file) {
+    std::fprintf(stderr, "Could not open track file %s\n", track_filepath);
+    return kStatusIOError;
   }
 
-  // stores the number of splines in a global variable
-  fscanf(fileList, "%d", &numSplines);
-
-  splines = (Spline *)malloc(numSplines * sizeof(Spline));
-
-  // reads through the spline files
-  for (j = 0; j < numSplines; j++) {
-    i = 0;
-    fscanf(fileList, "%s", cName);
-    fileSpline = fopen(cName, "r");
-
-    if (fileSpline == NULL) {
-      printf("can't open file\n");
-      exit(1);
-    }
-
-    // gets length for spline file
-    fscanf(fileSpline, "%d %d", &iLength, &iType);
-
-    // allocate memory for all the points
-    splines[j].points = (Point *)malloc(iLength * sizeof(Point));
-    splines[j].numControlPoints = iLength;
-
-    // saves the data to the struct
-    while (fscanf(fileSpline, "%lf %lf %lf", &splines[j].points[i].x,
-                  &splines[j].points[i].y, &splines[j].points[i].z) != EOF) {
-      i++;
-    }
+  uint spline_count;
+  int ret = std::fscanf(track_file, "%u", &spline_count);
+  if (ret < 1) {
+    std::fprintf(stderr, "Could not read spline count from track file %s\n",
+                 track_filepath);
+    std::fclose(track_file);
+    return kStatusIOError;
   }
 
-  free(cName);
+  splines->resize(spline_count);
 
-  return 0;
+  char filepath[4096];
+  for (uint j = 0; j < spline_count; ++j) {
+    int ret = std::fscanf(track_file, "%s", filepath);
+    if (ret < 1) {
+      std::fprintf(stderr,
+                   "Could not read spline filename from track file %s\n",
+                   track_filepath);
+      std::fclose(track_file);
+      return kStatusIOError;
+    }
+
+    FILE *file = std::fopen(filepath, "r");
+    if (!file) {
+      std::fprintf(stderr, "Could not open spline file %s\n", filepath);
+      std::fclose(track_file);
+      return kStatusIOError;
+    }
+
+    uint ctrl_point_count;
+    uint type;
+    ret = std::fscanf(file, "%u %u", &ctrl_point_count, &type);
+    if (ret < 1) {
+      std::fprintf(
+          stderr,
+          "Could not read control point count and type from spline file %s\n",
+          filepath);
+      std::fclose(file);
+      std::fclose(track_file);
+      return kStatusIOError;
+    }
+
+    splines_[j].resize(ctrl_point_count);
+
+    uint i = 0;
+    while ((ret = std::fscanf(file, "%lf %lf %lf", &splines_[j][i].x,
+                              &splines_[j][i].y, &splines_[j][i].z)) > 0) {
+      ++i;
+    }
+    if (ret == 0) {
+      std::fprintf(stderr, "Could not read control point from spline file %s\n",
+                   filepath);
+      std::fclose(file);
+      std::fclose(track_file);
+      return kStatusIOError;
+    }
+
+    std::fclose(file);
+  }
+
+  std::fclose(track_file);
+
+  return kStatusOk;
 }
 
 int initTexture(const char *imageFilename, GLuint textureHandle) {
@@ -1224,11 +1247,15 @@ void init(int argc, char *argv[]) {
 
   matrix = new OpenGLMatrix();
 
-  loadSplines(argv[1]);
-  printf("Loaded %d spline(s).\n", numSplines);
-  for (int i = 0; i < numSplines; i++) {
-    printf("Num control points in spline %d: %d.\n", i,
-           splines[i].numControlPoints);
+  Status status = LoadSplines(argv[1], &splines);
+  if (status != kStatusOk) {
+    std::fprintf(stderr, "Could not load splines.\n");
+  }
+  std::printf("Loaded %lu splines.\n", splines.size());
+
+  for (uint i = 0; i < splines.size(); ++i) {
+    std::printf("Control point count in spline %u: %lu\n", i,
+                splines[i].size());
   }
 
   EvalCatmullRomSpline(&splines[0], &spline_vertices);
