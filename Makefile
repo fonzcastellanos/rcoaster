@@ -33,13 +33,16 @@ endif
 
 all : main aabb.o
 
-main : $(objs)
+main : $(objs) spline.o
 	$(CXX) $(LDFLAGS) $^ $(OPT) $(LIB) -o $@
 
-main.o : main.cpp types.hpp $(headers)
+main.o : main.cpp $(headers) types.hpp spline.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 aabb.o : aabb.cpp aabb.hpp
+	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
+
+spline.o : spline.cpp spline.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 $(helper_lib_objs) : %.o : openGLHelper/%.cpp $(helper_lib_headers)
