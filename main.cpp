@@ -90,8 +90,6 @@ struct Point {
   double z;
 };
 
-std::vector<std::vector<Point>> splines;
-
 // Vertex container
 struct Vertex {
   glm::vec3 position;
@@ -1241,34 +1239,11 @@ void initTexPipelineProgram() {
   texProgram->Init("openGLHelper");
 }
 
-void init(int argc, char *argv[]) {
+void init(char *argv[]) {
   glClearColor(0.0, 0.0, 0.0, 0.0);
   glEnable(GL_DEPTH_TEST);
 
   matrix = new OpenGLMatrix();
-
-  Status status = LoadSplines(argv[1], &splines);
-  if (status != kStatusOk) {
-    std::fprintf(stderr, "Could not load splines.\n");
-  }
-  std::printf("Loaded %lu splines.\n", splines.size());
-
-  for (uint i = 0; i < splines.size(); ++i) {
-    std::printf("Control point count in spline %u: %lu\n", i,
-                splines[i].size());
-  }
-
-  EvalCatmullRomSpline(&splines[0], &spline_vertices);
-
-  for (uint i = 0; i < Count(&spline_vertices); ++i) {
-    UpdateMaxPoint(&spline_max_point, &spline_vertices.positions[i]);
-    UpdateMinPoint(&spline_min_point, &spline_vertices.positions[i]);
-  }
-  updateBoundingSphere(spline_max_point, spline_min_point);
-
-  MakeCameraPath(&spline_vertices, &camera_path_vertices);
-  MakeRails(&camera_path_vertices, &rail_vertices);
-  setupCrossbars(&camera_path_vertices, &spline_vertices.tangents);
 
   glGenTextures(1, &texGround);
   initTexture(argv[2], texGround);
@@ -1348,8 +1323,31 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  // do initialization
-  init(argc, argv);
+  std::vector<std::vector<Point>> splines;
+  Status status = LoadSplines(argv[1], &splines);
+  if (status != kStatusOk) {
+    std::fprintf(stderr, "Could not load splines.\n");
+  }
+  std::printf("Loaded spline count: %lu\n", splines.size());
+
+  for (uint i = 0; i < splines.size(); ++i) {
+    std::printf("Control point count in spline %u: %lu\n", i,
+                splines[i].size());
+  }
+
+  EvalCatmullRomSpline(&splines[0], &spline_vertices);
+
+  for (uint i = 0; i < Count(&spline_vertices); ++i) {
+    UpdateMaxPoint(&spline_max_point, &spline_vertices.positions[i]);
+    UpdateMinPoint(&spline_min_point, &spline_vertices.positions[i]);
+  }
+  updateBoundingSphere(spline_max_point, spline_min_point);
+
+  MakeCameraPath(&spline_vertices, &camera_path_vertices);
+  MakeRails(&camera_path_vertices, &rail_vertices);
+  setupCrossbars(&camera_path_vertices, &spline_vertices.tangents);
+
+  init(argv);
 
   // sink forever into the glut loop
   glutMainLoop();
