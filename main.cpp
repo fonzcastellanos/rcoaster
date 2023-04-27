@@ -129,8 +129,7 @@ GLuint vboRail;
 GLuint iboRail;
 
 static std::vector<Vertex> rail_vertices;
-
-std::vector<GLuint> railIndices;
+std::vector<GLuint> rail_indices;
 
 void makeRails() {
   glGenVertexArrays(1, &vaoRail);
@@ -155,18 +154,18 @@ void makeRails() {
 
   glGenBuffers(1, &iboRail);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboRail);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, railIndices.size() * sizeof(GLuint),
-               &railIndices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
+               rail_indices.data(), GL_STATIC_DRAW);
 
   glBindVertexArray(0);
 }
 
 void drawRails() {
   GLintptr offset = 0;
-  glDrawElements(GL_TRIANGLES, railIndices.size() / 2, GL_UNSIGNED_INT,
+  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
                  BUFFER_OFFSET(offset));
-  offset += railIndices.size() / 2 * sizeof(GLuint);
-  glDrawElements(GL_TRIANGLES, railIndices.size() / 2, GL_UNSIGNED_INT,
+  offset += rail_indices.size() / 2 * sizeof(GLuint);
+  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
                  BUFFER_OFFSET(offset));
 }
 
@@ -476,117 +475,120 @@ static void MakeCameraPath(const SplineVertices *spline,
   }
 }
 
-static void MakeRails(const CameraPathVertices *campath,
-                      std::vector<Vertex> *rail) {
+static void MakeRails(const CameraPathVertices *campath_vertices,
+                      std::vector<Vertex> *rail_vertices,
+                      std::vector<GLuint> *rail_indices) {
   static constexpr float kAlpha = 0.1;
   static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
   static constexpr uint kVertexCount = 8;
 
-  auto &cp_pos = campath->positions;
-  auto &cp_binorm = campath->binormals;
-  auto &cp_norm = campath->normals;
+  auto &cpv_pos = campath_vertices->positions;
+  auto &cpv_binorm = campath_vertices->binormals;
+  auto &cpv_norm = campath_vertices->normals;
 
-  auto &rail_ = *rail;
+  auto &rv = *rail_vertices;
 
-  uint cp_count = Count(campath);
+  uint cpv_count = Count(campath_vertices);
 
-  uint rail_count = 2 * cp_count * kVertexCount;
-  rail->resize(rail_count);
+  uint rv_count = 2 * cpv_count * kVertexCount;
+  rv.resize(rv_count);
 
-  for (uint i = 0; i < rail_count; ++i) {
-    rail_[i].color = kRailColor;
+  for (uint i = 0; i < rv_count; ++i) {
+    rv[i].color = kRailColor;
   }
 
   for (uint i = 0; i < 2; ++i) {
-    for (uint j = 0; j < cp_count; ++j) {
-      uint k = kVertexCount * (j + i * cp_count);
-      rail_[k].position =
-          cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f);
-      rail_[k + 1].position = cp_pos[j] + kAlpha * (cp_binorm[j] * 0.5f);
-      rail_[k + 2].position = cp_pos[j] + kAlpha * (cp_binorm[j]);
-      rail_[k + 3].position = cp_pos[j] + kAlpha * (cp_norm[j] + cp_binorm[j]);
-      rail_[k + 4].position = cp_pos[j] + kAlpha * (cp_norm[j] - cp_binorm[j]);
-      rail_[k + 5].position = cp_pos[j] + kAlpha * (-cp_binorm[j]);
-      rail_[k + 6].position = cp_pos[j] + kAlpha * (-cp_binorm[j] * 0.5f);
-      rail_[k + 7].position =
-          cp_pos[j] + kAlpha * (-cp_norm[j] - cp_binorm[j] * 0.5f);
+    for (uint j = 0; j < cpv_count; ++j) {
+      uint k = kVertexCount * (j + i * cpv_count);
+      rv[k].position =
+          cpv_pos[j] + kAlpha * (-cpv_norm[j] + cpv_binorm[j] * 0.5f);
+      rv[k + 1].position = cpv_pos[j] + kAlpha * (cpv_binorm[j] * 0.5f);
+      rv[k + 2].position = cpv_pos[j] + kAlpha * (cpv_binorm[j]);
+      rv[k + 3].position = cpv_pos[j] + kAlpha * (cpv_norm[j] + cpv_binorm[j]);
+      rv[k + 4].position = cpv_pos[j] + kAlpha * (cpv_norm[j] - cpv_binorm[j]);
+      rv[k + 5].position = cpv_pos[j] + kAlpha * (-cpv_binorm[j]);
+      rv[k + 6].position = cpv_pos[j] + kAlpha * (-cpv_binorm[j] * 0.5f);
+      rv[k + 7].position =
+          cpv_pos[j] + kAlpha * (-cpv_norm[j] - cpv_binorm[j] * 0.5f);
 
       for (uint l = 0; l < kVertexCount; ++l) {
         if (i == 0) {
-          rail_[k + l].position += cp_binorm[j];
+          rv[k + l].position += cpv_binorm[j];
         } else {
-          rail_[k + l].position -= cp_binorm[j];
+          rv[k + l].position -= cpv_binorm[j];
         }
       }
     }
   }
 
+  auto &ri = *rail_indices;
+
   for (uint i = 0; i < 2; ++i) {
-    for (uint j = i * rail_count / 2; j + kVertexCount < rail_count / (2 - i);
+    for (uint j = i * rv_count / 2; j + kVertexCount < rv_count / (2 - i);
          j += kVertexCount) {
       // top face
-      railIndices.push_back(j + 4);
-      railIndices.push_back(j + 12);
-      railIndices.push_back(j + 3);
-      railIndices.push_back(j + 12);
-      railIndices.push_back(j + 11);
-      railIndices.push_back(j + 3);
+      ri.push_back(j + 4);
+      ri.push_back(j + 12);
+      ri.push_back(j + 3);
+      ri.push_back(j + 12);
+      ri.push_back(j + 11);
+      ri.push_back(j + 3);
 
       // top right right face
-      railIndices.push_back(j + 3);
-      railIndices.push_back(j + 11);
-      railIndices.push_back(j + 2);
-      railIndices.push_back(j + 11);
-      railIndices.push_back(j + 10);
-      railIndices.push_back(j + 2);
+      ri.push_back(j + 3);
+      ri.push_back(j + 11);
+      ri.push_back(j + 2);
+      ri.push_back(j + 11);
+      ri.push_back(j + 10);
+      ri.push_back(j + 2);
 
       // top right bottom face
-      railIndices.push_back(j + 2);
-      railIndices.push_back(j + 10);
-      railIndices.push_back(j + 1);
-      railIndices.push_back(j + 10);
-      railIndices.push_back(j + 9);
-      railIndices.push_back(j + 1);
+      ri.push_back(j + 2);
+      ri.push_back(j + 10);
+      ri.push_back(j + 1);
+      ri.push_back(j + 10);
+      ri.push_back(j + 9);
+      ri.push_back(j + 1);
 
       // bottom right face
-      railIndices.push_back(j + 1);
-      railIndices.push_back(j + 9);
-      railIndices.push_back(j);
-      railIndices.push_back(j + 9);
-      railIndices.push_back(j + 8);
-      railIndices.push_back(j);
+      ri.push_back(j + 1);
+      ri.push_back(j + 9);
+      ri.push_back(j);
+      ri.push_back(j + 9);
+      ri.push_back(j + 8);
+      ri.push_back(j);
 
       // bottom face
-      railIndices.push_back(j);
-      railIndices.push_back(j + 8);
-      railIndices.push_back(j + 7);
-      railIndices.push_back(j + 8);
-      railIndices.push_back(j + 15);
-      railIndices.push_back(j + 7);
+      ri.push_back(j);
+      ri.push_back(j + 8);
+      ri.push_back(j + 7);
+      ri.push_back(j + 8);
+      ri.push_back(j + 15);
+      ri.push_back(j + 7);
 
       // bottom left face
-      railIndices.push_back(j + 14);
-      railIndices.push_back(j + 6);
-      railIndices.push_back(j + 15);
-      railIndices.push_back(j + 6);
-      railIndices.push_back(j + 7);
-      railIndices.push_back(j + 15);
+      ri.push_back(j + 14);
+      ri.push_back(j + 6);
+      ri.push_back(j + 15);
+      ri.push_back(j + 6);
+      ri.push_back(j + 7);
+      ri.push_back(j + 15);
 
       // top left bottom face
-      railIndices.push_back(j + 13);
-      railIndices.push_back(j + 5);
-      railIndices.push_back(j + 14);
-      railIndices.push_back(j + 5);
-      railIndices.push_back(j + 6);
-      railIndices.push_back(j + 14);
+      ri.push_back(j + 13);
+      ri.push_back(j + 5);
+      ri.push_back(j + 14);
+      ri.push_back(j + 5);
+      ri.push_back(j + 6);
+      ri.push_back(j + 14);
 
       // top left left face
-      railIndices.push_back(j + 12);
-      railIndices.push_back(j + 4);
-      railIndices.push_back(j + 13);
-      railIndices.push_back(j + 4);
-      railIndices.push_back(j + 5);
-      railIndices.push_back(j + 13);
+      ri.push_back(j + 12);
+      ri.push_back(j + 4);
+      ri.push_back(j + 13);
+      ri.push_back(j + 4);
+      ri.push_back(j + 5);
+      ri.push_back(j + 13);
     }
   }
 }
@@ -1280,7 +1282,7 @@ int main(int argc, char **argv) {
   updateBoundingSphere(spline_max_point, spline_min_point);
 
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
-  MakeRails(&camera_path_vertices, &rail_vertices);
+  MakeRails(&camera_path_vertices, &rail_vertices, &rail_indices);
   setupCrossbars(&camera_path_vertices, &spline_vertices.tangents);
 
   init(argv);
