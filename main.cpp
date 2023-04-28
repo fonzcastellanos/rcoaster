@@ -176,25 +176,25 @@ void drawRails() {
 GLuint vaoGround;
 GLuint vboGround;
 
-const GLfloat edgeLen = 256.0;
+constexpr float kSceneBoxSideLen = 256;
 
-glm::vec3 groundVertices[6] = {glm::vec3(-edgeLen / 2.0, 0.0, edgeLen / 2.0),
-                               glm::vec3(-edgeLen / 2.0, 0.0, -edgeLen / 2.0),
-                               glm::vec3(edgeLen / 2.0, 0.0, -edgeLen / 2.0),
-                               glm::vec3(-edgeLen / 2.0, 0.0, edgeLen / 2.0),
-                               glm::vec3(edgeLen / 2.0, 0.0, -edgeLen / 2.0),
-                               glm::vec3(edgeLen / 2.0, 0.0, edgeLen / 2.0)};
+const glm::vec3 ground_vertex_positions[6] = {
+    {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f}};
 
-const GLfloat upperLim = edgeLen / 2.0 / 4.0;
+constexpr float kUpperLim = kSceneBoxSideLen * 0.5f * 0.25f;
 
-glm::vec2 groundTexCoords[6] = {
-    glm::vec2(0.0, 0.0),           glm::vec2(0.0, upperLim),
-    glm::vec2(upperLim, upperLim), glm::vec2(0.0, 0.0),
-    glm::vec2(upperLim, upperLim), glm::vec2(upperLim, 0.0)};
+const glm::vec2 ground_tex_coords[6] = {
+    {0, 0}, {0, kUpperLim},         {kUpperLim, kUpperLim},
+    {0, 0}, {kUpperLim, kUpperLim}, {kUpperLim, 0}};
 
 // Bounding sphere
-glm::vec3 groundCenter(0.0, 0.0, 0.0);
-const GLfloat groundRadius = edgeLen / 2.0;
+glm::vec3 groundCenter(0, 0, 0);
+const GLfloat groundRadius = kSceneBoxSideLen * 0.5f;
 
 void makeGround() {
   glGenVertexArrays(1, &vaoGround);
@@ -203,14 +203,14 @@ void makeGround() {
   glGenBuffers(1, &vboGround);
   glBindBuffer(GL_ARRAY_BUFFER, vboGround);
   glBufferData(GL_ARRAY_BUFFER,
-               sizeof(groundVertices) + sizeof(groundTexCoords), NULL,
-               GL_STATIC_DRAW);
+               sizeof(ground_vertex_positions) + sizeof(ground_tex_coords),
+               NULL, GL_STATIC_DRAW);
   GLintptr offset = 0;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(groundVertices),
-                  groundVertices);
-  offset += sizeof(groundVertices);
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(groundTexCoords),
-                  groundTexCoords);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(ground_vertex_positions),
+                  ground_vertex_positions);
+  offset += sizeof(ground_vertex_positions);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(ground_tex_coords),
+                  ground_tex_coords);
 
   GLuint program = texProgram->GetProgramHandle();
   GLuint posLoc = glGetAttribLocation(program, "position");
@@ -220,7 +220,7 @@ void makeGround() {
   offset = 0;
   glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0,
                         BUFFER_OFFSET(offset));
-  offset += sizeof(groundVertices);
+  offset += sizeof(ground_vertex_positions);
   glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0,
                         BUFFER_OFFSET(offset));
 
@@ -237,52 +237,88 @@ GLuint vboSky;
 // Skybox
 glm::vec3 skyVertices[36] = {
     // x = -1 face
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
 
     // x = 1 face
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
 
     // y = -1 face
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
 
     // y = 1 face
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
 
     // z = -1 face
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, -edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, -edgeLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              -kSceneBoxSideLen / 2.0),
 
     // z = 1 face
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(-edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, edgeLen / 2.0, edgeLen / 2.0),
-    glm::vec3(edgeLen / 2.0, -edgeLen / 2.0, edgeLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
+    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
+              kSceneBoxSideLen / 2.0),
 };
 
 const GLfloat texUpperLim = 1.0;
@@ -700,8 +736,8 @@ static void MakeCrossbars(const CameraPathVertices *cam_path,
   }
 }
 
-Status LoadSplines(const char *track_filepath,
-                   std::vector<std::vector<Point>> *splines) {
+static Status LoadSplines(const char *track_filepath,
+                          std::vector<std::vector<Point>> *splines) {
   auto &splines_ = *splines;
 
   std::FILE *track_file = std::fopen(track_filepath, "r");
@@ -775,23 +811,24 @@ Status LoadSplines(const char *track_filepath,
   return kStatusOk;
 }
 
-int initTexture(const char *imageFilename, GLuint textureHandle) {
+int InitTexture(const char *img_filepath, GLuint texture_name) {
   // read the texture image
   ImageIO img;
-  ImageIO::fileFormatType imgFormat;
-  ImageIO::errorType err = img.load(imageFilename, &imgFormat);
+  ImageIO::fileFormatType img_format;
+  ImageIO::errorType err = img.load(img_filepath, &img_format);
 
   if (err != ImageIO::OK) {
-    printf("Loading texture from %s failed.\n", imageFilename);
+    std::printf("Loading texture from %s failed.\n", img_filepath);
     return -1;
   }
 
   // check that the number of bytes is a multiple of 4
   if (img.getWidth() * img.getBytesPerPixel() % 4) {
-    printf(
+    std::fprintf(
+        stderr,
         "Error (%s): The width*numChannels in the loaded image must be a "
         "multiple of 4.\n",
-        imageFilename);
+        img_filepath);
     return -1;
   }
 
@@ -821,14 +858,12 @@ int initTexture(const char *imageFilename, GLuint textureHandle) {
         pixelsRGBA[4 * (h * width + w) + c] = img.getPixel(w, h, c);
     }
 
-  // bind the texture
-  glBindTexture(GL_TEXTURE_2D, textureHandle);
+  glBindTexture(GL_TEXTURE_2D, texture_name);
 
   // initialize the texture
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, pixelsRGBA);
 
-  // generate the mipmaps for this texture
   glGenerateMipmap(GL_TEXTURE_2D);
 
   // set the texture parameters
@@ -1263,9 +1298,9 @@ int main(int argc, char **argv) {
 
   glGenTextures(kTexture_Count, textures);
 
-  initTexture(argv[2], textures[kTextureGround]);
-  initTexture(argv[3], textures[kTextureSky]);
-  initTexture(argv[4], textures[kTextureCrossbar]);
+  InitTexture(argv[2], textures[kTextureGround]);
+  InitTexture(argv[3], textures[kTextureSky]);
+  InitTexture(argv[4], textures[kTextureCrossbar]);
 
   initBasicPipelineProgram();
   initTexPipelineProgram();
