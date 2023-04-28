@@ -186,11 +186,14 @@ const glm::vec3 ground_vertex_positions[6] = {
     {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
     {kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f}};
 
-constexpr float kUpperLim = kSceneBoxSideLen * 0.5f * 0.25f;
-
+constexpr float kGroundTexUpperLim = kSceneBoxSideLen * 0.5f * 0.25f;
 const glm::vec2 ground_tex_coords[6] = {
-    {0, 0}, {0, kUpperLim},         {kUpperLim, kUpperLim},
-    {0, 0}, {kUpperLim, kUpperLim}, {kUpperLim, 0}};
+    {0, 0},
+    {0, kGroundTexUpperLim},
+    {kGroundTexUpperLim, kGroundTexUpperLim},
+    {0, 0},
+    {kGroundTexUpperLim, kGroundTexUpperLim},
+    {kGroundTexUpperLim, 0}};
 
 // Bounding sphere
 glm::vec3 groundCenter(0, 0, 0);
@@ -234,131 +237,123 @@ void drawGround() { glDrawArrays(GL_TRIANGLES, 0, 6); }
 GLuint vaoSky;
 GLuint vboSky;
 
-// Skybox
-glm::vec3 skyVertices[36] = {
+const glm::vec3 sky_vertex_positions[36] = {
     // x = -1 face
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
 
     // x = 1 face
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
 
     // y = -1 face
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
 
     // y = 1 face
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
 
     // z = -1 face
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              -kSceneBoxSideLen / 2.0),
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     -kSceneBoxSideLen * 0.5f},
 
     // z = 1 face
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(-kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
-    glm::vec3(kSceneBoxSideLen / 2.0, -kSceneBoxSideLen / 2.0,
-              kSceneBoxSideLen / 2.0),
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
+    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
+    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+     kSceneBoxSideLen * 0.5f},
 };
 
-const GLfloat texUpperLim = 1.0;
-
-glm::vec2 texSkyCoords[36] = {glm::vec2(0.0, 0.0),
-                              glm::vec2(0.0, texUpperLim),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(texUpperLim, 0.0),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(0.0, texUpperLim),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(texUpperLim, 0.0),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(0.0, texUpperLim),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(texUpperLim, 0.0),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(0.0, texUpperLim),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(texUpperLim, 0.0),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(0.0, texUpperLim),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(texUpperLim, 0.0),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(0.0, texUpperLim),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(0.0, 0.0),
-                              glm::vec2(texUpperLim, texUpperLim),
-                              glm::vec2(texUpperLim, 0.0)};
+constexpr float kSkyTexUpperLim = 1;
+const glm::vec2 sky_tex_coords[36] = {{0, 0},
+                                      {0, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {0, 0},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, 0},
+                                      {0, 0},
+                                      {0, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {0, 0},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, 0},
+                                      {0, 0},
+                                      {0, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {0, 0},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, 0},
+                                      {0, 0},
+                                      {0, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {0, 0},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, 0},
+                                      {0, 0},
+                                      {0, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {0, 0},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, 0},
+                                      {0, 0},
+                                      {0, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {0, 0},
+                                      {kSkyTexUpperLim, kSkyTexUpperLim},
+                                      {kSkyTexUpperLim, 0}};
 
 void makeSky() {
   glGenVertexArrays(1, &vaoSky);
@@ -366,12 +361,15 @@ void makeSky() {
 
   glGenBuffers(1, &vboSky);
   glBindBuffer(GL_ARRAY_BUFFER, vboSky);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(skyVertices) + sizeof(texSkyCoords),
-               NULL, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER,
+               sizeof(sky_vertex_positions) + sizeof(sky_tex_coords), NULL,
+               GL_STATIC_DRAW);
   GLintptr offset = 0;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(skyVertices), skyVertices);
-  offset += sizeof(skyVertices);
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(texSkyCoords), texSkyCoords);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(sky_vertex_positions),
+                  sky_vertex_positions);
+  offset += sizeof(sky_vertex_positions);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(sky_tex_coords),
+                  sky_tex_coords);
 
   GLuint program = texProgram->GetProgramHandle();
   GLuint posLoc = glGetAttribLocation(program, "position");
@@ -381,7 +379,7 @@ void makeSky() {
   offset = 0;
   glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0,
                         BUFFER_OFFSET(offset));
-  offset += sizeof(skyVertices);
+  offset += sizeof(sky_vertex_positions);
   glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0,
                         BUFFER_OFFSET(offset));
 
