@@ -36,10 +36,9 @@ enum Status { kStatusOk, kStatusIOError };
 GLuint screenshotCount = 0;
 GLuint record = 0;
 
-// Window properties
 int windowWidth = 1280;
 int windowHeight = 720;
-char windowTitle[512] = "CSCI 420 homework II";
+const char *kWindowTitle = "Roller Coaster";
 
 // Number of rendered frames
 unsigned int frameCount = 0;
@@ -83,11 +82,14 @@ static uint Count(const CameraPathVertices *c) { return c->positions.size(); }
 
 static CameraPathVertices camera_path_vertices;
 
-// Vertex container
 struct Vertex {
   glm::vec3 position;
   glm::vec4 color;
 };
+
+enum Texture { kTextureGround, kTextureSky, kTextureCrossbar, kTexture_Count };
+
+static GLuint textures[kTexture_Count];
 
 /************************ SPLINE **********************/
 
@@ -173,7 +175,6 @@ void drawRails() {
 
 GLuint vaoGround;
 GLuint vboGround;
-GLuint texGround;
 
 const GLfloat edgeLen = 256.0;
 
@@ -232,7 +233,6 @@ void drawGround() { glDrawArrays(GL_TRIANGLES, 0, 6); }
 
 GLuint vaoSky;
 GLuint vboSky;
-GLuint texSky;
 
 // Skybox
 glm::vec3 skyVertices[36] = {
@@ -358,7 +358,6 @@ void drawSky() { glDrawArrays(GL_TRIANGLES, 0, 36); }
 
 GLuint vaoCrossbar;
 GLuint vboCrossbar;
-GLuint texCrossbar;
 
 std::vector<glm::vec3> crossbar_positions;
 std::vector<glm::vec2> crossbar_tex_coords;
@@ -879,9 +878,9 @@ void saveScreenshot(const char *filename) {
 
 void timerFunc(int val) {
   if (val) {
-    char *temp = new char[512 + strlen(windowTitle)];
+    char *temp = new char[512 + strlen(kWindowTitle)];
     // Update title bar info
-    sprintf(temp, "%s: %d fps , %d x %d resolution", windowTitle,
+    sprintf(temp, "%s: %d fps , %d x %d resolution", kWindowTitle,
             frameCount * 30, windowWidth, windowHeight);
     glutSetWindowTitle(temp);
     delete[] temp;
@@ -1104,7 +1103,7 @@ void displayFunc() {
   glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
 
   glBindVertexArray(vaoCrossbar);
-  glBindTexture(GL_TEXTURE_2D, texCrossbar);
+  glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
   drawCrossbar();
   glBindVertexArray(0);
 
@@ -1132,7 +1131,7 @@ void displayFunc() {
   glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
 
   glBindVertexArray(vaoGround);
-  glBindTexture(GL_TEXTURE_2D, texGround);
+  glBindTexture(GL_TEXTURE_2D, textures[kTextureGround]);
   drawGround();
   glBindVertexArray(0);
 
@@ -1159,7 +1158,7 @@ void displayFunc() {
   glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
 
   glBindVertexArray(vaoSky);
-  glBindTexture(GL_TEXTURE_2D, texSky);
+  glBindTexture(GL_TEXTURE_2D, textures[kTextureSky]);
   drawSky();
   glBindVertexArray(0);
 
@@ -1176,44 +1175,16 @@ void initTexPipelineProgram() {
   texProgram->Init("openGLHelper");
 }
 
-void init(char *argv[]) {
-  glClearColor(0.0, 0.0, 0.0, 0.0);
-  glEnable(GL_DEPTH_TEST);
-
-  matrix = new OpenGLMatrix();
-
-  glGenTextures(1, &texGround);
-  initTexture(argv[2], texGround);
-
-  glGenTextures(1, &texSky);
-  initTexture(argv[3], texSky);
-
-  glGenTextures(1, &texCrossbar);
-  initTexture(argv[4], texCrossbar);
-
-  initBasicPipelineProgram();
-  initTexPipelineProgram();
-
-  // makeSpline();
-  makeRails();
-  makeCrossbars();
-  makeGround();
-  makeSky();
-}
-
 int main(int argc, char **argv) {
   if (argc < 5) {
-    printf(
-        "usage: %s <trackfile> <groundtexture> <skytexture> "
-        "<crossbartexture>\n",
-        argv[0]);
-    exit(0);
+    std::fprintf(stderr,
+                 "usage: %s <track-file> <ground-texture> <sky-texture> "
+                 "<crossbar-texture>\n",
+                 argv[0]);
+    return EXIT_FAILURE;
   }
 
-  std::cout << "Initializing GLUT..." << std::endl;
   glutInit(&argc, argv);
-
-  std::cout << "Initializing OpenGL..." << std::endl;
 
 #ifdef __APPLE__
   glutInitDisplayMode(GLUT_3_2_CORE_PROFILE | GLUT_DOUBLE | GLUT_RGB |
@@ -1224,12 +1195,12 @@ int main(int argc, char **argv) {
 
   glutInitWindowSize(windowWidth, windowHeight);
   glutInitWindowPosition(0, 0);
-  glutCreateWindow(windowTitle);
+  glutCreateWindow(kWindowTitle);
 
-  std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-  std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
-  std::cout << "Shading Language Version: "
-            << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+  std::printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
+  std::printf("OpenGL Renderer: %s\n", glGetString(GL_RENDERER));
+  std::printf("OpenGL Shading Language Version: %s\n",
+              glGetString(GL_SHADING_LANGUAGE_VERSION));
 
   // tells glut to use a particular display function to redraw
   glutDisplayFunc(displayFunc);
@@ -1285,7 +1256,25 @@ int main(int argc, char **argv) {
   MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
                 &crossbar_positions, &crossbar_tex_coords);
 
-  init(argv);
+  glClearColor(0, 0, 0, 0);
+  glEnable(GL_DEPTH_TEST);
+
+  matrix = new OpenGLMatrix();
+
+  glGenTextures(kTexture_Count, textures);
+
+  initTexture(argv[2], textures[kTextureGround]);
+  initTexture(argv[3], textures[kTextureSky]);
+  initTexture(argv[4], textures[kTextureCrossbar]);
+
+  initBasicPipelineProgram();
+  initTexPipelineProgram();
+
+  // makeSpline();
+  makeRails();
+  makeCrossbars();
+  makeGround();
+  makeSky();
 
   // sink forever into the glut loop
   glutMainLoop();
