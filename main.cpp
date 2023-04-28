@@ -1112,13 +1112,17 @@ void displayFunc() {
   float proj_mat[16];
   GLboolean is_row_major = GL_FALSE;
 
-  /* Rails */
+  /**************************
+   * Untextured models
+   ***************************/
 
   GLuint prog = basicProgram->GetProgramHandle();
   GLint model_view_mat_loc = glGetUniformLocation(prog, "modelViewMatrix");
   GLint proj_mat_loc = glGetUniformLocation(prog, "projectionMatrix");
 
   glUseProgram(prog);
+
+  /* Rails */
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -1132,7 +1136,9 @@ void displayFunc() {
   drawRails();
   glBindVertexArray(0);
 
-  /* Textured models */
+  /**********************
+   * Textured models
+   ***********************/
 
   prog = texProgram->GetProgramHandle();
   model_view_mat_loc = glGetUniformLocation(prog, "modelViewMatrix");
@@ -1157,15 +1163,16 @@ void displayFunc() {
 
   /* Ground textures */
 
-  // Set up transformations
   matrix->PushMatrix();
-  matrix->Translate(0.0, -groundRadius / 2.0, 0.0);
+
+  matrix->Translate(0, -groundRadius * 0.5f, 0);
   matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
   matrix->GetMatrix(proj_mat);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
+
   matrix->PopMatrix();
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
@@ -1178,7 +1185,6 @@ void displayFunc() {
 
   /* Sky */
 
-  // Set up transformations
   matrix->PushMatrix();
   matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
 
@@ -1186,6 +1192,7 @@ void displayFunc() {
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
   matrix->GetMatrix(proj_mat);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
+
   matrix->PopMatrix();
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
