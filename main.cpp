@@ -87,9 +87,21 @@ struct Vertex {
   glm::vec4 color;
 };
 
+enum Model {
+  kModelGround,
+  kModelSky,
+  kModelCrossbar,
+  kModelRails,
+  kModel_Count
+};
+
 enum Texture { kTextureGround, kTextureSky, kTextureCrossbar, kTexture_Count };
 
+enum Vao { kVaoTextured, kVaoRails, kVao_Count };
+
 static GLuint textures[kTexture_Count];
+static GLuint vao_names[kVao_Count];
+static GLuint vbo_names[kModel_Count];
 
 /************************ SPLINE **********************/
 
@@ -1089,106 +1101,95 @@ void idleFunc() {
 void displayFunc() {
   ++frameCount;
 
-  glClear(GL_COLOR_BUFFER_BIT |
-          GL_DEPTH_BUFFER_BIT);  // Clear back and depth buffer
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   matrix->LoadIdentity();
   matrix->LookAt(camPos[0], camPos[1], camPos[2], camPos[0] + camDir[0],
                  camPos[1] + camDir[1], camPos[2] + camDir[2], camNorm[0],
                  camNorm[1], camNorm[2]);
 
-  /************ RAILS ********************/
+  float model_view_mat[16];
+  float proj_mat[16];
+  GLboolean is_row_major = GL_FALSE;
 
-  basicProgram->Bind();
-  GLuint program = basicProgram->GetProgramHandle();
+  /* Rails */
 
-  float m[16];
-  float p[16];
-  matrix->GetMatrix(m);
+  GLuint prog = basicProgram->GetProgramHandle();
+  GLint model_view_mat_loc = glGetUniformLocation(prog, "modelViewMatrix");
+  GLint proj_mat_loc = glGetUniformLocation(prog, "projectionMatrix");
+
+  glUseProgram(prog);
+
+  matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(p);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
+  matrix->GetMatrix(proj_mat);
+  matrix->SetMatrixMode(OpenGLMatrix::ModelView);
 
-  GLboolean isRowMajor = GL_FALSE;
-  GLint h_modelViewMatrix = glGetUniformLocation(program, "modelViewMatrix");
-  GLint h_projectionMatrix = glGetUniformLocation(program, "projectionMatrix");
-  glUniformMatrix4fv(h_modelViewMatrix, 1, isRowMajor, m);
-  glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
   glBindVertexArray(vaoRail);
   drawRails();
   glBindVertexArray(0);
 
-  /************* CROSSBAR *****************/
+  /* Textured models */
 
-  texProgram->Bind();
-  program = basicProgram->GetProgramHandle();
+  prog = texProgram->GetProgramHandle();
+  model_view_mat_loc = glGetUniformLocation(prog, "modelViewMatrix");
+  proj_mat_loc = glGetUniformLocation(prog, "projectionMatrix");
 
-  matrix->GetMatrix(m);
+  glUseProgram(prog);
+
+  /* Crossbars */
+
+  matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(p);
+  matrix->GetMatrix(proj_mat);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
 
-  isRowMajor = GL_FALSE;
-  h_modelViewMatrix = glGetUniformLocation(program, "modelViewMatrix");
-  h_projectionMatrix = glGetUniformLocation(program, "projectionMatrix");
-  glUniformMatrix4fv(h_modelViewMatrix, 1, isRowMajor, m);
-  glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
   glBindVertexArray(vaoCrossbar);
   glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
   drawCrossbar();
   glBindVertexArray(0);
 
-  /*********** GROUND TEXTURE *************/
+  /* Ground textures */
 
   // Set up transformations
   matrix->PushMatrix();
   matrix->Translate(0.0, -groundRadius / 2.0, 0.0);
   matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
 
-  matrix->GetMatrix(m);
+  matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(p);
+  matrix->GetMatrix(proj_mat);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
   matrix->PopMatrix();
 
-  texProgram->Bind();
-  program = texProgram->GetProgramHandle();
-
-  h_modelViewMatrix = glGetUniformLocation(program, "modelViewMatrix");
-  h_projectionMatrix = glGetUniformLocation(program, "projectionMatrix");
-
-  isRowMajor = GL_FALSE;
-  glUniformMatrix4fv(h_modelViewMatrix, 1, isRowMajor, m);
-  glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
   glBindVertexArray(vaoGround);
   glBindTexture(GL_TEXTURE_2D, textures[kTextureGround]);
   drawGround();
   glBindVertexArray(0);
 
-  /********** SKY TEXTURE *************/
+  /* Sky */
 
   // Set up transformations
   matrix->PushMatrix();
   matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
 
-  matrix->GetMatrix(m);
+  matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(p);
+  matrix->GetMatrix(proj_mat);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
   matrix->PopMatrix();
 
-  texProgram->Bind();
-  program = texProgram->GetProgramHandle();
-
-  h_modelViewMatrix = glGetUniformLocation(program, "modelViewMatrix");
-  h_projectionMatrix = glGetUniformLocation(program, "projectionMatrix");
-
-  isRowMajor = GL_FALSE;
-  glUniformMatrix4fv(h_modelViewMatrix, 1, isRowMajor, m);
-  glUniformMatrix4fv(h_projectionMatrix, 1, isRowMajor, p);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
   glBindVertexArray(vaoSky);
   glBindTexture(GL_TEXTURE_2D, textures[kTextureSky]);
@@ -1302,6 +1303,9 @@ int main(int argc, char **argv) {
 
   initBasicPipelineProgram();
   initTexPipelineProgram();
+
+  // glGenBuffers(kModel_Count, vbo_names);
+  // glGenVertexArrays(kVao_Count, vao_names);
 
   // makeSpline();
   makeRails();
