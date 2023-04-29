@@ -5,20 +5,16 @@
 
 #include "types.hpp"
 
-union Aabb {
-  struct {
-    glm::vec3 min_position;
-    glm::vec3 max_position;
-  };
-  struct {
-    glm::vec3 center;
-    glm::vec3 size;
-  };
-};
+void AabbCenter(const glm::vec3* min_pos, const glm::vec3* max_pos,
+                glm::vec3* center);
 
-void MakeAabb(Aabb* a, const glm::vec3* positions, uint position_count);
+void AabbSize(const glm::vec3* min_pos, const glm::vec3* max_pos,
+              glm::vec3* size);
 
-glm::vec3 Center(const Aabb* a);
-glm::vec3 Size(const Aabb* a);
+void AabbMinMaxPositions(const glm::vec3* positions, uint position_count,
+                         glm::vec3* min_pos, glm::vec3* max_pos);
+
+void AabbCenterAndSize(const glm::vec3* positions, uint position_count,
+                       glm::vec3* center, glm::vec3* size);
 
 #endif  // RCOASTER_AABB_HPP

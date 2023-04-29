@@ -85,7 +85,13 @@ struct CameraPathVertices {
   std::vector<glm::vec3> binormals;
 };
 
-static uint Count(const CameraPathVertices *c) { return c->positions.size(); }
+static uint Count(const CameraPathVertices *c) {
+  assert(c);
+  assert(c->positions.size() == c->normals.size());
+  assert(c->normals.size() == c->binormals.size());
+
+  return c->positions.size();
+}
 
 static CameraPathVertices camera_path_vertices;
 
@@ -111,160 +117,24 @@ static GLuint vbo_names[kVbo_Count];
 static std::vector<Vertex> rail_vertices;
 static std::vector<GLuint> rail_indices;
 
-constexpr float kSceneBoxSideLen = 256;
-
 struct TexturedVertices {
   std::vector<glm::vec3> positions;
   std::vector<glm::vec2> tex_coords;
 };
 
-static uint Count(const TexturedVertices *tv) { return tv->positions.size(); }
+static uint Count(const TexturedVertices *tv) {
+  assert(tv);
+  assert(tv->positions.size() == tv->tex_coords.size());
 
+  return tv->positions.size();
+}
+
+#define SCENE_AABB_SIDE_LEN 256
 #define GROUND_VERTEX_COUNT 6
-
-constexpr float kGroundTexUpperLim = kSceneBoxSideLen * 0.5f * 0.25f;
-
-const TexturedVertices ground_vertices = {
-    {{-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f}},
-    {{0, 0},
-     {0, kGroundTexUpperLim},
-     {kGroundTexUpperLim, kGroundTexUpperLim},
-     {0, 0},
-     {kGroundTexUpperLim, kGroundTexUpperLim},
-     {kGroundTexUpperLim, 0}}};
-
-static Aabb ground_aabb = {
-    {{}, {kSceneBoxSideLen, kSceneBoxSideLen, kSceneBoxSideLen}}};
-
 #define SKY_VERTEX_COUNT 36
 
-constexpr float kSkyTexUpperLim = 1;
-
-const TexturedVertices sky_vertices = {
-    {// x = -1 face
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-
-     // x = 1 face
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-
-     // y = -1 face
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-
-     // y = 1 face
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-
-     // z = -1 face
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      -kSceneBoxSideLen * 0.5f},
-
-     // z = 1 face
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f},
-     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-      kSceneBoxSideLen * 0.5f}},
-    {{0, 0},
-     {0, kSkyTexUpperLim},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {0, 0},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {kSkyTexUpperLim, 0},
-     {0, 0},
-     {0, kSkyTexUpperLim},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {0, 0},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {kSkyTexUpperLim, 0},
-     {0, 0},
-     {0, kSkyTexUpperLim},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {0, 0},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {kSkyTexUpperLim, 0},
-     {0, 0},
-     {0, kSkyTexUpperLim},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {0, 0},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {kSkyTexUpperLim, 0},
-     {0, 0},
-     {0, kSkyTexUpperLim},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {0, 0},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {kSkyTexUpperLim, 0},
-     {0, 0},
-     {0, kSkyTexUpperLim},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {0, 0},
-     {kSkyTexUpperLim, kSkyTexUpperLim},
-     {kSkyTexUpperLim, 0}}};
+const glm::vec3 scene_aabb_center = {};
+const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
 
 static TexturedVertices crossbar_vertices;
 static SplineVertices spline_vertices;
@@ -273,24 +143,22 @@ static void MakeCameraPath(const SplineVertices *spline,
                            CameraPathVertices *campath) {
   uint vertex_count = Count(spline);
 
-  Aabb spline_aabb = {};
-  MakeAabb(&spline_aabb, spline->positions.data(), vertex_count);
+  glm::vec3 spl_aabb_center;
+  glm::vec3 spl_aabb_size;
+  AabbCenterAndSize(spline->positions.data(), vertex_count, &spl_aabb_center,
+                    &spl_aabb_size);
 
-  glm::vec3 spl_aabb_center = Center(&spline_aabb);
-  glm::vec3 spl_aabb_size = Size(&spline_aabb);
   float spl_aabb_half_side_len = glm::length(spl_aabb_size) * 0.5f;
-
-  float ground_half_side_len = glm::length(ground_aabb.size) * 0.5f;
+  float scene_aabb_half_side_len = glm::length(scene_aabb_size) * 0.5f;
 
   campath->positions.resize(vertex_count);
   campath->normals.resize(vertex_count);
   campath->binormals.resize(vertex_count);
 
   for (uint i = 0; i < vertex_count; ++i) {
-    campath->positions[i] = spline->positions[i];
-    campath->positions[i] -= spl_aabb_center;
+    campath->positions[i] = spline->positions[i] - spl_aabb_center;
     campath->positions[i].y +=
-        spl_aabb_half_side_len - ground_half_side_len * 0.5f;
+        spl_aabb_half_side_len - scene_aabb_half_side_len * 0.5f;
 
     if (i == 0) {
       campath->normals[i] = glm::normalize(
@@ -944,10 +812,10 @@ void displayFunc() {
 
   matrix->PushMatrix();
 
-  float ground_aabb_half_side_len = glm::length(ground_aabb.size) * 0.5f;
-  matrix->Translate(0, -ground_aabb_half_side_len * 0.5f, 0);
-  matrix->Translate(-ground_aabb.center.x, -ground_aabb.center.y,
-                    -ground_aabb.center.z);
+  float scene_aabb_half_side_len = glm::length(scene_aabb_size) * 0.5f;
+  matrix->Translate(0, -scene_aabb_half_side_len * 0.5f, 0);
+  matrix->Translate(-scene_aabb_center.x, -scene_aabb_center.y,
+                    -scene_aabb_center.z);
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -967,8 +835,8 @@ void displayFunc() {
 
   matrix->PushMatrix();
 
-  matrix->Translate(-ground_aabb.center.x, -ground_aabb.center.y,
-                    -ground_aabb.center.z);
+  matrix->Translate(-scene_aabb_center.x, -scene_aabb_center.y,
+                    -scene_aabb_center.z);
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -1070,6 +938,117 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  float ground_tex_upper_lim = SCENE_AABB_SIDE_LEN * 0.5f * 0.25f;
+  TexturedVertices ground_vertices = {
+      {{-SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN}},
+      {{0, 0},
+       {0, ground_tex_upper_lim},
+       {ground_tex_upper_lim, ground_tex_upper_lim},
+       {0, 0},
+       {ground_tex_upper_lim, ground_tex_upper_lim},
+       {ground_tex_upper_lim, 0}}};
+  assert(GROUND_VERTEX_COUNT == ground_vertices.positions.size());
+  assert(GROUND_VERTEX_COUNT == ground_vertices.tex_coords.size());
+  for (uint i = 0; i < Count(&ground_vertices); ++i) {
+    ground_vertices.positions[i] *= 0.5f;
+  }
+
+  float sky_tex_upper_lim = 1;
+  TexturedVertices sky_vertices = {
+      {// x = -1 face
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+
+       // x = 1 face
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+
+       // y = -1 face
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+
+       // y = 1 face
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+
+       // z = -1 face
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+
+       // z = 1 face
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN}},
+      {{0, 0},
+       {0, sky_tex_upper_lim},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {0, 0},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {sky_tex_upper_lim, 0},
+       {0, 0},
+       {0, sky_tex_upper_lim},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {0, 0},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {sky_tex_upper_lim, 0},
+       {0, 0},
+       {0, sky_tex_upper_lim},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {0, 0},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {sky_tex_upper_lim, 0},
+       {0, 0},
+       {0, sky_tex_upper_lim},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {0, 0},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {sky_tex_upper_lim, 0},
+       {0, 0},
+       {0, sky_tex_upper_lim},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {0, 0},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {sky_tex_upper_lim, 0},
+       {0, 0},
+       {0, sky_tex_upper_lim},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {0, 0},
+       {sky_tex_upper_lim, sky_tex_upper_lim},
+       {sky_tex_upper_lim, 0}}};
+  assert(SKY_VERTEX_COUNT == sky_vertices.positions.size());
+  assert(SKY_VERTEX_COUNT == sky_vertices.tex_coords.size());
+  for (uint i = 0; i < Count(&sky_vertices); ++i) {
+    sky_vertices.positions[i] *= 0.5f;
+  }
+
   std::vector<std::vector<Point>> splines;
   Status status = LoadSplines(argv[1], &splines);
   if (status != kStatusOk) {
@@ -1105,7 +1084,6 @@ int main(int argc, char **argv) {
 
   glGenBuffers(kVbo_Count, vbo_names);
 
-  assert(GROUND_VERTEX_COUNT == Count(&ground_vertices));
   assert(SKY_VERTEX_COUNT == Count(&sky_vertices));
 
   uint vertex_count =
