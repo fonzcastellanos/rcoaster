@@ -4,7 +4,14 @@ MAKEFLAGS += --no-builtin-rules
 
 .SECONDEXPANSION :
 
+# Utility variables
+empty :=
+space := $(empty) $(empty)
+space2 := $(space)$(space)
+
 CXXFLAGS := -DGLM_FORCE_RADIANS
+ 
+CXXV := $(shell $(CXX) --version | head -n 1)
 
 helper_lib_src := $(wildcard openGLHelper/*.cpp)
 helper_lib_headers := $(wildcard openGLHelper/*.h)
@@ -30,6 +37,15 @@ else
   	CXXFLAGS += -Wno-deprecated-declarations
   	LDFLAGS := -Wl,-w
 endif
+
+ifndef RCOASTER_DEBUG
+	CXXFLAGS += -DNDEBUG
+endif 
+
+$(info rcoaster build info: )
+$(info $(space2)CXXFLAGS: $(CXXFLAGS))
+$(info $(space2)LDFLAGS: $(CXXFLAGS))
+$(info $(space2)CXX: $(CXXV))
 
 all : main aabb.o
 

@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <glm/glm.hpp>
@@ -106,32 +107,35 @@ static GLuint textures[kTexture_Count];
 static GLuint vao_names[kVertexFormat_Count];
 static GLuint vbo_names[kVbo_Count];
 
-static std::vector<glm::vec3> crossbar_positions;
-static std::vector<glm::vec2> crossbar_tex_coords;
-
 static std::vector<Vertex> rail_vertices;
 static std::vector<GLuint> rail_indices;
 
 constexpr float kSceneBoxSideLen = 256;
 
+struct TexturedVertices {
+  std::vector<glm::vec3> positions;
+  std::vector<glm::vec2> tex_coords;
+};
+
+static uint Count(const TexturedVertices *tv) { return tv->positions.size(); }
+
 #define GROUND_VERTEX_COUNT 6
 
-const glm::vec3 ground_vertex_positions[GROUND_VERTEX_COUNT] = {
-    {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f}};
-
 constexpr float kGroundTexUpperLim = kSceneBoxSideLen * 0.5f * 0.25f;
-const glm::vec2 ground_tex_coords[GROUND_VERTEX_COUNT] = {
-    {0, 0},
-    {0, kGroundTexUpperLim},
-    {kGroundTexUpperLim, kGroundTexUpperLim},
-    {0, 0},
-    {kGroundTexUpperLim, kGroundTexUpperLim},
-    {kGroundTexUpperLim, 0}};
+
+const TexturedVertices ground_vertices = {
+    {{-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f}},
+    {{0, 0},
+     {0, kGroundTexUpperLim},
+     {kGroundTexUpperLim, kGroundTexUpperLim},
+     {0, 0},
+     {kGroundTexUpperLim, kGroundTexUpperLim},
+     {kGroundTexUpperLim, 0}}};
 
 // Bounding sphere
 static glm::vec3 groundCenter(0, 0, 0);
@@ -139,124 +143,130 @@ const GLfloat groundRadius = kSceneBoxSideLen * 0.5f;
 
 #define SKY_VERTEX_COUNT 36
 
-const glm::vec3 sky_vertex_positions[SKY_VERTEX_COUNT] = {
-    // x = -1 face
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-
-    // x = 1 face
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-
-    // y = -1 face
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-
-    // y = 1 face
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-
-    // z = -1 face
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     -kSceneBoxSideLen * 0.5f},
-
-    // z = 1 face
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
-    {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f},
-    {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
-     kSceneBoxSideLen * 0.5f},
-};
-
 constexpr float kSkyTexUpperLim = 1;
-const glm::vec2 sky_tex_coords[SKY_VERTEX_COUNT] = {
-    {0, 0},
-    {0, kSkyTexUpperLim},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {0, 0},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {kSkyTexUpperLim, 0},
-    {0, 0},
-    {0, kSkyTexUpperLim},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {0, 0},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {kSkyTexUpperLim, 0},
-    {0, 0},
-    {0, kSkyTexUpperLim},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {0, 0},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {kSkyTexUpperLim, 0},
-    {0, 0},
-    {0, kSkyTexUpperLim},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {0, 0},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {kSkyTexUpperLim, 0},
-    {0, 0},
-    {0, kSkyTexUpperLim},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {0, 0},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {kSkyTexUpperLim, 0},
-    {0, 0},
-    {0, kSkyTexUpperLim},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {0, 0},
-    {kSkyTexUpperLim, kSkyTexUpperLim},
-    {kSkyTexUpperLim, 0}};
+
+const TexturedVertices sky_vertices = {
+    {// x = -1 face
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+
+     // x = 1 face
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+
+     // y = -1 face
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+
+     // y = 1 face
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+
+     // z = -1 face
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      -kSceneBoxSideLen * 0.5f},
+
+     // z = 1 face
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f},
+     {kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
+      kSceneBoxSideLen * 0.5f}},
+    {{0, 0},
+     {0, kSkyTexUpperLim},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {0, 0},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {kSkyTexUpperLim, 0},
+     {0, 0},
+     {0, kSkyTexUpperLim},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {0, 0},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {kSkyTexUpperLim, 0},
+     {0, 0},
+     {0, kSkyTexUpperLim},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {0, 0},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {kSkyTexUpperLim, 0},
+     {0, 0},
+     {0, kSkyTexUpperLim},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {0, 0},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {kSkyTexUpperLim, 0},
+     {0, 0},
+     {0, kSkyTexUpperLim},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {0, 0},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {kSkyTexUpperLim, 0},
+     {0, 0},
+     {0, kSkyTexUpperLim},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {0, 0},
+     {kSkyTexUpperLim, kSkyTexUpperLim},
+     {kSkyTexUpperLim, 0}}};
+
+static TexturedVertices crossbar_vertices;
 
 /****************** CATMULL-ROM SPLINE ******************/
 
@@ -455,8 +465,7 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
 
 static void MakeCrossbars(const CameraPathVertices *cam_path,
                           const std::vector<glm::vec3> *spline_tangents,
-                          std::vector<glm::vec3> *crossbar_positions,
-                          std::vector<glm::vec2> *crossbar_tex_coords) {
+                          TexturedVertices *crossbar) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
   static constexpr int kVertexCount = 8;
@@ -470,8 +479,8 @@ static void MakeCrossbars(const CameraPathVertices *cam_path,
   auto &cp_norm = cam_path->normals;
   uint cp_count = Count(cam_path);
 
-  auto &cb_pos = *crossbar_positions;
-  auto &cb_tex_coords = *crossbar_tex_coords;
+  auto &cb_pos = crossbar->positions;
+  auto &cb_tex_coords = crossbar->tex_coords;
 
   glm::vec3 v[kVertexCount];
   float dist_moved = 0;
@@ -1022,7 +1031,7 @@ void displayFunc() {
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
   glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
-  for (int offset = 0; offset < crossbar_positions.size(); offset += 36) {
+  for (int offset = 0; offset < Count(&crossbar_vertices); offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 
@@ -1120,7 +1129,7 @@ int main(int argc, char **argv) {
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
   MakeRails(&camera_path_vertices, &rail_vertices, &rail_indices);
   MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
-                &crossbar_positions, &crossbar_tex_coords);
+                &crossbar_vertices);
 
   glClearColor(0, 0, 0, 0);
   glEnable(GL_DEPTH_TEST);
@@ -1138,8 +1147,11 @@ int main(int argc, char **argv) {
 
   glGenBuffers(kVbo_Count, vbo_names);
 
+  assert(GROUND_VERTEX_COUNT == Count(&ground_vertices));
+  assert(SKY_VERTEX_COUNT == Count(&sky_vertices));
+
   uint vertex_count =
-      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossbar_positions.size();
+      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + Count(&crossbar_vertices);
 
   // Buffer textured vertices
   {
@@ -1150,23 +1162,29 @@ int main(int argc, char **argv) {
 
     uint offset = 0;
     uint size = GROUND_VERTEX_COUNT * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_vertex_positions);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    ground_vertices.positions.data());
     offset += size;
     size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_vertex_positions);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    sky_vertices.positions.data());
     offset += size;
-    size = crossbar_positions.size() * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_positions.data());
+    size = Count(&crossbar_vertices) * sizeof(glm::vec3),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    crossbar_vertices.positions.data());
 
     offset += size;
     size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    ground_vertices.tex_coords.data());
     offset += size;
     size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    sky_vertices.tex_coords.data());
     offset += size;
-    size = crossbar_positions.size() * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_tex_coords.data());
+    size = Count(&crossbar_vertices) * sizeof(glm::vec2),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    crossbar_vertices.tex_coords.data());
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
