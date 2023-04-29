@@ -141,36 +141,35 @@ static SplineVertices spline_vertices;
 
 static void MakeCameraPath(const SplineVertices *spline,
                            CameraPathVertices *campath) {
+  assert(spline);
+  assert(campath);
+
+  assert(campath->positions.empty());
+  assert(campath->normals.empty());
+  assert(campath->binormals.empty());
+
   uint vertex_count = Count(spline);
 
-  glm::vec3 spl_aabb_center;
-  glm::vec3 spl_aabb_size;
-  AabbCenterAndSize(spline->positions.data(), vertex_count, &spl_aabb_center,
-                    &spl_aabb_size);
-
-  float spl_aabb_half_side_len = glm::length(spl_aabb_size) * 0.5f;
-  float scene_aabb_half_side_len = glm::length(scene_aabb_size) * 0.5f;
+  assert(vertex_count > 0);
 
   campath->positions.resize(vertex_count);
   campath->normals.resize(vertex_count);
   campath->binormals.resize(vertex_count);
 
   for (uint i = 0; i < vertex_count; ++i) {
-    campath->positions[i] = spline->positions[i] - spl_aabb_center;
-    campath->positions[i].y +=
-        spl_aabb_half_side_len - scene_aabb_half_side_len * 0.5f;
+    campath->positions[i] = spline->positions[i];
+  }
 
-    if (i == 0) {
-      campath->normals[i] = glm::normalize(
-          glm::cross(spline->tangents[i], glm::vec3(0, 1, -0.5)));
-      campath->binormals[i] =
-          glm::normalize(glm::cross(spline->tangents[i], campath->normals[i]));
-    } else {
-      campath->normals[i] = glm::normalize(
-          glm::cross(campath->binormals[i - 1], spline->tangents[i]));
-      campath->binormals[i] =
-          glm::normalize(glm::cross(spline->tangents[i], campath->normals[i]));
-    }
+  campath->normals[0] =
+      glm::normalize(glm::cross(spline->tangents[0], glm::vec3(0, 1, -0.5)));
+  campath->binormals[0] =
+      glm::normalize(glm::cross(spline->tangents[0], campath->normals[0]));
+
+  for (uint i = 1; i < vertex_count; ++i) {
+    campath->normals[i] = glm::normalize(
+        glm::cross(campath->binormals[i - 1], spline->tangents[i]));
+    campath->binormals[i] =
+        glm::normalize(glm::cross(spline->tangents[i], campath->normals[i]));
   }
 }
 

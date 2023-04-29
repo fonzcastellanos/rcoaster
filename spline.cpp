@@ -1,5 +1,7 @@
 #include "spline.hpp"
 
+#include <cassert>
+
 constexpr float kTension = 0.5;
 
 const glm::mat4x4 kCatmullRomBasis(-kTension, 2 - kTension, kTension - 2,
@@ -17,7 +19,12 @@ static glm::vec3 CatmullRomSplineTangent(float u, const glm::mat4x3 *control) {
   return (*control) * kCatmullRomBasis * parameters;
 }
 
-uint Count(const SplineVertices *s) { return s->positions.size(); }
+uint Count(const SplineVertices *s) {
+  assert(s);
+  assert(s->positions.size() == s->tangents.size());
+
+  return s->positions.size();
+}
 
 static void Subdivide(float u0, float u1, float max_line_len,
                       const glm::mat4x3 *control, SplineVertices *vertices) {
