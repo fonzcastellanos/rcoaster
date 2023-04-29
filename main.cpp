@@ -72,6 +72,11 @@ glm::vec3 camDir(0.0, 0.0, 0.0);
 glm::vec3 camNorm;
 glm::vec3 camBinorm;
 
+struct Vertex {
+  glm::vec3 position;
+  glm::vec4 color;
+};
+
 struct CameraPathVertices {
   std::vector<glm::vec3> positions;
   std::vector<glm::vec3> normals;
@@ -82,112 +87,24 @@ static uint Count(const CameraPathVertices *c) { return c->positions.size(); }
 
 static CameraPathVertices camera_path_vertices;
 
-struct Vertex {
-  glm::vec3 position;
-  glm::vec4 color;
-};
-
-enum Model {
-  kModelGround,
-  kModelSky,
-  kModelCrossbar,
-  kModelRails,
-  kModel_Count
-};
-
 enum Texture { kTextureGround, kTextureSky, kTextureCrossbar, kTexture_Count };
 
-enum ModelType { kModelTypeTextured, kModelTypeUntextured, kModelType_Count };
+enum VertexFormat {
+  kVertexFormatTextured,
+  kVertexFormatUntextured,
+  kVertexFormat_Count
+};
 
 static GLuint textures[kTexture_Count];
-static GLuint vao_names[kModelType_Count];
-static GLuint vbo_names[kModelType_Count];
+static GLuint vao_names[kVertexFormat_Count];
+static GLuint vbo_names[kVertexFormat_Count];
 static GLuint rail_indices_vbo_name;
 
-/************************ SPLINE **********************/
-
-// GLuint vaoSpline;
-// GLuint vboSpline;
-
-// std::vector<Vertex> splineVertices;
-
-// void makeSpline() {
-//   glGenVertexArrays(1, &vaoSpline);
-//   glBindVertexArray(vaoSpline);
-
-//   glGenBuffers(1, &vboSpline);
-//   glBindBuffer(GL_ARRAY_BUFFER, vboSpline);
-//   glBufferData(GL_ARRAY_BUFFER, splineVertices.size() * sizeof(Vertex),
-//                &splineVertices[0], GL_STATIC_DRAW);
-
-//   GLuint program = basicProgram->GetProgramHandle();
-//   GLuint posLoc = glGetAttribLocation(program, "position");
-//   GLuint colorLoc = glGetAttribLocation(program, "color");
-//   glEnableVertexAttribArray(posLoc);
-//   glEnableVertexAttribArray(colorLoc);
-//   GLintptr offset = 0;
-//   glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-//                         BUFFER_OFFSET(offset));
-//   offset += sizeof(Vertex().position);
-//   glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-//                         BUFFER_OFFSET(offset));
-
-//   glBindVertexArray(0);
-// }
-
-// void drawSpline() { glDrawArrays(GL_LINES, 0, splineVertices.size()); }
-
-/********************** RAILS **********************/
-
-GLuint vaoRail;
-GLuint vboRail;
-GLuint iboRail;
+static std::vector<glm::vec3> crossbar_positions;
+static std::vector<glm::vec2> crossbar_tex_coords;
 
 static std::vector<Vertex> rail_vertices;
-std::vector<GLuint> rail_indices;
-
-void makeRails() {
-  glGenVertexArrays(1, &vaoRail);
-  glBindVertexArray(vaoRail);
-
-  glGenBuffers(1, &vboRail);
-  glBindBuffer(GL_ARRAY_BUFFER, vboRail);
-  glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
-               rail_vertices.data(), GL_STATIC_DRAW);
-
-  GLuint program = basicProgram->GetProgramHandle();
-  GLuint posLoc = glGetAttribLocation(program, "position");
-  GLuint colorLoc = glGetAttribLocation(program, "color");
-  glEnableVertexAttribArray(posLoc);
-  glEnableVertexAttribArray(colorLoc);
-  GLintptr offset = 0;
-  glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        BUFFER_OFFSET(offset));
-  offset += sizeof(Vertex().position);
-  glVertexAttribPointer(colorLoc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        BUFFER_OFFSET(offset));
-
-  glGenBuffers(1, &iboRail);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboRail);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
-               rail_indices.data(), GL_STATIC_DRAW);
-
-  glBindVertexArray(0);
-}
-
-void drawRails() {
-  GLintptr offset = 0;
-  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
-                 BUFFER_OFFSET(offset));
-  offset += rail_indices.size() / 2 * sizeof(GLuint);
-  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
-                 BUFFER_OFFSET(offset));
-}
-
-/**************** GROUND ********************/
-
-GLuint vaoGround;
-GLuint vboGround;
+static std::vector<GLuint> rail_indices;
 
 constexpr float kSceneBoxSideLen = 256;
 
@@ -211,46 +128,8 @@ const glm::vec2 ground_tex_coords[GROUND_VERTEX_COUNT] = {
     {kGroundTexUpperLim, 0}};
 
 // Bounding sphere
-glm::vec3 groundCenter(0, 0, 0);
+static glm::vec3 groundCenter(0, 0, 0);
 const GLfloat groundRadius = kSceneBoxSideLen * 0.5f;
-
-void makeGround() {
-  glGenVertexArrays(1, &vaoGround);
-  glBindVertexArray(vaoGround);
-
-  glGenBuffers(1, &vboGround);
-  glBindBuffer(GL_ARRAY_BUFFER, vboGround);
-  glBufferData(GL_ARRAY_BUFFER,
-               sizeof(ground_vertex_positions) + sizeof(ground_tex_coords),
-               NULL, GL_STATIC_DRAW);
-  GLintptr offset = 0;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(ground_vertex_positions),
-                  ground_vertex_positions);
-  offset += sizeof(ground_vertex_positions);
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(ground_tex_coords),
-                  ground_tex_coords);
-
-  GLuint program = texProgram->GetProgramHandle();
-  GLuint posLoc = glGetAttribLocation(program, "position");
-  GLuint texLoc = glGetAttribLocation(program, "texCoord");
-  glEnableVertexAttribArray(posLoc);
-  glEnableVertexAttribArray(texLoc);
-  offset = 0;
-  glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(offset));
-  offset += sizeof(ground_vertex_positions);
-  glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(offset));
-
-  glBindVertexArray(0);
-}
-
-void drawGround() { glDrawArrays(GL_TRIANGLES, 0, 6); }
-
-/*********************** SKY ****************************/
-
-GLuint vaoSky;
-GLuint vboSky;
 
 #define SKY_VERTEX_COUNT 36
 
@@ -373,89 +252,13 @@ const glm::vec2 sky_tex_coords[SKY_VERTEX_COUNT] = {
     {kSkyTexUpperLim, kSkyTexUpperLim},
     {kSkyTexUpperLim, 0}};
 
-void makeSky() {
-  glGenVertexArrays(1, &vaoSky);
-  glBindVertexArray(vaoSky);
-
-  glGenBuffers(1, &vboSky);
-  glBindBuffer(GL_ARRAY_BUFFER, vboSky);
-  glBufferData(GL_ARRAY_BUFFER,
-               sizeof(sky_vertex_positions) + sizeof(sky_tex_coords), NULL,
-               GL_STATIC_DRAW);
-  GLintptr offset = 0;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(sky_vertex_positions),
-                  sky_vertex_positions);
-  offset += sizeof(sky_vertex_positions);
-  glBufferSubData(GL_ARRAY_BUFFER, offset, sizeof(sky_tex_coords),
-                  sky_tex_coords);
-
-  GLuint program = texProgram->GetProgramHandle();
-  GLuint posLoc = glGetAttribLocation(program, "position");
-  GLuint texLoc = glGetAttribLocation(program, "texCoord");
-  glEnableVertexAttribArray(posLoc);
-  glEnableVertexAttribArray(texLoc);
-  offset = 0;
-  glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(offset));
-  offset += sizeof(sky_vertex_positions);
-  glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(offset));
-
-  glBindVertexArray(0);
-}
-
-void drawSky() { glDrawArrays(GL_TRIANGLES, 0, 36); }
-
-/*********************** CROSSBARS ******************/
-
-GLuint vaoCrossbar;
-GLuint vboCrossbar;
-
-std::vector<glm::vec3> crossbar_positions;
-std::vector<glm::vec2> crossbar_tex_coords;
-
-void makeCrossbars() {
-  glGenVertexArrays(1, &vaoCrossbar);
-  glBindVertexArray(vaoCrossbar);
-
-  glGenBuffers(1, &vboCrossbar);
-  glBindBuffer(GL_ARRAY_BUFFER, vboCrossbar);
-  GLuint vSize = crossbar_positions.size() * sizeof(glm::vec3);
-  GLuint tSize = crossbar_tex_coords.size() * sizeof(glm::vec2);
-  glBufferData(GL_ARRAY_BUFFER, vSize + tSize, NULL, GL_STATIC_DRAW);
-  GLintptr offset = 0;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, vSize, crossbar_positions.data());
-  offset += vSize;
-  glBufferSubData(GL_ARRAY_BUFFER, offset, tSize, crossbar_tex_coords.data());
-
-  GLuint program = texProgram->GetProgramHandle();
-  GLuint posLoc = glGetAttribLocation(program, "position");
-  GLuint texLoc = glGetAttribLocation(program, "texCoord");
-  glEnableVertexAttribArray(posLoc);
-  glEnableVertexAttribArray(texLoc);
-  offset = 0;
-  glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(offset));
-  offset += vSize;
-  glVertexAttribPointer(texLoc, 2, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(offset));
-
-  glBindVertexArray(0);
-}
-
-void drawCrossbar() {
-  for (int offset = 0; offset < crossbar_positions.size(); offset += 36) {
-    glDrawArrays(GL_TRIANGLES, offset, 36);
-  }
-}
-
 /****************** CATMULL-ROM SPLINE ******************/
 
 static SplineVertices spline_vertices;
 
 // Bounding sphere of spline
-glm::vec3 splineCenter;
-float splineRadius;
+static glm::vec3 splineCenter;
+static float splineRadius;
 glm::vec3 spline_min_point(std::numeric_limits<float>::max(),
                            std::numeric_limits<float>::max(),
                            std::numeric_limits<float>::max());
@@ -827,7 +630,7 @@ static Status LoadSplines(const char *track_filepath,
   return kStatusOk;
 }
 
-int InitTexture(const char *img_filepath, GLuint texture_name) {
+static int InitTexture(const char *img_filepath, GLuint texture_name) {
   // read the texture image
   ImageIO img;
   ImageIO::fileFormatType img_format;
@@ -1138,7 +941,7 @@ void displayFunc() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindVertexArray(vao_names[kModelTypeUntextured]);
+  glBindVertexArray(vao_names[kVertexFormatUntextured]);
 
   glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
                  BUFFER_OFFSET(0));
@@ -1157,7 +960,7 @@ void displayFunc() {
 
   glUseProgram(prog);
 
-  glBindVertexArray(vao_names[kModelTypeTextured]);
+  glBindVertexArray(vao_names[kVertexFormatTextured]);
 
   GLint first = 0;
 
@@ -1327,8 +1130,8 @@ int main(int argc, char **argv) {
   initBasicPipelineProgram();
   initTexPipelineProgram();
 
-  glGenBuffers(kModelType_Count, vbo_names);
-  glGenVertexArrays(kModelType_Count, vao_names);
+  glGenBuffers(kVertexFormat_Count, vbo_names);
+  glGenVertexArrays(kVertexFormat_Count, vao_names);
   glGenBuffers(1, &rail_indices_vbo_name);
 
   /*************************
@@ -1339,8 +1142,8 @@ int main(int argc, char **argv) {
   GLuint pos_loc = glGetAttribLocation(prog, "position");
   GLuint tex_coord_loc = glGetAttribLocation(prog, "texCoord");
 
-  glBindVertexArray(vao_names[kModelTypeTextured]);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kModelTypeTextured]);
+  glBindVertexArray(vao_names[kVertexFormatTextured]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVertexFormatTextured]);
 
   uint vertex_count =
       GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossbar_positions.size();
@@ -1385,8 +1188,8 @@ int main(int argc, char **argv) {
   pos_loc = glGetAttribLocation(prog, "position");
   GLuint color_loc = glGetAttribLocation(prog, "color");
 
-  glBindVertexArray(vao_names[kModelTypeUntextured]);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kModelTypeUntextured]);
+  glBindVertexArray(vao_names[kVertexFormatUntextured]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVertexFormatUntextured]);
   glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
                rail_vertices.data(), GL_STATIC_DRAW);
 
