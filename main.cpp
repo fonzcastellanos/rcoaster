@@ -97,11 +97,12 @@ enum Model {
 
 enum Texture { kTextureGround, kTextureSky, kTextureCrossbar, kTexture_Count };
 
-enum Vao { kVaoTextured, kVaoRails, kVao_Count };
+enum ModelType { kModelTypeTextured, kModelTypeUntextured, kModelType_Count };
 
 static GLuint textures[kTexture_Count];
-static GLuint vao_names[kVao_Count];
-static GLuint vbo_names[kModel_Count];
+static GLuint vao_names[kModelType_Count];
+static GLuint vbo_names[kModelType_Count];
+static GLuint rail_indices_vbo_name;
 
 /************************ SPLINE **********************/
 
@@ -190,7 +191,9 @@ GLuint vboGround;
 
 constexpr float kSceneBoxSideLen = 256;
 
-const glm::vec3 ground_vertex_positions[6] = {
+#define GROUND_VERTEX_COUNT 6
+
+const glm::vec3 ground_vertex_positions[GROUND_VERTEX_COUNT] = {
     {-kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f},
     {-kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
     {kSceneBoxSideLen * 0.5f, 0, -kSceneBoxSideLen * 0.5f},
@@ -199,7 +202,7 @@ const glm::vec3 ground_vertex_positions[6] = {
     {kSceneBoxSideLen * 0.5f, 0, kSceneBoxSideLen * 0.5f}};
 
 constexpr float kGroundTexUpperLim = kSceneBoxSideLen * 0.5f * 0.25f;
-const glm::vec2 ground_tex_coords[6] = {
+const glm::vec2 ground_tex_coords[GROUND_VERTEX_COUNT] = {
     {0, 0},
     {0, kGroundTexUpperLim},
     {kGroundTexUpperLim, kGroundTexUpperLim},
@@ -249,7 +252,9 @@ void drawGround() { glDrawArrays(GL_TRIANGLES, 0, 6); }
 GLuint vaoSky;
 GLuint vboSky;
 
-const glm::vec3 sky_vertex_positions[36] = {
+#define SKY_VERTEX_COUNT 36
+
+const glm::vec3 sky_vertex_positions[SKY_VERTEX_COUNT] = {
     // x = -1 face
     {-kSceneBoxSideLen * 0.5f, -kSceneBoxSideLen * 0.5f,
      -kSceneBoxSideLen * 0.5f},
@@ -330,42 +335,43 @@ const glm::vec3 sky_vertex_positions[36] = {
 };
 
 constexpr float kSkyTexUpperLim = 1;
-const glm::vec2 sky_tex_coords[36] = {{0, 0},
-                                      {0, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {0, 0},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, 0},
-                                      {0, 0},
-                                      {0, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {0, 0},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, 0},
-                                      {0, 0},
-                                      {0, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {0, 0},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, 0},
-                                      {0, 0},
-                                      {0, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {0, 0},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, 0},
-                                      {0, 0},
-                                      {0, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {0, 0},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, 0},
-                                      {0, 0},
-                                      {0, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {0, 0},
-                                      {kSkyTexUpperLim, kSkyTexUpperLim},
-                                      {kSkyTexUpperLim, 0}};
+const glm::vec2 sky_tex_coords[SKY_VERTEX_COUNT] = {
+    {0, 0},
+    {0, kSkyTexUpperLim},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {0, 0},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {kSkyTexUpperLim, 0},
+    {0, 0},
+    {0, kSkyTexUpperLim},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {0, 0},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {kSkyTexUpperLim, 0},
+    {0, 0},
+    {0, kSkyTexUpperLim},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {0, 0},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {kSkyTexUpperLim, 0},
+    {0, 0},
+    {0, kSkyTexUpperLim},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {0, 0},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {kSkyTexUpperLim, 0},
+    {0, 0},
+    {0, kSkyTexUpperLim},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {0, 0},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {kSkyTexUpperLim, 0},
+    {0, 0},
+    {0, kSkyTexUpperLim},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {0, 0},
+    {kSkyTexUpperLim, kSkyTexUpperLim},
+    {kSkyTexUpperLim, 0}};
 
 void makeSky() {
   glGenVertexArrays(1, &vaoSky);
@@ -1132,8 +1138,13 @@ void displayFunc() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindVertexArray(vaoRail);
-  drawRails();
+  glBindVertexArray(vao_names[kModelTypeUntextured]);
+
+  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
+                 BUFFER_OFFSET(0));
+  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
+                 BUFFER_OFFSET(rail_indices.size() / 2 * sizeof(GLuint)));
+
   glBindVertexArray(0);
 
   /**********************
@@ -1146,22 +1157,11 @@ void displayFunc() {
 
   glUseProgram(prog);
 
-  /* Crossbars */
+  glBindVertexArray(vao_names[kModelTypeTextured]);
 
-  matrix->GetMatrix(model_view_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(proj_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
+  GLint first = 0;
 
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
-
-  glBindVertexArray(vaoCrossbar);
-  glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
-  drawCrossbar();
-  glBindVertexArray(0);
-
-  /* Ground textures */
+  /* Ground */
 
   matrix->PushMatrix();
 
@@ -1178,14 +1178,14 @@ void displayFunc() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindVertexArray(vaoGround);
   glBindTexture(GL_TEXTURE_2D, textures[kTextureGround]);
-  drawGround();
-  glBindVertexArray(0);
+  glDrawArrays(GL_TRIANGLES, first, GROUND_VERTEX_COUNT);
+  first += GROUND_VERTEX_COUNT;
 
   /* Sky */
 
   matrix->PushMatrix();
+
   matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
 
   matrix->GetMatrix(model_view_mat);
@@ -1198,9 +1198,25 @@ void displayFunc() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindVertexArray(vaoSky);
   glBindTexture(GL_TEXTURE_2D, textures[kTextureSky]);
-  drawSky();
+  glDrawArrays(GL_TRIANGLES, first, SKY_VERTEX_COUNT);
+  first += SKY_VERTEX_COUNT;
+
+  /* Crossbars */
+
+  matrix->GetMatrix(model_view_mat);
+  matrix->SetMatrixMode(OpenGLMatrix::Projection);
+  matrix->GetMatrix(proj_mat);
+  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
+
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
+
+  glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
+  for (int offset = 0; offset < crossbar_positions.size(); offset += 36) {
+    glDrawArrays(GL_TRIANGLES, first + offset, 36);
+  }
+
   glBindVertexArray(0);
 
   glutSwapBuffers();
@@ -1311,14 +1327,91 @@ int main(int argc, char **argv) {
   initBasicPipelineProgram();
   initTexPipelineProgram();
 
-  // glGenBuffers(kModel_Count, vbo_names);
-  // glGenVertexArrays(kVao_Count, vao_names);
+  glGenBuffers(kModelType_Count, vbo_names);
+  glGenVertexArrays(kModelType_Count, vao_names);
+  glGenBuffers(1, &rail_indices_vbo_name);
+
+  /*************************
+   * Textured
+   **************************/
+
+  GLuint prog = texProgram->GetProgramHandle();
+  GLuint pos_loc = glGetAttribLocation(prog, "position");
+  GLuint tex_coord_loc = glGetAttribLocation(prog, "texCoord");
+
+  glBindVertexArray(vao_names[kModelTypeTextured]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kModelTypeTextured]);
+
+  uint vertex_count =
+      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossbar_positions.size();
+  uint buffer_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
+  glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
+
+  GLintptr offset = 0;
+  GLsizeiptr size = GROUND_VERTEX_COUNT * sizeof(glm::vec3);
+  glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_vertex_positions);
+  offset += size;
+  size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
+  glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_vertex_positions);
+  offset += size;
+  size = crossbar_positions.size() * sizeof(glm::vec3),
+  glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_positions.data());
+
+  offset += size;
+  size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
+  glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords);
+  offset += size;
+  size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
+  glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords);
+  offset += size;
+  size = crossbar_positions.size() * sizeof(glm::vec2),
+  glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_tex_coords.data());
+
+  glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
+                        BUFFER_OFFSET(0));
+  glVertexAttribPointer(tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
+                        BUFFER_OFFSET(vertex_count * sizeof(glm::vec3)));
+
+  glEnableVertexAttribArray(pos_loc);
+  glEnableVertexAttribArray(tex_coord_loc);
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  /********************
+   * Untextured
+   ********************/
+  prog = basicProgram->GetProgramHandle();
+  pos_loc = glGetAttribLocation(prog, "position");
+  GLuint color_loc = glGetAttribLocation(prog, "color");
+
+  glBindVertexArray(vao_names[kModelTypeUntextured]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kModelTypeUntextured]);
+  glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
+               rail_vertices.data(), GL_STATIC_DRAW);
+
+  offset = 0;
+  glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        BUFFER_OFFSET(offset));
+  offset += sizeof(Vertex().position);
+  glVertexAttribPointer(color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        BUFFER_OFFSET(offset));
+
+  glEnableVertexAttribArray(pos_loc);
+  glEnableVertexAttribArray(color_loc);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rail_indices_vbo_name);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
+               rail_indices.data(), GL_STATIC_DRAW);
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   // makeSpline();
-  makeRails();
-  makeCrossbars();
-  makeGround();
-  makeSky();
+  // makeRails();
+  // makeCrossbars();
+  // makeGround();
+  // makeSky();
 
   // sink forever into the glut loop
   glutMainLoop();
