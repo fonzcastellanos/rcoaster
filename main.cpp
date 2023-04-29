@@ -95,10 +95,16 @@ enum VertexFormat {
   kVertexFormat_Count
 };
 
+enum Vbo {
+  kVboTexturedVertices,
+  kVboUntexturedVertices,
+  kVboRailIndices,
+  kVbo_Count
+};
+
 static GLuint textures[kTexture_Count];
 static GLuint vao_names[kVertexFormat_Count];
-static GLuint vbo_names[kVertexFormat_Count];
-static GLuint rail_indices_vbo_name;
+static GLuint vbo_names[kVbo_Count];
 
 static std::vector<glm::vec3> crossbar_positions;
 static std::vector<glm::vec2> crossbar_tex_coords;
@@ -1130,9 +1136,8 @@ int main(int argc, char **argv) {
   initBasicPipelineProgram();
   initTexPipelineProgram();
 
-  glGenBuffers(kVertexFormat_Count, vbo_names);
+  glGenBuffers(kVbo_Count, vbo_names);
   glGenVertexArrays(kVertexFormat_Count, vao_names);
-  glGenBuffers(1, &rail_indices_vbo_name);
 
   /*************************
    * Textured
@@ -1143,7 +1148,7 @@ int main(int argc, char **argv) {
   GLuint tex_coord_loc = glGetAttribLocation(prog, "texCoord");
 
   glBindVertexArray(vao_names[kVertexFormatTextured]);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVertexFormatTextured]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
 
   uint vertex_count =
       GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossbar_positions.size();
@@ -1189,7 +1194,7 @@ int main(int argc, char **argv) {
   GLuint color_loc = glGetAttribLocation(prog, "color");
 
   glBindVertexArray(vao_names[kVertexFormatUntextured]);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVertexFormatUntextured]);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
   glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
                rail_vertices.data(), GL_STATIC_DRAW);
 
@@ -1203,7 +1208,7 @@ int main(int argc, char **argv) {
   glEnableVertexAttribArray(pos_loc);
   glEnableVertexAttribArray(color_loc);
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rail_indices_vbo_name);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVboRailIndices]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
                rail_indices.data(), GL_STATIC_DRAW);
 
