@@ -1137,89 +1137,95 @@ int main(int argc, char **argv) {
   initTexPipelineProgram();
 
   glGenBuffers(kVbo_Count, vbo_names);
-  glGenVertexArrays(kVertexFormat_Count, vao_names);
-
-  /*************************
-   * Textured
-   **************************/
-
-  GLuint prog = texProgram->GetProgramHandle();
-  GLuint pos_loc = glGetAttribLocation(prog, "position");
-  GLuint tex_coord_loc = glGetAttribLocation(prog, "texCoord");
-
-  glBindVertexArray(vao_names[kVertexFormatTextured]);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
 
   uint vertex_count =
       GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossbar_positions.size();
-  uint buffer_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
-  glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
-  GLintptr offset = 0;
-  GLsizeiptr size = GROUND_VERTEX_COUNT * sizeof(glm::vec3);
-  glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_vertex_positions);
-  offset += size;
-  size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
-  glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_vertex_positions);
-  offset += size;
-  size = crossbar_positions.size() * sizeof(glm::vec3),
-  glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_positions.data());
+  // Buffer textured vertices
+  {
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
 
-  offset += size;
-  size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
-  glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords);
-  offset += size;
-  size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
-  glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords);
-  offset += size;
-  size = crossbar_positions.size() * sizeof(glm::vec2),
-  glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_tex_coords.data());
+    uint buffer_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
+    glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
-  glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
-                        BUFFER_OFFSET(0));
-  glVertexAttribPointer(tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
-                        BUFFER_OFFSET(vertex_count * sizeof(glm::vec3)));
+    uint offset = 0;
+    uint size = GROUND_VERTEX_COUNT * sizeof(glm::vec3);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_vertex_positions);
+    offset += size;
+    size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_vertex_positions);
+    offset += size;
+    size = crossbar_positions.size() * sizeof(glm::vec3),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_positions.data());
 
-  glEnableVertexAttribArray(pos_loc);
-  glEnableVertexAttribArray(tex_coord_loc);
+    offset += size;
+    size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords);
+    offset += size;
+    size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords);
+    offset += size;
+    size = crossbar_positions.size() * sizeof(glm::vec2),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossbar_tex_coords.data());
 
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
 
-  /********************
-   * Untextured
-   ********************/
-  prog = basicProgram->GetProgramHandle();
-  pos_loc = glGetAttribLocation(prog, "position");
-  GLuint color_loc = glGetAttribLocation(prog, "color");
+  // Buffer untextured vertices
+  {
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
+    glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
+                 rail_vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
 
-  glBindVertexArray(vao_names[kVertexFormatUntextured]);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
-  glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
-               rail_vertices.data(), GL_STATIC_DRAW);
+  glGenVertexArrays(kVertexFormat_Count, vao_names);
 
-  offset = 0;
-  glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        BUFFER_OFFSET(offset));
-  offset += sizeof(Vertex().position);
-  glVertexAttribPointer(color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        BUFFER_OFFSET(offset));
+  // Setup textured VAO
+  {
+    GLuint prog = texProgram->GetProgramHandle();
+    GLuint pos_loc = glGetAttribLocation(prog, "position");
+    GLuint tex_coord_loc = glGetAttribLocation(prog, "texCoord");
 
-  glEnableVertexAttribArray(pos_loc);
-  glEnableVertexAttribArray(color_loc);
+    glBindVertexArray(vao_names[kVertexFormatTextured]);
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVboRailIndices]);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
-               rail_indices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
+    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
+                          BUFFER_OFFSET(0));
+    glVertexAttribPointer(tex_coord_loc, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(glm::vec2),
+                          BUFFER_OFFSET(vertex_count * sizeof(glm::vec3)));
+    glEnableVertexAttribArray(pos_loc);
+    glEnableVertexAttribArray(tex_coord_loc);
 
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
 
-  // makeSpline();
-  // makeRails();
-  // makeCrossbars();
-  // makeGround();
-  // makeSky();
+  // Setup untextured VAO
+  {
+    GLuint prog = basicProgram->GetProgramHandle();
+    GLuint pos_loc = glGetAttribLocation(prog, "position");
+    GLuint color_loc = glGetAttribLocation(prog, "color");
+
+    glBindVertexArray(vao_names[kVertexFormatUntextured]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
+
+    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          BUFFER_OFFSET(0));
+    glVertexAttribPointer(color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          BUFFER_OFFSET(sizeof(glm::vec3)));
+
+    glEnableVertexAttribArray(pos_loc);
+    glEnableVertexAttribArray(color_loc);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVboRailIndices]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
+                 rail_indices.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
 
   // sink forever into the glut loop
   glutMainLoop();
