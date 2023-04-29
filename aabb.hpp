@@ -1,5 +1,5 @@
-#ifndef ROLLER_COASTER_AABB_HPP
-#define ROLLER_COASTER_AABB_HPP
+#ifndef RCOASTER_AABB_HPP
+#define RCOASTER_AABB_HPP
 
 #include <glm/glm.hpp>
 
@@ -21,4 +21,4 @@ void MakeAabb(Aabb* a, const glm::vec3* positions, uint position_count);
 glm::vec3 Center(const Aabb* a);
 glm::vec3 Size(const Aabb* a);
 
-#endif  // ROLLER_COASTER_AABB_HPP
+#endif  // RCOASTER_AABB_HPP

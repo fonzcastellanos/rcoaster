@@ -1,5 +1,5 @@
-#ifndef ROLLER_COASTER_SPLINE_HPP
-#define ROLLER_COASTER_SPLINE_HPP
+#ifndef RCOASTER_SPLINE_HPP
+#define RCOASTER_SPLINE_HPP
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -22,4 +22,4 @@ uint Count(const SplineVertices *s);
 void EvalCatmullRomSpline(const std::vector<Point> *spline,
                           SplineVertices *vertices);
 
-#endif  // ROLLER_COASTER_SPLINE_HPP
+#endif  // RCOASTER_SPLINE_HPP
