@@ -7,6 +7,7 @@
 #include <limits>
 #include <vector>
 
+#include "aabb.hpp"
 #include "basicPipelineProgram.h"
 #include "glutHeader.h"
 #include "imageIO.h"
@@ -137,9 +138,8 @@ const TexturedVertices ground_vertices = {
      {kGroundTexUpperLim, kGroundTexUpperLim},
      {kGroundTexUpperLim, 0}}};
 
-// Bounding sphere
-static glm::vec3 groundCenter(0, 0, 0);
-const GLfloat groundRadius = kSceneBoxSideLen * 0.5f;
+static Aabb ground_aabb = {
+    {{}, {kSceneBoxSideLen, kSceneBoxSideLen, kSceneBoxSideLen}}};
 
 #define SKY_VERTEX_COUNT 36
 
@@ -267,60 +267,20 @@ const TexturedVertices sky_vertices = {
      {kSkyTexUpperLim, 0}}};
 
 static TexturedVertices crossbar_vertices;
-
-/****************** CATMULL-ROM SPLINE ******************/
-
 static SplineVertices spline_vertices;
-
-// Bounding sphere of spline
-static glm::vec3 splineCenter;
-static float splineRadius;
-glm::vec3 spline_min_point(std::numeric_limits<float>::max(),
-                           std::numeric_limits<float>::max(),
-                           std::numeric_limits<float>::max());
-
-glm::vec3 spline_max_point(std::numeric_limits<float>::min(),
-                           std::numeric_limits<float>::min(),
-                           std::numeric_limits<float>::min());
-
-constexpr float kTolerance = 0.0001;
-
-static void UpdateMaxPoint(glm::vec3 *maxp, const glm::vec3 *p) {
-  if (p->x > maxp->x + kTolerance) {
-    maxp->x = p->x;
-  }
-  if (p->y > maxp->y + kTolerance) {
-    maxp->y = p->y;
-  }
-  if (p->z > maxp->z + kTolerance) {
-    maxp->z = p->z;
-  }
-}
-
-static void UpdateMinPoint(glm::vec3 *minp, glm::vec3 *p) {
-  if (p->x < minp->x + kTolerance) {
-    minp->x = p->x;
-  }
-  if (p->y < minp->y + kTolerance) {
-    minp->y = p->y;
-  }
-  if (p->z < minp->z + kTolerance) {
-    minp->z = p->z;
-  }
-}
-
-void updateBoundingSphere(glm::vec3 splineMaxPoint, glm::vec3 splineMinPoint) {
-  splineCenter = glm::vec3((splineMaxPoint.x + splineMinPoint.x) / 2,
-                           (splineMaxPoint.y + splineMinPoint.y) / 2,
-                           (splineMaxPoint.z + splineMinPoint.z) / 2);
-  splineRadius = sqrt(pow(splineMaxPoint.x - splineCenter.x, 2) +
-                      pow(splineMaxPoint.y - splineCenter.y, 2) +
-                      pow(splineMaxPoint.z - splineCenter.z, 2));
-}
 
 static void MakeCameraPath(const SplineVertices *spline,
                            CameraPathVertices *campath) {
   uint vertex_count = Count(spline);
+
+  Aabb spline_aabb = {};
+  MakeAabb(&spline_aabb, spline->positions.data(), vertex_count);
+
+  glm::vec3 spl_aabb_center = Center(&spline_aabb);
+  glm::vec3 spl_aabb_size = Size(&spline_aabb);
+  float spl_aabb_half_side_len = glm::length(spl_aabb_size) * 0.5f;
+
+  float ground_half_side_len = glm::length(ground_aabb.size) * 0.5f;
 
   campath->positions.resize(vertex_count);
   campath->normals.resize(vertex_count);
@@ -328,8 +288,9 @@ static void MakeCameraPath(const SplineVertices *spline,
 
   for (uint i = 0; i < vertex_count; ++i) {
     campath->positions[i] = spline->positions[i];
-    campath->positions[i] -= splineCenter;
-    campath->positions[i].y += splineRadius - groundRadius * 0.5f;
+    campath->positions[i] -= spl_aabb_center;
+    campath->positions[i].y +=
+        spl_aabb_half_side_len - ground_half_side_len * 0.5f;
 
     if (i == 0) {
       campath->normals[i] = glm::normalize(
@@ -983,8 +944,10 @@ void displayFunc() {
 
   matrix->PushMatrix();
 
-  matrix->Translate(0, -groundRadius * 0.5f, 0);
-  matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
+  float ground_aabb_half_side_len = glm::length(ground_aabb.size) * 0.5f;
+  matrix->Translate(0, -ground_aabb_half_side_len * 0.5f, 0);
+  matrix->Translate(-ground_aabb.center.x, -ground_aabb.center.y,
+                    -ground_aabb.center.z);
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -1004,7 +967,8 @@ void displayFunc() {
 
   matrix->PushMatrix();
 
-  matrix->Translate(-groundCenter.x, -groundCenter.y, -groundCenter.z);
+  matrix->Translate(-ground_aabb.center.x, -ground_aabb.center.y,
+                    -ground_aabb.center.z);
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -1119,12 +1083,6 @@ int main(int argc, char **argv) {
   }
 
   EvalCatmullRomSpline(&splines[0], &spline_vertices);
-
-  for (uint i = 0; i < Count(&spline_vertices); ++i) {
-    UpdateMaxPoint(&spline_max_point, &spline_vertices.positions[i]);
-    UpdateMinPoint(&spline_min_point, &spline_vertices.positions[i]);
-  }
-  updateBoundingSphere(spline_max_point, spline_min_point);
 
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
   MakeRails(&camera_path_vertices, &rail_vertices, &rail_indices);

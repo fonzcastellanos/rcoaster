@@ -2,46 +2,48 @@
 
 #include <limits>
 
-void Init(AABB* a) {
-  a->min_point = {std::numeric_limits<float>::max(),
-                  std::numeric_limits<float>::max(),
-                  std::numeric_limits<float>::max()};
-  a->max_point = {std::numeric_limits<float>::min(),
-                  std::numeric_limits<float>::min(),
-                  std::numeric_limits<float>::min()};
+void MakeAabb(Aabb* a, const glm::vec3* positions, uint position_count) {
+  a->min_position = {std::numeric_limits<float>::max(),
+                     std::numeric_limits<float>::max(),
+                     std::numeric_limits<float>::max()};
+
+  a->max_position = {std::numeric_limits<float>::min(),
+                     std::numeric_limits<float>::min(),
+                     std::numeric_limits<float>::min()};
+
+  for (uint i = 0; i < position_count; ++i) {
+    auto& p = positions[i];
+    if (p.x < a->min_position.x) {
+      a->min_position.x = p.x;
+    }
+    if (p.x > a->max_position.x) {
+      a->max_position.x = p.x;
+    }
+
+    if (p.y < a->min_position.y) {
+      a->min_position.y = p.y;
+    }
+    if (p.y > a->max_position.y) {
+      a->max_position.y = p.y;
+    }
+
+    if (p.z < a->min_position.z) {
+      a->min_position.z = p.z;
+    }
+    if (p.z > a->max_position.z) {
+      a->max_position.z = p.z;
+    }
+  }
 }
 
-void Update(AABB* a, const glm::vec3* point) {
-  if (point->x < a->min_point.x) {
-    a->min_point.x = point->x;
-  }
-  if (point->x > a->max_point.x) {
-    a->max_point.x = point->x;
-  }
-
-  if (point->y < a->min_point.y) {
-    a->min_point.y = point->y;
-  }
-  if (point->y > a->max_point.y) {
-    a->max_point.y = point->y;
-  }
-
-  if (point->z < a->min_point.z) {
-    a->min_point.z = point->z;
-  }
-  if (point->z > a->max_point.z) {
-    a->max_point.z = point->z;
-  }
-}
-
-glm::vec3 Center(AABB* a) {
-  glm::vec3 res = {(a->max_point.x + a->min_point.x) / 2,
-                   (a->max_point.y + a->min_point.y) / 2,
-                   (a->max_point.z + a->min_point.z) / 2};
+glm::vec3 Center(const Aabb* a) {
+  glm::vec3 res = {(a->max_position.x + a->min_position.x) * 0.5f,
+                   (a->max_position.y + a->min_position.y) * 0.5f,
+                   (a->max_position.z + a->min_position.z) * 0.5f};
   return res;
 }
 
-glm::vec3 Size(AABB* a) {
-  glm::vec3 res = a->max_point - a->min_point;
+glm::vec3 Size(const Aabb* a) {
+  glm::vec3 res = a->max_position - a->min_position;
   return res;
 }

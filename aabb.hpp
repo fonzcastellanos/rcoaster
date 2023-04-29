@@ -3,17 +3,22 @@
 
 #include <glm/glm.hpp>
 
-struct AABB {
-  glm::vec3 min_point;
-  glm::vec3 max_point;
+#include "types.hpp"
+
+union Aabb {
+  struct {
+    glm::vec3 min_position;
+    glm::vec3 max_position;
+  };
+  struct {
+    glm::vec3 center;
+    glm::vec3 size;
+  };
 };
 
-void Init(AABB* a);
+void MakeAabb(Aabb* a, const glm::vec3* positions, uint position_count);
 
-void Update(AABB* a, const glm::vec3* point);
-
-glm::vec3 Center(AABB* a);
-
-glm::vec3 Size(AABB* a);
+glm::vec3 Center(const Aabb* a);
+glm::vec3 Size(const Aabb* a);
 
 #endif  // ROLLER_COASTER_AABB_HPP

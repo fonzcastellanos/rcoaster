@@ -47,15 +47,15 @@ $(info $(space2)CXXFLAGS: $(CXXFLAGS))
 $(info $(space2)LDFLAGS: $(CXXFLAGS))
 $(info $(space2)CXX: $(CXXV))
 
-all : main aabb.o
+all : main
 
-main : $(objs) spline.o
+main : $(objs) spline.o aabb.o
 	$(CXX) $(LDFLAGS) $^ $(OPT) $(LIB) -o $@
 
-main.o : main.cpp $(headers) types.hpp spline.hpp
+main.o : main.cpp $(headers) types.hpp spline.hpp aabb.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
-aabb.o : aabb.cpp aabb.hpp
+aabb.o : aabb.cpp aabb.hpp types.hpp
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCLUDE) $< -o $@
 
 spline.o : spline.cpp spline.hpp types.hpp
