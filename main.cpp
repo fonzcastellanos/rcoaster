@@ -253,14 +253,20 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
       rv[k + 6].position = cpv_pos[j] - 0.5f * web_w * cpv_binorm[j];
       rv[k + 7].position =
           cpv_pos[j] - web_h * cpv_norm[j] - 0.5f * web_w * cpv_binorm[j];
+    }
+  }
 
-      for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
-        if (i == 0) {
-          rv[k + l].position += 0.5f * gauge * cpv_binorm[j];
-        } else {
-          rv[k + l].position -= 0.5f * gauge * cpv_binorm[j];
-        }
-      }
+  // Set rail pair `gauge` distance apart
+  for (uint i = 0; i < cpv_count; ++i) {
+    uint j = kCrossSectionVertexCount * i;
+    for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
+      rv[j + k].position += 0.5f * gauge * cpv_binorm[i];
+    }
+  }
+  for (uint i = 0; i < cpv_count; ++i) {
+    uint j = kCrossSectionVertexCount * (i + cpv_count);
+    for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
+      rv[j + k].position -= 0.5f * gauge * cpv_binorm[i];
     }
   }
 
