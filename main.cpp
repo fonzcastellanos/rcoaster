@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <vector>
 
 #include "aabb.hpp"
@@ -115,7 +114,11 @@ static GLuint vao_names[kVertexFormat_Count];
 static GLuint vbo_names[kVbo_Count];
 
 static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
-#define RAIL_SIDE_LEN 0.1
+#define RAIL_HEAD_W 0.2
+#define RAIL_HEAD_H 0.1
+#define RAIL_WEB_W 0.1
+#define RAIL_WEB_H 0.1
+#define RAIL_GAUGE 2
 
 static std::vector<Vertex> rail_vertices;
 static std::vector<GLuint> rail_indices;
@@ -180,80 +183,93 @@ static void MakeCameraPath(const SplineVertices *spline,
 }
 
 /*
-Rail cross section
+Gauge is the distance between the two rails.
 
-Rectangle defined by vertices [1, 6] is called the head.
-Rechangle defined by vertices {0, 1, 6, 7} is called the web.
+Rail cross section:
 
-4 ------------------------ 3
-|                          |
-|                          |
-|                          |
-5 ----- 6          1 ----- 2
-        |          |
-        |          |
-        |          |
-        |          |
-        |          |
-        7 -------- 0
+  Rectangle defined by vertices [1, 6] is called the head.
+  Rectangle defined by vertices {0, 1, 6, 7} is called the web.
+
+  Width is along horizontal dimension (<-------->).
+
+  4 ------------------------ 3
+  |                          |
+  |                          |
+  |                          |
+  5 ----- 6          1 ----- 2
+          |          |
+          |          |
+          |          |
+          |          |
+          |          |
+          7 -------- 0
 */
 static void MakeRails(const CameraPathVertices *campath_vertices,
-                      const glm::vec4 *rail_color, float rail_side_len,
-                      std::vector<Vertex> *rail_vertices,
-                      std::vector<GLuint> *rail_indices) {
+                      const glm::vec4 *color, float head_w, float head_h,
+                      float web_w, float web_h, float gauge,
+                      std::vector<Vertex> *vertices,
+                      std::vector<GLuint> *indices) {
   assert(campath_vertices);
-  assert(rail_color);
-  assert(rail_vertices);
-  assert(rail_indices);
+  assert(color);
+  assert(vertices);
+  assert(indices);
 
-  static constexpr uint kVertexCount = 8;
+  assert(head_w > 0);
+  assert(web_w > 0);
+  assert(head_w > web_w);
+  assert(gauge > 0);
+
+  static constexpr uint kCrossSectionVertexCount = 8;
 
   auto &cpv_pos = campath_vertices->positions;
   auto &cpv_binorm = campath_vertices->binormals;
   auto &cpv_norm = campath_vertices->normals;
 
-  auto &rv = *rail_vertices;
+  auto &rv = *vertices;
 
   uint cpv_count = Count(campath_vertices);
 
-  uint rv_count = 2 * cpv_count * kVertexCount;
+  uint rv_count = 2 * cpv_count * kCrossSectionVertexCount;
   rv.resize(rv_count);
 
   for (uint i = 0; i < rv_count; ++i) {
-    rv[i].color = *rail_color;
+    rv[i].color = *color;
   }
 
   for (uint i = 0; i < 2; ++i) {
     for (uint j = 0; j < cpv_count; ++j) {
-      uint k = kVertexCount * (j + i * cpv_count);
+      uint k = kCrossSectionVertexCount * (j + i * cpv_count);
+      // See the comment block immediately above this function definition for
+      // the visual index-to-position mapping
       rv[k].position =
-          cpv_pos[j] + rail_side_len * (-cpv_norm[j] + cpv_binorm[j] * 0.5f);
-      rv[k + 1].position = cpv_pos[j] + rail_side_len * (cpv_binorm[j] * 0.5f);
-      rv[k + 2].position = cpv_pos[j] + rail_side_len * (cpv_binorm[j]);
+          cpv_pos[j] - web_h * cpv_norm[j] + 0.5f * web_w * cpv_binorm[j];
+      rv[k + 1].position = cpv_pos[j] + 0.5f * web_w * cpv_binorm[j];
+      rv[k + 2].position = cpv_pos[j] + 0.5f * head_w * cpv_binorm[j];
       rv[k + 3].position =
-          cpv_pos[j] + rail_side_len * (cpv_norm[j] + cpv_binorm[j]);
-      rv[k + 4].position =
-          cpv_pos[j] + rail_side_len * (cpv_norm[j] - cpv_binorm[j]);
-      rv[k + 5].position = cpv_pos[j] + rail_side_len * (-cpv_binorm[j]);
-      rv[k + 6].position = cpv_pos[j] + rail_side_len * (-cpv_binorm[j] * 0.5f);
+          cpv_pos[j] + head_h * cpv_norm[j] + 0.5f * head_w * cpv_binorm[j];
+      rv[k + 4].position = rv[k + 4].position =
+          cpv_pos[j] + head_h * cpv_norm[j] - 0.5f * head_w * cpv_binorm[j];
+      rv[k + 5].position = cpv_pos[j] - 0.5f * head_w * cpv_binorm[j];
+      rv[k + 6].position = cpv_pos[j] - 0.5f * web_w * cpv_binorm[j];
       rv[k + 7].position =
-          cpv_pos[j] + rail_side_len * (-cpv_norm[j] - cpv_binorm[j] * 0.5f);
+          cpv_pos[j] - web_h * cpv_norm[j] - 0.5f * web_w * cpv_binorm[j];
 
-      for (uint l = 0; l < kVertexCount; ++l) {
+      for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
         if (i == 0) {
-          rv[k + l].position += cpv_binorm[j];
+          rv[k + l].position += 0.5f * gauge * cpv_binorm[j];
         } else {
-          rv[k + l].position -= cpv_binorm[j];
+          rv[k + l].position -= 0.5f * gauge * cpv_binorm[j];
         }
       }
     }
   }
 
-  auto &ri = *rail_indices;
+  auto &ri = *indices;
 
   for (uint i = 0; i < 2; ++i) {
-    for (uint j = i * rv_count / 2; j + kVertexCount < rv_count / (2 - i);
-         j += kVertexCount) {
+    for (uint j = i * rv_count / 2;
+         j + kCrossSectionVertexCount < rv_count / (2 - i);
+         j += kCrossSectionVertexCount) {
       // top face
       ri.push_back(j + 4);
       ri.push_back(j + 12);
@@ -1093,8 +1109,8 @@ int main(int argc, char **argv) {
   EvalCatmullRomSpline(&splines[0], &spline_vertices);
 
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
-  MakeRails(&camera_path_vertices, &kRailColor, RAIL_SIDE_LEN, &rail_vertices,
-            &rail_indices);
+  MakeRails(&camera_path_vertices, &kRailColor, RAIL_HEAD_W, RAIL_HEAD_H,
+            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, &rail_vertices, &rail_indices);
   MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
                 &crossbar_vertices);
 
