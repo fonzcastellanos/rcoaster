@@ -114,6 +114,9 @@ static GLuint textures[kTexture_Count];
 static GLuint vao_names[kVertexFormat_Count];
 static GLuint vbo_names[kVbo_Count];
 
+static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
+#define RAIL_SIDE_LEN 0.1
+
 static std::vector<Vertex> rail_vertices;
 static std::vector<GLuint> rail_indices;
 
@@ -141,6 +144,9 @@ static SplineVertices spline_vertices;
 
 static void MakeCameraPath(const SplineVertices *spline,
                            CameraPathVertices *campath) {
+  // Initial binormal chosen arbitrarily
+  static const glm::vec3 kInitialBinormal = {0, 1, -0.5};
+
   assert(spline);
   assert(campath);
 
@@ -161,7 +167,7 @@ static void MakeCameraPath(const SplineVertices *spline,
   }
 
   campath->normals[0] =
-      glm::normalize(glm::cross(spline->tangents[0], glm::vec3(0, 1, -0.5)));
+      glm::normalize(glm::cross(spline->tangents[0], kInitialBinormal));
   campath->binormals[0] =
       glm::normalize(glm::cross(spline->tangents[0], campath->normals[0]));
 
@@ -173,11 +179,33 @@ static void MakeCameraPath(const SplineVertices *spline,
   }
 }
 
+/*
+Rail cross section
+
+Rectangle defined by vertices [1, 6] is called the head.
+Rechangle defined by vertices {0, 1, 6, 7} is called the web.
+
+4 ------------------------ 3
+|                          |
+|                          |
+|                          |
+5 ----- 6          1 ----- 2
+        |          |
+        |          |
+        |          |
+        |          |
+        |          |
+        7 -------- 0
+*/
 static void MakeRails(const CameraPathVertices *campath_vertices,
+                      const glm::vec4 *rail_color, float rail_side_len,
                       std::vector<Vertex> *rail_vertices,
                       std::vector<GLuint> *rail_indices) {
-  static constexpr float kAlpha = 0.1;
-  static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
+  assert(campath_vertices);
+  assert(rail_color);
+  assert(rail_vertices);
+  assert(rail_indices);
+
   static constexpr uint kVertexCount = 8;
 
   auto &cpv_pos = campath_vertices->positions;
@@ -192,22 +220,24 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
   rv.resize(rv_count);
 
   for (uint i = 0; i < rv_count; ++i) {
-    rv[i].color = kRailColor;
+    rv[i].color = *rail_color;
   }
 
   for (uint i = 0; i < 2; ++i) {
     for (uint j = 0; j < cpv_count; ++j) {
       uint k = kVertexCount * (j + i * cpv_count);
       rv[k].position =
-          cpv_pos[j] + kAlpha * (-cpv_norm[j] + cpv_binorm[j] * 0.5f);
-      rv[k + 1].position = cpv_pos[j] + kAlpha * (cpv_binorm[j] * 0.5f);
-      rv[k + 2].position = cpv_pos[j] + kAlpha * (cpv_binorm[j]);
-      rv[k + 3].position = cpv_pos[j] + kAlpha * (cpv_norm[j] + cpv_binorm[j]);
-      rv[k + 4].position = cpv_pos[j] + kAlpha * (cpv_norm[j] - cpv_binorm[j]);
-      rv[k + 5].position = cpv_pos[j] + kAlpha * (-cpv_binorm[j]);
-      rv[k + 6].position = cpv_pos[j] + kAlpha * (-cpv_binorm[j] * 0.5f);
+          cpv_pos[j] + rail_side_len * (-cpv_norm[j] + cpv_binorm[j] * 0.5f);
+      rv[k + 1].position = cpv_pos[j] + rail_side_len * (cpv_binorm[j] * 0.5f);
+      rv[k + 2].position = cpv_pos[j] + rail_side_len * (cpv_binorm[j]);
+      rv[k + 3].position =
+          cpv_pos[j] + rail_side_len * (cpv_norm[j] + cpv_binorm[j]);
+      rv[k + 4].position =
+          cpv_pos[j] + rail_side_len * (cpv_norm[j] - cpv_binorm[j]);
+      rv[k + 5].position = cpv_pos[j] + rail_side_len * (-cpv_binorm[j]);
+      rv[k + 6].position = cpv_pos[j] + rail_side_len * (-cpv_binorm[j] * 0.5f);
       rv[k + 7].position =
-          cpv_pos[j] + kAlpha * (-cpv_norm[j] - cpv_binorm[j] * 0.5f);
+          cpv_pos[j] + rail_side_len * (-cpv_norm[j] - cpv_binorm[j] * 0.5f);
 
       for (uint l = 0; l < kVertexCount; ++l) {
         if (i == 0) {
@@ -1063,7 +1093,8 @@ int main(int argc, char **argv) {
   EvalCatmullRomSpline(&splines[0], &spline_vertices);
 
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
-  MakeRails(&camera_path_vertices, &rail_vertices, &rail_indices);
+  MakeRails(&camera_path_vertices, &kRailColor, RAIL_SIDE_LEN, &rail_vertices,
+            &rail_indices);
   MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
                 &crossbar_vertices);
 
