@@ -56,7 +56,7 @@ void EvalCatmullRomSpline(const std::vector<Point> *spline,
   auto &spline_ = *spline;
   static constexpr float kMaxLineLen = 0.5;
 
-  for (int i = 1; i < spline->size() - 2; ++i) {
+  for (uint i = 1; i + 2 < spline->size(); ++i) {
     // clang-format off
     glm::mat4x3 control(
       spline_[i - 1].x, spline_[i - 1].y, spline_[i - 1].z,

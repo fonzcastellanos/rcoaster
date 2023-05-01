@@ -6,13 +6,16 @@
 #include <iostream>
 #include <vector>
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "aabb.hpp"
 #include "basicPipelineProgram.h"
 #include "glutHeader.h"
-#include "imageIO.h"
 #include "openGLHeader.h"
 #include "openGLMatrix.h"
 #include "spline.hpp"
+#include "stb_image.h"
+#include "stb_image_write.h"
 #include "texPipelineProgram.h"
 #include "types.hpp"
 
@@ -67,7 +70,7 @@ float landTranslate[3] = {0.0, 0.0, 0.0};
 float landScale[3] = {1.0, 1.0, 1.0};
 
 // Camera attributes
-int camStep = 0;
+uint camStep = 0;
 glm::vec3 camPos(0.0, 0.0, 0.0);
 glm::vec3 camDir(0.0, 0.0, 0.0);
 glm::vec3 camNorm;
@@ -651,58 +654,32 @@ static Status LoadSplines(const char *track_filepath,
   return kStatusOk;
 }
 
-static int InitTexture(const char *img_filepath, GLuint texture_name) {
-  // read the texture image
-  ImageIO img;
-  ImageIO::fileFormatType img_format;
-  ImageIO::errorType err = img.load(img_filepath, &img_format);
+enum RgbaChannel {
+  kRgbaChannelRed,
+  kRgbaChannelGreen,
+  kRgbaChannelBlue,
+  kRgbaChannelAlpha,
+  kRgbaChannel_Count
+};
 
-  if (err != ImageIO::OK) {
-    std::printf("Loading texture from %s failed.\n", img_filepath);
-    return -1;
+static Status InitTexture(const char *img_filepath, GLuint texture_name) {
+  assert(img_filepath);
+
+  int w;
+  int h;
+  int channel_count;
+  uchar *data =
+      stbi_load(img_filepath, &w, &h, &channel_count, kRgbaChannel_Count);
+  if (!data) {
+    std::fprintf(stderr, "Could not load texture from file %s.\n",
+                 img_filepath);
+    return kStatusIOError;
   }
-
-  // check that the number of bytes is a multiple of 4
-  if (img.getWidth() * img.getBytesPerPixel() % 4) {
-    std::fprintf(
-        stderr,
-        "Error (%s): The width*numChannels in the loaded image must be a "
-        "multiple of 4.\n",
-        img_filepath);
-    return -1;
-  }
-
-  // allocate space for an array of pixels
-  int width = img.getWidth();
-  int height = img.getHeight();
-  unsigned char *pixelsRGBA =
-      new unsigned char[4 * width *
-                        height];  // we will use 4 bytes per pixel, i.e., RGBA
-
-  // fill the pixelsRGBA array with the image pixels
-  memset(pixelsRGBA, 0, 4 * width * height);  // set all bytes to 0
-  for (int h = 0; h < height; h++)
-    for (int w = 0; w < width; w++) {
-      // assign some default byte values (for the case where
-      // img.getBytesPerPixel() < 4)
-      pixelsRGBA[4 * (h * width + w) + 0] = 0;    // red
-      pixelsRGBA[4 * (h * width + w) + 1] = 0;    // green
-      pixelsRGBA[4 * (h * width + w) + 2] = 0;    // blue
-      pixelsRGBA[4 * (h * width + w) + 3] = 255;  // alpha channel; fully opaque
-
-      // set the RGBA channels, based on the loaded image
-      int numChannels = img.getBytesPerPixel();
-      for (int c = 0; c < numChannels;
-           c++)  // only set as many channels as are available in the loaded
-                 // image; the rest get the default value
-        pixelsRGBA[4 * (h * width + w) + c] = img.getPixel(w, h, c);
-    }
 
   glBindTexture(GL_TEXTURE_2D, texture_name);
 
-  // initialize the texture
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA,
-               GL_UNSIGNED_BYTE, pixelsRGBA);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+               data);
 
   glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -723,32 +700,41 @@ static int InitTexture(const char *img_filepath, GLuint texture_name) {
   // query for any errors
   GLenum errCode = glGetError();
   if (errCode != 0) {
-    printf("Texture initialization error. Error code: %d.\n", errCode);
-    return -1;
+    std::fprintf(stderr, "Texture initialization error. Error code: %d.\n",
+                 errCode);
+    stbi_image_free(data);
+    return kStatusIOError;
   }
 
-  // de-allocate the pixel array -- it is no longer needed
-  delete[] pixelsRGBA;
+  stbi_image_free(data);
 
-  return 0;
+  return kStatusOk;
 }
 
-// write a screenshot to the specified filename
-void saveScreenshot(const char *filename) {
-  unsigned char *screenshotData =
-      new unsigned char[windowWidth * windowHeight * 3];
+Status SaveScreenshot(const char *filepath) {
+  std::vector<uchar> screenshot(windowWidth * windowHeight * 3);
   glReadPixels(0, 0, windowWidth, windowHeight, GL_RGB, GL_UNSIGNED_BYTE,
-               screenshotData);
+               screenshot.data());
 
-  ImageIO screenshotImg(windowWidth, windowHeight, 3, screenshotData);
-
-  if (screenshotImg.save(filename, ImageIO::FORMAT_JPEG) == ImageIO::OK) {
-    std::cout << "File " << filename << " saved successfully." << std::endl;
-  } else {
-    std::cout << "Failed to save file " << filename << '.' << std::endl;
+  stbi_flip_vertically_on_write(1);
+  int ret = stbi_write_jpg(filepath, windowWidth, windowHeight, 3,
+                           screenshot.data(), 95);
+  if (ret == 0) {
+    std::fprintf(stderr, "Could not write data to JPEG file.\n");
+    return kStatusIOError;
   }
 
-  delete[] screenshotData;
+  std::printf("Saved screenshot to file %s.\n", filepath);
+
+  // ImageIO screenshotImg(windowWidth, windowHeight, 3, screenshotData);
+
+  // if (screenshotImg.save(filename, ImageIO::FORMAT_JPEG) == ImageIO::OK)
+  // {
+  //   std::cout << "File " << filename << " saved successfully." <<
+  //   std::endl;
+  // } else {
+  //   std::cout << "Failed to save file " << filename << '.' << std::endl;
+  // }
 }
 
 void timerFunc(int val) {
@@ -763,7 +749,7 @@ void timerFunc(int val) {
     if (record) {  // take a screenshot
       temp = new char[8];
       sprintf(temp, "%03d.jpg", screenshotCount);
-      saveScreenshot(temp);
+      SaveScreenshot(temp);
       delete[] temp;
       ++screenshotCount;
     }
@@ -1040,7 +1026,7 @@ void displayFunc() {
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
   glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
-  for (int offset = 0; offset < Count(&crossbar_vertices); offset += 36) {
+  for (uint offset = 0; offset < Count(&crossbar_vertices); offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 

@@ -1,6 +1,7 @@
-#ifndef ROLLER_COASTER_TYPES_HPP
-#define ROLLER_COASTER_TYPES_HPP
+#ifndef RCOASTER_TYPES_HPP
+#define RCOASTER_TYPES_HPP
 
 typedef unsigned int uint;
+typedef unsigned char uchar;
 
-#endif  // ROLLER_COASTER_TYPES_HPP
+#endif  // RCOASTER_TYPES_HPP
