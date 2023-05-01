@@ -8,7 +8,6 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "aabb.hpp"
 #include "basicPipelineProgram.h"
 #include "glutHeader.h"
 #include "openGLHeader.h"
@@ -726,15 +725,7 @@ Status SaveScreenshot(const char *filepath) {
 
   std::printf("Saved screenshot to file %s.\n", filepath);
 
-  // ImageIO screenshotImg(windowWidth, windowHeight, 3, screenshotData);
-
-  // if (screenshotImg.save(filename, ImageIO::FORMAT_JPEG) == ImageIO::OK)
-  // {
-  //   std::cout << "File " << filename << " saved successfully." <<
-  //   std::endl;
-  // } else {
-  //   std::cout << "Failed to save file " << filename << '.' << std::endl;
-  // }
+  return kStatusOk;
 }
 
 void timerFunc(int val) {

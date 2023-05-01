@@ -30,10 +30,11 @@
 # CMake
 CMakeCache.txt
 CMakeFiles
-Makefile
 cmake_install.cmake
 install_manifest.txt
 *.cmake
+!glmConfig.cmake
+!glmConfig-version.cmake
 # ^ May need to add future .cmake files as exceptions
 
 # Test logs
@@ -43,5 +44,18 @@ Testing/*
 test/gtc/*.dds
 
 # Project Files
+Makefile
 *.cbp
 *.user
+
+# Misc.
+*.log
+
+# local build(s)
+build*
+
+/.vs
+/.vscode
+/CMakeSettings.json
+.DS_Store
+*.swp
