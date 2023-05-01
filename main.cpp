@@ -92,7 +92,17 @@ static uint Count(const CameraPathVertices *c) {
   return c->positions.size();
 }
 
-static CameraPathVertices camera_path_vertices;
+struct TexturedVertices {
+  std::vector<glm::vec3> positions;
+  std::vector<glm::vec2> tex_coords;
+};
+
+static uint Count(const TexturedVertices *tv) {
+  assert(tv);
+  assert(tv->positions.size() == tv->tex_coords.size());
+
+  return tv->positions.size();
+}
 
 enum Texture { kTextureGround, kTextureSky, kTextureCrossbar, kTexture_Count };
 
@@ -109,31 +119,24 @@ enum Vbo {
   kVbo_Count
 };
 
+static CameraPathVertices camera_path_vertices;
+static std::vector<GLuint> rail_indices;
+static TexturedVertices crossbar_vertices;
+static SplineVertices spline_vertices;
+
 static GLuint textures[kTexture_Count];
 static GLuint vao_names[kVertexFormat_Count];
 static GLuint vbo_names[kVbo_Count];
 
-static const glm::vec4 kRailColor(0.5, 0.5, 0.5, 1);
+#define RAIL_COLOR_RED 0.5
+#define RAIL_COLOR_BLUE 0.5
+#define RAIL_COLOR_GREEN 0.5
+#define RAIL_COLOR_ALPHA 1
 #define RAIL_HEAD_W 0.2
 #define RAIL_HEAD_H 0.1
 #define RAIL_WEB_W 0.1
 #define RAIL_WEB_H 0.1
 #define RAIL_GAUGE 2
-
-static std::vector<Vertex> rail_vertices;
-static std::vector<GLuint> rail_indices;
-
-struct TexturedVertices {
-  std::vector<glm::vec3> positions;
-  std::vector<glm::vec2> tex_coords;
-};
-
-static uint Count(const TexturedVertices *tv) {
-  assert(tv);
-  assert(tv->positions.size() == tv->tex_coords.size());
-
-  return tv->positions.size();
-}
 
 #define SCENE_AABB_SIDE_LEN 256
 #define GROUND_VERTEX_COUNT 6
@@ -142,8 +145,131 @@ static uint Count(const TexturedVertices *tv) {
 const glm::vec3 scene_aabb_center = {};
 const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
 
-static TexturedVertices crossbar_vertices;
-static SplineVertices spline_vertices;
+static void MakeGround(TexturedVertices *ground) {
+  assert(ground);
+
+  static constexpr float kTexUpperLim = SCENE_AABB_SIDE_LEN * 0.5f * 0.25f;
+
+  ground->positions = {{-SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN},
+                       {-SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
+                       {SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
+                       {-SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN},
+                       {SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
+                       {SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN}};
+
+  ground->tex_coords = {{0, 0},
+                        {0, kTexUpperLim},
+                        {kTexUpperLim, kTexUpperLim},
+                        {0, 0},
+                        {kTexUpperLim, kTexUpperLim},
+                        {kTexUpperLim, 0}};
+
+  assert(GROUND_VERTEX_COUNT == ground->positions.size());
+  assert(GROUND_VERTEX_COUNT == ground->tex_coords.size());
+
+  for (uint i = 0; i < Count(ground); ++i) {
+    ground->positions[i] *= 0.5f;
+  }
+}
+
+static void MakeSky(TexturedVertices *sky) {
+  assert(sky);
+
+  static constexpr float kTexUpperLim = 1;
+
+  sky->positions = {
+      // x = -1 face
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+
+      // x = 1 face
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+
+      // y = -1 face
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+
+      // y = 1 face
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+
+      // z = -1 face
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
+
+      // z = 1 face
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
+      {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN}};
+
+  sky->tex_coords = {{0, 0},
+                     {0, kTexUpperLim},
+                     {kTexUpperLim, kTexUpperLim},
+                     {0, 0},
+                     {kTexUpperLim, kTexUpperLim},
+                     {kTexUpperLim, 0},
+                     {0, 0},
+                     {0, kTexUpperLim},
+                     {kTexUpperLim, kTexUpperLim},
+                     {0, 0},
+                     {kTexUpperLim, kTexUpperLim},
+                     {kTexUpperLim, 0},
+                     {0, 0},
+                     {0, kTexUpperLim},
+                     {kTexUpperLim, kTexUpperLim},
+                     {0, 0},
+                     {kTexUpperLim, kTexUpperLim},
+                     {kTexUpperLim, 0},
+                     {0, 0},
+                     {0, kTexUpperLim},
+                     {kTexUpperLim, kTexUpperLim},
+                     {0, 0},
+                     {kTexUpperLim, kTexUpperLim},
+                     {kTexUpperLim, 0},
+                     {0, 0},
+                     {0, kTexUpperLim},
+                     {kTexUpperLim, kTexUpperLim},
+                     {0, 0},
+                     {kTexUpperLim, kTexUpperLim},
+                     {kTexUpperLim, 0},
+                     {0, 0},
+                     {0, kTexUpperLim},
+                     {kTexUpperLim, kTexUpperLim},
+                     {0, 0},
+                     {kTexUpperLim, kTexUpperLim},
+                     {kTexUpperLim, 0}};
+
+  assert(SKY_VERTEX_COUNT == sky->positions.size());
+  assert(SKY_VERTEX_COUNT == sky->tex_coords.size());
+
+  for (uint i = 0; i < Count(sky); ++i) {
+    sky->positions[i] *= 0.5f;
+  }
+}
 
 static void MakeCameraPath(const SplineVertices *spline,
                            CameraPathVertices *campath) {
@@ -989,116 +1115,11 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  float ground_tex_upper_lim = SCENE_AABB_SIDE_LEN * 0.5f * 0.25f;
-  TexturedVertices ground_vertices = {
-      {{-SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, 0, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, 0, SCENE_AABB_SIDE_LEN}},
-      {{0, 0},
-       {0, ground_tex_upper_lim},
-       {ground_tex_upper_lim, ground_tex_upper_lim},
-       {0, 0},
-       {ground_tex_upper_lim, ground_tex_upper_lim},
-       {ground_tex_upper_lim, 0}}};
-  assert(GROUND_VERTEX_COUNT == ground_vertices.positions.size());
-  assert(GROUND_VERTEX_COUNT == ground_vertices.tex_coords.size());
-  for (uint i = 0; i < Count(&ground_vertices); ++i) {
-    ground_vertices.positions[i] *= 0.5f;
-  }
+  TexturedVertices ground_vertices;
+  MakeGround(&ground_vertices);
 
-  float sky_tex_upper_lim = 1;
-  TexturedVertices sky_vertices = {
-      {// x = -1 face
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-
-       // x = 1 face
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-
-       // y = -1 face
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-
-       // y = 1 face
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-
-       // z = -1 face
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN},
-
-       // z = 1 face
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {-SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN},
-       {SCENE_AABB_SIDE_LEN, -SCENE_AABB_SIDE_LEN, SCENE_AABB_SIDE_LEN}},
-      {{0, 0},
-       {0, sky_tex_upper_lim},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {0, 0},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {sky_tex_upper_lim, 0},
-       {0, 0},
-       {0, sky_tex_upper_lim},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {0, 0},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {sky_tex_upper_lim, 0},
-       {0, 0},
-       {0, sky_tex_upper_lim},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {0, 0},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {sky_tex_upper_lim, 0},
-       {0, 0},
-       {0, sky_tex_upper_lim},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {0, 0},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {sky_tex_upper_lim, 0},
-       {0, 0},
-       {0, sky_tex_upper_lim},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {0, 0},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {sky_tex_upper_lim, 0},
-       {0, 0},
-       {0, sky_tex_upper_lim},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {0, 0},
-       {sky_tex_upper_lim, sky_tex_upper_lim},
-       {sky_tex_upper_lim, 0}}};
-  assert(SKY_VERTEX_COUNT == sky_vertices.positions.size());
-  assert(SKY_VERTEX_COUNT == sky_vertices.tex_coords.size());
-  for (uint i = 0; i < Count(&sky_vertices); ++i) {
-    sky_vertices.positions[i] *= 0.5f;
-  }
+  TexturedVertices sky_vertices;
+  MakeSky(&sky_vertices);
 
   std::vector<std::vector<Point>> splines;
   Status status = LoadSplines(argv[1], &splines);
@@ -1115,8 +1136,13 @@ int main(int argc, char **argv) {
   EvalCatmullRomSpline(&splines[0], &spline_vertices);
 
   MakeCameraPath(&spline_vertices, &camera_path_vertices);
-  MakeRails(&camera_path_vertices, &kRailColor, RAIL_HEAD_W, RAIL_HEAD_H,
+
+  glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
+                       RAIL_COLOR_ALPHA);
+  std::vector<Vertex> rail_vertices;
+  MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
             RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, &rail_vertices, &rail_indices);
+
   MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
                 &crossbar_vertices);
 
