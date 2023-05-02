@@ -1,15 +1,14 @@
 #ifndef _GLUT_HEADER_H_
 #define _GLUT_HEADER_H_
 
-// headers of the GLUT library
-
-#if defined(WIN32) || defined(linux)
-  #include <GL/glut.h>
-  //#include <GL/freeglut_ext.h>
+#ifdef linux
+#include <GL/glut.h>
 #elif defined(__APPLE__)
-  #define __gl_h_
-  #include <GLUT/glut.h>
+// Assumes prior inclusion of `<OpenGL/gl3.h>`.
+// `__gl_h_` prevents `<OpenGL/gl.h>` from being included because its inclusion
+// would cause conflicts with `<OpenGL/gl3.h>`.
+#define __gl_h_
+#include <GLUT/glut.h>
 #endif
 
 #endif
-

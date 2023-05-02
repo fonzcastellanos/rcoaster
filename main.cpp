@@ -18,19 +18,7 @@
 #include "texPipelineProgram.h"
 #include "types.hpp"
 
-#ifdef WIN32
-#ifdef _DEBUG
-#pragma comment(lib, "glew32d.lib")
-#else
-#pragma comment(lib, "glew32.lib")
-#endif
-#endif
-
-#ifdef WIN32
-char shaderBasePath[1024] = SHADER_BASE_PATH;
-#else
 char shaderBasePath[1024] = "openGLHelper";
-#endif
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
