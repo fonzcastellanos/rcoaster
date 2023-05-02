@@ -34,6 +34,23 @@ char shaderBasePath[1024] = "openGLHelper";
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
+#define RAIL_COLOR_RED 0.5
+#define RAIL_COLOR_BLUE 0.5
+#define RAIL_COLOR_GREEN 0.5
+#define RAIL_COLOR_ALPHA 1
+#define RAIL_HEAD_W 0.2
+#define RAIL_HEAD_H 0.1
+#define RAIL_WEB_W 0.1
+#define RAIL_WEB_H 0.1
+#define RAIL_GAUGE 2
+
+#define CROSSTIE_SEPARATION_DIST 1
+#define CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
+
+#define SCENE_AABB_SIDE_LEN 256
+#define GROUND_VERTEX_COUNT 6
+#define SKY_VERTEX_COUNT 36
+
 enum Status { kStatusOk, kStatusIOError };
 
 enum RgbaChannel {
@@ -51,8 +68,8 @@ enum RgbChannel {
   kRgbChannel__Count
 };
 
-GLuint screenshot_count = 0;
-GLuint record = 0;
+uint screenshot_count = 0;
+uint record_video = 0;
 
 uint window_w = 1280;
 uint window_h = 720;
@@ -71,53 +88,66 @@ OpenGLMatrix *matrix;
 BasicPipelineProgram *basicProgram;
 TexPipelineProgram *texProgram;
 
-enum MouseButton {
-  kMouseButton_Left,
-  kMouseButton_Middle,
-  kMouseButton_Right,
-  kMouseButton__Count
-};
+enum Button { kButton_Left, kButton_Middle, kButton_Right, kButton__Count };
 
 struct MouseState {
   glm::ivec2 position;
   int pressed_buttons;
 };
 
-static void PressButton(MouseState *s, MouseButton b) {
+static void PressButton(MouseState *s, Button b) {
   assert(s);
 
   s->pressed_buttons |= 1 << b;
 }
 
-static void ReleaseButton(MouseState *s, MouseButton b) {
+static void ReleaseButton(MouseState *s, Button b) {
   assert(s);
 
   s->pressed_buttons &= ~(1 << b);
 }
 
-static int IsButtonPressed(MouseState *s, MouseButton b) {
+static int IsButtonPressed(MouseState *s, Button b) {
   assert(s);
 
   return s->pressed_buttons >> b & 1;
 }
 
+static Button FromGlButton(int button) {
+  switch (button) {
+    case GLUT_LEFT_BUTTON: {
+      return kButton_Left;
+    }
+    case GLUT_MIDDLE_BUTTON: {
+      return kButton_Middle;
+    }
+    case GLUT_RIGHT_BUTTON: {
+      return kButton_Right;
+    }
+    default: {
+      assert(false);
+    }
+  }
+}
+
 MouseState mouse_state = {};
 
-// World operations
-typedef enum { ROTATE, TRANSLATE, SCALE } CONTROL_STATE;
-CONTROL_STATE controlState = ROTATE;
+enum WorldStateOp {
+  kWorldStateOp_Rotate,
+  kWorldStateOp_Translate,
+  kWorldStateOp_Scale
+};
+WorldStateOp world_state_op = kWorldStateOp_Rotate;
 
-// World state
-float landRotate[3] = {0.0, 0.0, 0.0};
-float landTranslate[3] = {0.0, 0.0, 0.0};
-float landScale[3] = {1.0, 1.0, 1.0};
+struct WorldState {
+  glm::vec3 rotation;
+  glm::vec3 translation;
+  glm::vec3 scale;
+};
 
-// Camera attributes
-uint camStep = 0;
-glm::vec3 camPos(0.0, 0.0, 0.0);
-glm::vec3 camDir(0.0, 0.0, 0.0);
-glm::vec3 camNorm;
-glm::vec3 camBinorm;
+static WorldState world_state = {{}, {}, {1, 1, 1}};
+
+uint camera_path_index = 0;
 
 struct Vertex {
   glm::vec3 position;
@@ -126,13 +156,15 @@ struct Vertex {
 
 struct CameraPathVertices {
   std::vector<glm::vec3> positions;
+  std::vector<glm::vec3> tangents;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec3> binormals;
 };
 
 static uint Count(const CameraPathVertices *c) {
   assert(c);
-  assert(c->positions.size() == c->normals.size());
+  assert(c->positions.size() == c->tangents.size());
+  assert(c->tangents.size() == c->normals.size());
   assert(c->normals.size() == c->binormals.size());
 
   return c->positions.size();
@@ -150,7 +182,7 @@ static uint Count(const TexturedVertices *tv) {
   return tv->positions.size();
 }
 
-enum Texture { kTextureGround, kTextureSky, kTextureCrossbar, kTexture_Count };
+enum Texture { kTextureGround, kTextureSky, kTextureCrosstie, kTexture_Count };
 
 enum VertexFormat {
   kVertexFormatTextured,
@@ -167,26 +199,12 @@ enum Vbo {
 
 static CameraPathVertices camera_path_vertices;
 static std::vector<GLuint> rail_indices;
-static TexturedVertices crossbar_vertices;
+static TexturedVertices crosstie_vertices;
 static SplineVertices spline_vertices;
 
 static GLuint textures[kTexture_Count];
 static GLuint vao_names[kVertexFormat_Count];
 static GLuint vbo_names[kVbo_Count];
-
-#define RAIL_COLOR_RED 0.5
-#define RAIL_COLOR_BLUE 0.5
-#define RAIL_COLOR_GREEN 0.5
-#define RAIL_COLOR_ALPHA 1
-#define RAIL_HEAD_W 0.2
-#define RAIL_HEAD_H 0.1
-#define RAIL_WEB_W 0.1
-#define RAIL_WEB_H 0.1
-#define RAIL_GAUGE 2
-
-#define SCENE_AABB_SIDE_LEN 256
-#define GROUND_VERTEX_COUNT 6
-#define SKY_VERTEX_COUNT 36
 
 const glm::vec3 scene_aabb_center = {};
 const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
@@ -318,39 +336,33 @@ static void MakeSky(TexturedVertices *sky) {
 }
 
 static void MakeCameraPath(const SplineVertices *spline,
-                           CameraPathVertices *campath) {
-  // Initial binormal chosen arbitrarily
+                           CameraPathVertices *path) {
+  // Initial binormal chosen arbitrarily.
   static const glm::vec3 kInitialBinormal = {0, 1, -0.5};
 
   assert(spline);
-  assert(campath);
+  assert(path);
 
-  assert(campath->positions.empty());
-  assert(campath->normals.empty());
-  assert(campath->binormals.empty());
+  uint count = Count(spline);
 
-  uint vertex_count = Count(spline);
+  assert(count > 0);
 
-  assert(vertex_count > 0);
+  path->positions = spline->positions;
+  path->tangents = spline->tangents;
 
-  campath->positions.resize(vertex_count);
-  campath->normals.resize(vertex_count);
-  campath->binormals.resize(vertex_count);
+  path->normals.resize(count);
+  path->binormals.resize(count);
 
-  for (uint i = 0; i < vertex_count; ++i) {
-    campath->positions[i] = spline->positions[i];
-  }
-
-  campath->normals[0] =
+  path->normals[0] =
       glm::normalize(glm::cross(spline->tangents[0], kInitialBinormal));
-  campath->binormals[0] =
-      glm::normalize(glm::cross(spline->tangents[0], campath->normals[0]));
+  path->binormals[0] =
+      glm::normalize(glm::cross(spline->tangents[0], path->normals[0]));
 
-  for (uint i = 1; i < vertex_count; ++i) {
-    campath->normals[i] = glm::normalize(
-        glm::cross(campath->binormals[i - 1], spline->tangents[i]));
-    campath->binormals[i] =
-        glm::normalize(glm::cross(spline->tangents[i], campath->normals[i]));
+  for (uint i = 1; i < count; ++i) {
+    path->normals[i] =
+        glm::normalize(glm::cross(path->binormals[i - 1], spline->tangents[i]));
+    path->binormals[i] =
+        glm::normalize(glm::cross(spline->tangents[i], path->normals[i]));
   }
 }
 
@@ -376,12 +388,12 @@ Rail cross section:
           |          |
           7 -------- 0
 */
-static void MakeRails(const CameraPathVertices *campath_vertices,
-                      const glm::vec4 *color, float head_w, float head_h,
-                      float web_w, float web_h, float gauge,
+static void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
+                      float head_w, float head_h, float web_w, float web_h,
+                      float gauge, float pos_offset_in_campath_norm_dir,
                       std::vector<Vertex> *vertices,
                       std::vector<GLuint> *indices) {
-  assert(campath_vertices);
+  assert(campath);
   assert(color);
   assert(vertices);
   assert(indices);
@@ -393,15 +405,15 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
 
   static constexpr uint kCrossSectionVertexCount = 8;
 
-  auto &cpv_pos = campath_vertices->positions;
-  auto &cpv_binorm = campath_vertices->binormals;
-  auto &cpv_norm = campath_vertices->normals;
+  auto &cv_pos = campath->positions;
+  auto &cv_binorm = campath->binormals;
+  auto &cv_norm = campath->normals;
 
   auto &rv = *vertices;
 
-  uint cpv_count = Count(campath_vertices);
+  uint cv_count = Count(campath);
 
-  uint rv_count = 2 * cpv_count * kCrossSectionVertexCount;
+  uint rv_count = 2 * cv_count * kCrossSectionVertexCount;
   rv.resize(rv_count);
 
   for (uint i = 0; i < rv_count; ++i) {
@@ -409,36 +421,45 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
   }
 
   for (uint i = 0; i < 2; ++i) {
-    for (uint j = 0; j < cpv_count; ++j) {
-      uint k = kCrossSectionVertexCount * (j + i * cpv_count);
+    for (uint j = 0; j < cv_count; ++j) {
+      uint k = kCrossSectionVertexCount * (j + i * cv_count);
       // See the comment block immediately above this function definition for
       // the visual index-to-position mapping
       rv[k].position =
-          cpv_pos[j] - web_h * cpv_norm[j] + 0.5f * web_w * cpv_binorm[j];
-      rv[k + 1].position = cpv_pos[j] + 0.5f * web_w * cpv_binorm[j];
-      rv[k + 2].position = cpv_pos[j] + 0.5f * head_w * cpv_binorm[j];
+          cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
+      rv[k + 1].position = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
+      rv[k + 2].position = cv_pos[j] + 0.5f * head_w * cv_binorm[j];
       rv[k + 3].position =
-          cpv_pos[j] + head_h * cpv_norm[j] + 0.5f * head_w * cpv_binorm[j];
+          cv_pos[j] + head_h * cv_norm[j] + 0.5f * head_w * cv_binorm[j];
       rv[k + 4].position = rv[k + 4].position =
-          cpv_pos[j] + head_h * cpv_norm[j] - 0.5f * head_w * cpv_binorm[j];
-      rv[k + 5].position = cpv_pos[j] - 0.5f * head_w * cpv_binorm[j];
-      rv[k + 6].position = cpv_pos[j] - 0.5f * web_w * cpv_binorm[j];
+          cv_pos[j] + head_h * cv_norm[j] - 0.5f * head_w * cv_binorm[j];
+      rv[k + 5].position = cv_pos[j] - 0.5f * head_w * cv_binorm[j];
+      rv[k + 6].position = cv_pos[j] - 0.5f * web_w * cv_binorm[j];
       rv[k + 7].position =
-          cpv_pos[j] - web_h * cpv_norm[j] - 0.5f * web_w * cpv_binorm[j];
+          cv_pos[j] - web_h * cv_norm[j] - 0.5f * web_w * cv_binorm[j];
     }
   }
 
   // Set rail pair `gauge` distance apart
-  for (uint i = 0; i < cpv_count; ++i) {
+  for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      rv[j + k].position += 0.5f * gauge * cpv_binorm[i];
+      rv[j + k].position += 0.5f * gauge * cv_binorm[i];
     }
   }
-  for (uint i = 0; i < cpv_count; ++i) {
-    uint j = kCrossSectionVertexCount * (i + cpv_count);
+  for (uint i = 0; i < cv_count; ++i) {
+    uint j = kCrossSectionVertexCount * (i + cv_count);
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      rv[j + k].position -= 0.5f * gauge * cpv_binorm[i];
+      rv[j + k].position -= 0.5f * gauge * cv_binorm[i];
+    }
+  }
+
+  for (uint i = 0; i < 2; ++i) {
+    for (uint j = 0; j < cv_count; ++j) {
+      uint k = kCrossSectionVertexCount * (j + i * cv_count);
+      for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
+        rv[k + l].position += pos_offset_in_campath_norm_dir * cv_norm[j];
+      }
     }
   }
 
@@ -515,107 +536,110 @@ static void MakeRails(const CameraPathVertices *campath_vertices,
   }
 }
 
-static void MakeCrossbars(const CameraPathVertices *cam_path,
-                          const std::vector<glm::vec3> *spline_tangents,
-                          TexturedVertices *crossbar) {
+static void MakeCrossties(const CameraPathVertices *campath,
+                          float separation_dist,
+                          float pos_offset_in_campath_norm_dir,
+                          TexturedVertices *crosstie) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
   static constexpr int kVertexCount = 8;
-  static constexpr float kBarToBarDist = 1.0;
   static constexpr float kBarDepth = 0.3;
+  static constexpr float kTolerance = 0.00001;
 
-  const auto &s_tan = *spline_tangents;
+  auto &p_pos = campath->positions;
+  auto &p_tan = campath->tangents;
+  auto &p_binorm = campath->binormals;
+  auto &p_norm = campath->normals;
+  uint p_count = Count(campath);
 
-  auto &cp_pos = cam_path->positions;
-  auto &cp_binorm = cam_path->binormals;
-  auto &cp_norm = cam_path->normals;
-  uint cp_count = Count(cam_path);
-
-  auto &cb_pos = crossbar->positions;
-  auto &cb_tex_coords = crossbar->tex_coords;
+  auto &b_pos = crosstie->positions;
+  auto &b_tex_coords = crosstie->tex_coords;
 
   glm::vec3 v[kVertexCount];
   float dist_moved = 0;
-  for (uint j = 1; j < cp_count; ++j) {
-    dist_moved += glm::length(cp_pos[j] - cp_pos[j - 1]);
+  for (uint i = 1; i < p_count; ++i) {
+    dist_moved += glm::length(p_pos[i] - p_pos[i - 1]);
 
-    if (dist_moved <= kBarToBarDist) {
+    if (dist_moved < separation_dist + kTolerance) {
       continue;
     }
 
-    v[0] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) +
-           cp_binorm[j];
-    v[1] =
-        cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) + cp_binorm[j];
-    v[2] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) -
-           cp_binorm[j] - kAlpha * cp_binorm[j];
-    v[3] = cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) -
-           cp_binorm[j] - kAlpha * cp_binorm[j];
+    v[0] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) +
+           p_binorm[i];
+    v[1] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) + p_binorm[i];
+    v[2] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) -
+           p_binorm[i] - kAlpha * p_binorm[i];
+    v[3] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) - p_binorm[i] -
+           kAlpha * p_binorm[i];
 
-    v[4] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) +
-           cp_binorm[j] + kBarDepth * s_tan[j];
-    v[5] = cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) +
-           cp_binorm[j] + kBarDepth * s_tan[j];
-    v[6] = cp_pos[j] + kAlpha * (-kBeta * cp_norm[j] + cp_binorm[j] * 0.5f) -
-           cp_binorm[j] + kBarDepth * s_tan[j] - kAlpha * cp_binorm[j];
-    v[7] = cp_pos[j] + kAlpha * (-cp_norm[j] + cp_binorm[j] * 0.5f) -
-           cp_binorm[j] + kBarDepth * s_tan[j] - kAlpha * cp_binorm[j];
+    v[4] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) +
+           p_binorm[i] + kBarDepth * p_tan[i];
+    v[5] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) + p_binorm[i] +
+           kBarDepth * p_tan[i];
+    v[6] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) -
+           p_binorm[i] + kBarDepth * p_tan[i] - kAlpha * p_binorm[i];
+    v[7] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) - p_binorm[i] +
+           kBarDepth * p_tan[i] - kAlpha * p_binorm[i];
+
+    for (uint j = 0; j < kVertexCount; ++j) {
+      v[j] += pos_offset_in_campath_norm_dir * p_norm[i];
+    }
 
     // top face
-    cb_pos.push_back(v[6]);
-    cb_pos.push_back(v[5]);
-    cb_pos.push_back(v[2]);
-    cb_pos.push_back(v[5]);
-    cb_pos.push_back(v[1]);
-    cb_pos.push_back(v[2]);
+    b_pos.push_back(v[6]);
+    b_pos.push_back(v[5]);
+    b_pos.push_back(v[2]);
+    b_pos.push_back(v[5]);
+    b_pos.push_back(v[1]);
+    b_pos.push_back(v[2]);
 
     // right face
-    cb_pos.push_back(v[5]);
-    cb_pos.push_back(v[4]);
-    cb_pos.push_back(v[1]);
-    cb_pos.push_back(v[4]);
-    cb_pos.push_back(v[0]);
-    cb_pos.push_back(v[1]);
+    b_pos.push_back(v[5]);
+    b_pos.push_back(v[4]);
+    b_pos.push_back(v[1]);
+    b_pos.push_back(v[4]);
+    b_pos.push_back(v[0]);
+    b_pos.push_back(v[1]);
 
     // bottom face
-    cb_pos.push_back(v[4]);
-    cb_pos.push_back(v[7]);
-    cb_pos.push_back(v[0]);
-    cb_pos.push_back(v[7]);
-    cb_pos.push_back(v[3]);
-    cb_pos.push_back(v[0]);
+    b_pos.push_back(v[4]);
+    b_pos.push_back(v[7]);
+    b_pos.push_back(v[0]);
+    b_pos.push_back(v[7]);
+    b_pos.push_back(v[3]);
+    b_pos.push_back(v[0]);
 
     // left face
-    cb_pos.push_back(v[7]);
-    cb_pos.push_back(v[6]);
-    cb_pos.push_back(v[3]);
-    cb_pos.push_back(v[6]);
-    cb_pos.push_back(v[2]);
-    cb_pos.push_back(v[3]);
+    b_pos.push_back(v[7]);
+    b_pos.push_back(v[6]);
+    b_pos.push_back(v[3]);
+    b_pos.push_back(v[6]);
+    b_pos.push_back(v[2]);
+    b_pos.push_back(v[3]);
 
     // back face
-    cb_pos.push_back(v[5]);
-    cb_pos.push_back(v[6]);
-    cb_pos.push_back(v[4]);
-    cb_pos.push_back(v[6]);
-    cb_pos.push_back(v[7]);
-    cb_pos.push_back(v[4]);
+    b_pos.push_back(v[5]);
+    b_pos.push_back(v[6]);
+    b_pos.push_back(v[4]);
+    b_pos.push_back(v[6]);
+    b_pos.push_back(v[7]);
+    b_pos.push_back(v[4]);
 
     // front face
-    cb_pos.push_back(v[2]);
-    cb_pos.push_back(v[1]);
-    cb_pos.push_back(v[3]);
-    cb_pos.push_back(v[1]);
-    cb_pos.push_back(v[0]);
-    cb_pos.push_back(v[3]);
+    b_pos.push_back(v[2]);
+    b_pos.push_back(v[1]);
+    b_pos.push_back(v[3]);
+    b_pos.push_back(v[1]);
+    b_pos.push_back(v[0]);
+    b_pos.push_back(v[3]);
 
-    for (uint i = 0; i < 6; ++i) {
-      cb_tex_coords.emplace_back(0, 1);
-      cb_tex_coords.emplace_back(1, 1);
-      cb_tex_coords.emplace_back(0, 0);
-      cb_tex_coords.emplace_back(1, 1);
-      cb_tex_coords.emplace_back(1, 0);
-      cb_tex_coords.emplace_back(0, 0);
+    for (uint j = 0; j < 6; ++j) {
+      b_tex_coords.emplace_back(0, 1);
+      b_tex_coords.emplace_back(1, 1);
+      b_tex_coords.emplace_back(0, 0);
+      b_tex_coords.emplace_back(1, 1);
+      b_tex_coords.emplace_back(1, 0);
+      b_tex_coords.emplace_back(0, 0);
     }
 
     dist_moved = 0;
@@ -770,7 +794,7 @@ void timerFunc(int val) {
     glutSetWindowTitle(temp);
     delete[] temp;
 
-    if (record) {  // take a screenshot
+    if (record_video) {  // take a screenshot
       temp = new char[8];
       sprintf(temp, "%03d.jpg", screenshot_count);
       SaveScreenshot(temp);
@@ -784,7 +808,7 @@ void timerFunc(int val) {
   glutTimerFunc(33, timerFunc, 1);  //~30 fps
 }
 
-static void ReshapeWindow(int w, int h) {
+static void OnWindowReshape(int w, int h) {
   window_w = w;
   window_h = h;
 
@@ -798,88 +822,62 @@ static void ReshapeWindow(int w, int h) {
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // By default in ModelView
 }
 
-void UpdateMousePosition(int x, int y) {
+static void OnPassiveMouseMotion(int x, int y) {
   mouse_state.position.x = x;
   mouse_state.position.y = y;
 }
 
-void mouseMotionDragFunc(int x, int y) {
-  // mouse has moved and one of the mouse buttons is pressed (dragging)
-
+void OnMouseDrag(int x, int y) {
   // the change in mouse position since the last invocation of this function
-  int mousePosDelta[2] = {x - mouse_state.position.x,
-                          y - mouse_state.position.y};
+  glm::vec2 pos_delta = {x - mouse_state.position.x,
+                         y - mouse_state.position.y};
 
-  switch (controlState) {
-    // translate the landscape
-    case TRANSLATE:
-      if (IsButtonPressed(&mouse_state, kMouseButton_Left)) {
-        // control x,y translation via the left mouse button
-        landTranslate[0] += mousePosDelta[0] * 0.1;
-        landTranslate[1] -= mousePosDelta[1] * 0.1;
+  switch (world_state_op) {
+    case kWorldStateOp_Translate: {
+      if (IsButtonPressed(&mouse_state, kButton_Left)) {
+        world_state.translation.x += pos_delta.x * 0.1f;
+        world_state.translation.y -= pos_delta.y * 0.1f;
       }
-      if (IsButtonPressed(&mouse_state, kMouseButton_Middle)) {
-        // control z translation via the middle mouse button
-        landTranslate[2] += mousePosDelta[1];  // * 0.1;
+      if (IsButtonPressed(&mouse_state, kButton_Middle)) {
+        world_state.translation.z += pos_delta.y;  // * 0.1;
       }
       break;
-
-      // rotate the landscape
-    case ROTATE:
-      if (IsButtonPressed(&mouse_state, kMouseButton_Left)) {
-        // control x,y rotation via the left mouse button
-        landRotate[0] += mousePosDelta[1];
-        landRotate[1] += mousePosDelta[0];
+    }
+    case kWorldStateOp_Rotate: {
+      if (IsButtonPressed(&mouse_state, kButton_Left)) {
+        world_state.rotation.x += pos_delta.y;
+        world_state.rotation.y += pos_delta.x;
       }
-      if (IsButtonPressed(&mouse_state, kMouseButton_Middle)) {
-        // control z rotation via the middle mouse button
-        landRotate[2] += mousePosDelta[1];
+      if (IsButtonPressed(&mouse_state, kButton_Middle)) {
+        world_state.rotation.z += pos_delta.y;
       }
       break;
-
-      // scale the landscape
-    case SCALE:
-      if (IsButtonPressed(&mouse_state, kMouseButton_Left)) {
-        // control x,y scaling via the left mouse button
-        landScale[0] *= 1.0 + mousePosDelta[0] * 0.01;
-        landScale[1] *= 1.0 - mousePosDelta[1] * 0.01;
+    }
+    case kWorldStateOp_Scale: {
+      if (IsButtonPressed(&mouse_state, kButton_Left)) {
+        world_state.scale.x *= 1 + pos_delta.x * 0.01f;
+        world_state.scale.y *= 1 - pos_delta.y * 0.01f;
       }
-      if (IsButtonPressed(&mouse_state, kMouseButton_Middle)) {
-        // control z scaling via the middle mouse button
-        landScale[2] *= 1.0 - mousePosDelta[1] * 0.01;
+      if (IsButtonPressed(&mouse_state, kButton_Middle)) {
+        world_state.scale.z *= 1 - pos_delta.y * 0.01f;
       }
       break;
+    }
   }
 
-  UpdateMousePosition(x, y);
+  mouse_state.position.x = x;
+  mouse_state.position.y = y;
 }
 
-void UpdateMouseState(int button, int state, int x, int y) {
-  // a mouse button has has been pressed or depressed
-
-  switch (button) {
-    case GLUT_LEFT_BUTTON: {
-      if (state == GLUT_DOWN) {
-        PressButton(&mouse_state, kMouseButton_Left);
-      } else {
-        ReleaseButton(&mouse_state, kMouseButton_Left);
-      }
+static void OnMousePressOrRelease(int button, int state, int x, int y) {
+  Button b = FromGlButton(button);
+  switch (state) {
+    case GLUT_DOWN: {
+      PressButton(&mouse_state, b);
       break;
     }
-    case GLUT_MIDDLE_BUTTON: {
-      if (state == GLUT_DOWN) {
-        PressButton(&mouse_state, kMouseButton_Middle);
-      } else {
-        ReleaseButton(&mouse_state, kMouseButton_Middle);
-      }
-      break;
-    }
-    case GLUT_RIGHT_BUTTON: {
-      if (state == GLUT_DOWN) {
-        PressButton(&mouse_state, kMouseButton_Right);
-      } else {
-        ReleaseButton(&mouse_state, kMouseButton_Right);
-      }
+    case GLUT_UP: {
+      ReleaseButton(&mouse_state, b);
       break;
     }
     default: {
@@ -890,59 +888,47 @@ void UpdateMouseState(int button, int state, int x, int y) {
   // keep track of whether CTRL and SHIFT keys are pressed
   switch (glutGetModifiers()) {
     case GLUT_ACTIVE_CTRL: {
-      controlState = TRANSLATE;
+      world_state_op = kWorldStateOp_Translate;
       break;
     }
     case GLUT_ACTIVE_SHIFT: {
-      controlState = SCALE;
+      world_state_op = kWorldStateOp_Scale;
       break;
     }
       // if CTRL and SHIFT are not pressed, we are in rotate mode
     default: {
-      controlState = ROTATE;
+      world_state_op = kWorldStateOp_Rotate;
       break;
     }
   }
 
-  UpdateMousePosition(x, y);
+  mouse_state.position.x = x;
+  mouse_state.position.y = y;
 }
 
-void keyboardFunc(unsigned char key, int x, int y) {
+static void OnKeyPress(uchar key, int x, int y) {
   switch (key) {
-    case 27:    // ESC key
-      exit(0);  // exit the program
+    case 27: {  // ESC key
+      exit(0);
       break;
-
-    case ' ':
-      std::cout << "You pressed the spacebar." << std::endl;
+    }
+    case 'i': {
+      SaveScreenshot("screenshot.jpg");
       break;
-
-      /*
-  case 'x':
-      // take a screenshot
-      saveScreenshot("screenshot.jpg");
-      break;
-      */
-
-    case 'x':
-      // toggle video record
-      if (record == 1) {
+    }
+    case 'v': {
+      if (record_video == 1) {
         screenshot_count = 0;
       }
-      record = !record;
+      record_video = !record_video;
       break;
+    }
   }
 }
 
 void idleFunc() {
-  // do some stuff...
-  if (camStep < camera_path_vertices.positions.size()) {
-    camPos = camera_path_vertices.positions[camStep] +
-             camera_path_vertices.normals[camStep] * 2.0f;
-    camDir = spline_vertices.tangents[camStep];
-    camNorm = camera_path_vertices.normals[camStep];
-    camBinorm = camera_path_vertices.binormals[camStep];
-    camStep += 3;
+  if (camera_path_index < Count(&camera_path_vertices)) {
+    camera_path_index += 3;
   }
 
   // for example, here, you can save the screenshots to disk (to make the
@@ -952,15 +938,21 @@ void idleFunc() {
   glutPostRedisplay();
 }
 
-void displayFunc() {
+static void Display() {
   ++frame_count;
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   matrix->LoadIdentity();
-  matrix->LookAt(camPos[0], camPos[1], camPos[2], camPos[0] + camDir[0],
-                 camPos[1] + camDir[1], camPos[2] + camDir[2], camNorm[0],
-                 camNorm[1], camNorm[2]);
+
+  {
+    auto i = camera_path_index;
+    auto &p = camera_path_vertices.positions;
+    auto &t = spline_vertices.tangents;
+    auto &n = camera_path_vertices.normals;
+    matrix->LookAt(p[i].x, p[i].y, p[i].z, p[i].x + t[i].x, p[i].y + t[i].y,
+                   p[i].z + t[i].z, n[i].x, n[i].y, n[i].z);
+  }
 
   float model_view_mat[16];
   float proj_mat[16];
@@ -1053,7 +1045,7 @@ void displayFunc() {
   glDrawArrays(GL_TRIANGLES, first, SKY_VERTEX_COUNT);
   first += SKY_VERTEX_COUNT;
 
-  /* Crossbars */
+  /* Crossties */
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -1063,8 +1055,8 @@ void displayFunc() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindTexture(GL_TEXTURE_2D, textures[kTextureCrossbar]);
-  for (uint offset = 0; offset < Count(&crossbar_vertices); offset += 36) {
+  glBindTexture(GL_TEXTURE_2D, textures[kTextureCrosstie]);
+  for (uint offset = 0; offset < Count(&crosstie_vertices); offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 
@@ -1087,7 +1079,7 @@ int main(int argc, char **argv) {
   if (argc < 5) {
     std::fprintf(stderr,
                  "usage: %s <track-file> <ground-texture> <sky-texture> "
-                 "<crossbar-texture>\n",
+                 "<crosstie-texture>\n",
                  argv[0]);
     return EXIT_FAILURE;
   }
@@ -1111,17 +1103,14 @@ int main(int argc, char **argv) {
   std::printf("  Shading Language Version: %s\n",
               glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-  // tells glut to use a particular display function to redraw
-  glutDisplayFunc(displayFunc);
+  glutDisplayFunc(Display);
   // perform animation inside idleFunc
   glutIdleFunc(idleFunc);
-  // callback for mouse drags
-  glutMotionFunc(mouseMotionDragFunc);
-  glutPassiveMotionFunc(UpdateMousePosition);
-  glutMouseFunc(UpdateMouseState);
-  glutReshapeFunc(ReshapeWindow);
-  // callback for pressing the keys on the keyboard
-  glutKeyboardFunc(keyboardFunc);
+  glutMotionFunc(OnMouseDrag);
+  glutPassiveMotionFunc(OnPassiveMouseMotion);
+  glutMouseFunc(OnMousePressOrRelease);
+  glutReshapeFunc(OnWindowReshape);
+  glutKeyboardFunc(OnKeyPress);
   // callback for timer
   glutTimerFunc(0, timerFunc, 0);
 
@@ -1163,10 +1152,12 @@ int main(int argc, char **argv) {
                        RAIL_COLOR_ALPHA);
   std::vector<Vertex> rail_vertices;
   MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
-            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, &rail_vertices, &rail_indices);
+            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_vertices,
+            &rail_indices);
 
-  MakeCrossbars(&camera_path_vertices, &spline_vertices.tangents,
-                &crossbar_vertices);
+  MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
+                CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
+                &crosstie_vertices);
 
   glClearColor(0, 0, 0, 0);
   glEnable(GL_DEPTH_TEST);
@@ -1177,7 +1168,7 @@ int main(int argc, char **argv) {
 
   InitTexture(argv[2], textures[kTextureGround]);
   InitTexture(argv[3], textures[kTextureSky]);
-  InitTexture(argv[4], textures[kTextureCrossbar]);
+  InitTexture(argv[4], textures[kTextureCrosstie]);
 
   initBasicPipelineProgram();
   initTexPipelineProgram();
@@ -1187,7 +1178,7 @@ int main(int argc, char **argv) {
   assert(SKY_VERTEX_COUNT == Count(&sky_vertices));
 
   uint vertex_count =
-      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + Count(&crossbar_vertices);
+      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + Count(&crosstie_vertices);
 
   // Buffer textured vertices
   {
@@ -1205,9 +1196,9 @@ int main(int argc, char **argv) {
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     sky_vertices.positions.data());
     offset += size;
-    size = Count(&crossbar_vertices) * sizeof(glm::vec3),
+    size = Count(&crosstie_vertices) * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    crossbar_vertices.positions.data());
+                    crosstie_vertices.positions.data());
 
     offset += size;
     size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
@@ -1218,9 +1209,9 @@ int main(int argc, char **argv) {
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     sky_vertices.tex_coords.data());
     offset += size;
-    size = Count(&crossbar_vertices) * sizeof(glm::vec2),
+    size = Count(&crosstie_vertices) * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    crossbar_vertices.tex_coords.data());
+                    crosstie_vertices.tex_coords.data());
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
