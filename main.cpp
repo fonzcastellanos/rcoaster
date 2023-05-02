@@ -36,15 +36,33 @@ char shaderBasePath[1024] = "openGLHelper";
 
 enum Status { kStatusOk, kStatusIOError };
 
-GLuint screenshotCount = 0;
+enum RgbaChannel {
+  kRgbaChannel_Red,
+  kRgbaChannel_Green,
+  kRgbaChannel_Blue,
+  kRgbaChannel_Alpha,
+  kRgbaChannel__Count
+};
+
+enum RgbChannel {
+  kRgbChannel_Red,
+  kRgbChannel_Green,
+  kRgbChannel_Blue,
+  kRgbChannel__Count
+};
+
+GLuint screenshot_count = 0;
 GLuint record = 0;
 
-int windowWidth = 1280;
-int windowHeight = 720;
+uint window_w = 1280;
+uint window_h = 720;
 const char *kWindowTitle = "Roller Coaster";
 
-// Number of rendered frames
-unsigned int frameCount = 0;
+#define FOV_Y 45
+#define NEAR_Z 0.01
+#define FAR_Z 10000
+
+uint frame_count = 0;
 
 // Helper matrix object
 OpenGLMatrix *matrix;
@@ -53,11 +71,37 @@ OpenGLMatrix *matrix;
 BasicPipelineProgram *basicProgram;
 TexPipelineProgram *texProgram;
 
-// Mouse state
-int mousePos[2];            // x,y coordinate of the mouse position
-int leftMouseButton = 0;    // 1 if pressed, 0 if not
-int middleMouseButton = 0;  // 1 if pressed, 0 if not
-int rightMouseButton = 0;   // 1 if pressed, 0 if not
+enum MouseButton {
+  kMouseButton_Left,
+  kMouseButton_Middle,
+  kMouseButton_Right,
+  kMouseButton__Count
+};
+
+struct MouseState {
+  glm::ivec2 position;
+  int pressed_buttons;
+};
+
+static void PressButton(MouseState *s, MouseButton b) {
+  assert(s);
+
+  s->pressed_buttons |= 1 << b;
+}
+
+static void ReleaseButton(MouseState *s, MouseButton b) {
+  assert(s);
+
+  s->pressed_buttons &= ~(1 << b);
+}
+
+static int IsButtonPressed(MouseState *s, MouseButton b) {
+  assert(s);
+
+  return s->pressed_buttons >> b & 1;
+}
+
+MouseState mouse_state = {};
 
 // World operations
 typedef enum { ROTATE, TRANSLATE, SCALE } CONTROL_STATE;
@@ -653,14 +697,6 @@ static Status LoadSplines(const char *track_filepath,
   return kStatusOk;
 }
 
-enum RgbaChannel {
-  kRgbaChannelRed,
-  kRgbaChannelGreen,
-  kRgbaChannelBlue,
-  kRgbaChannelAlpha,
-  kRgbaChannel_Count
-};
-
 static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   assert(img_filepath);
 
@@ -668,7 +704,7 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   int h;
   int channel_count;
   uchar *data =
-      stbi_load(img_filepath, &w, &h, &channel_count, kRgbaChannel_Count);
+      stbi_load(img_filepath, &w, &h, &channel_count, kRgbaChannel__Count);
   if (!data) {
     std::fprintf(stderr, "Could not load texture from file %s.\n",
                  img_filepath);
@@ -676,10 +712,8 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   }
 
   glBindTexture(GL_TEXTURE_2D, texture_name);
-
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
                data);
-
   glGenerateMipmap(GL_TEXTURE_2D);
 
   // set the texture parameters
@@ -711,19 +745,18 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
 }
 
 Status SaveScreenshot(const char *filepath) {
-  std::vector<uchar> screenshot(windowWidth * windowHeight * 3);
-  glReadPixels(0, 0, windowWidth, windowHeight, GL_RGB, GL_UNSIGNED_BYTE,
+  std::vector<uchar> screenshot(window_w * window_h * kRgbChannel__Count);
+
+  glReadPixels(0, 0, window_w, window_h, GL_RGB, GL_UNSIGNED_BYTE,
                screenshot.data());
 
   stbi_flip_vertically_on_write(1);
-  int ret = stbi_write_jpg(filepath, windowWidth, windowHeight, 3,
+  int ret = stbi_write_jpg(filepath, window_w, window_h, kRgbChannel__Count,
                            screenshot.data(), 95);
   if (ret == 0) {
     std::fprintf(stderr, "Could not write data to JPEG file.\n");
     return kStatusIOError;
   }
-
-  std::printf("Saved screenshot to file %s.\n", filepath);
 
   return kStatusOk;
 }
@@ -733,49 +766,59 @@ void timerFunc(int val) {
     char *temp = new char[512 + strlen(kWindowTitle)];
     // Update title bar info
     sprintf(temp, "%s: %d fps , %d x %d resolution", kWindowTitle,
-            frameCount * 30, windowWidth, windowHeight);
+            frame_count * 30, window_w, window_h);
     glutSetWindowTitle(temp);
     delete[] temp;
 
     if (record) {  // take a screenshot
       temp = new char[8];
-      sprintf(temp, "%03d.jpg", screenshotCount);
+      sprintf(temp, "%03d.jpg", screenshot_count);
       SaveScreenshot(temp);
+      std::printf("Saved screenshot to file %s.\n", temp);
       delete[] temp;
-      ++screenshotCount;
+      ++screenshot_count;
     }
   }
 
-  frameCount = 0;
+  frame_count = 0;
   glutTimerFunc(33, timerFunc, 1);  //~30 fps
 }
 
-void reshapeFunc(int w, int h) {
-  windowWidth = w;
-  windowHeight = h;
-  glViewport(0, 0, windowWidth, windowHeight);
-  GLfloat aspect = (GLfloat)windowWidth / windowHeight;
+static void ReshapeWindow(int w, int h) {
+  window_w = w;
+  window_h = h;
+
+  glViewport(0, 0, window_w, window_h);
+
+  float aspect = (float)window_w / window_h;
+
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
   matrix->LoadIdentity();
-  matrix->Perspective(45.0, aspect, 0.01, 10000.0);
+  matrix->Perspective(FOV_Y, aspect, NEAR_Z, FAR_Z);
   matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // By default in ModelView
+}
+
+void UpdateMousePosition(int x, int y) {
+  mouse_state.position.x = x;
+  mouse_state.position.y = y;
 }
 
 void mouseMotionDragFunc(int x, int y) {
   // mouse has moved and one of the mouse buttons is pressed (dragging)
 
   // the change in mouse position since the last invocation of this function
-  int mousePosDelta[2] = {x - mousePos[0], y - mousePos[1]};
+  int mousePosDelta[2] = {x - mouse_state.position.x,
+                          y - mouse_state.position.y};
 
   switch (controlState) {
     // translate the landscape
     case TRANSLATE:
-      if (leftMouseButton) {
+      if (IsButtonPressed(&mouse_state, kMouseButton_Left)) {
         // control x,y translation via the left mouse button
         landTranslate[0] += mousePosDelta[0] * 0.1;
         landTranslate[1] -= mousePosDelta[1] * 0.1;
       }
-      if (middleMouseButton) {
+      if (IsButtonPressed(&mouse_state, kMouseButton_Middle)) {
         // control z translation via the middle mouse button
         landTranslate[2] += mousePosDelta[1];  // * 0.1;
       }
@@ -783,12 +826,12 @@ void mouseMotionDragFunc(int x, int y) {
 
       // rotate the landscape
     case ROTATE:
-      if (leftMouseButton) {
+      if (IsButtonPressed(&mouse_state, kMouseButton_Left)) {
         // control x,y rotation via the left mouse button
         landRotate[0] += mousePosDelta[1];
         landRotate[1] += mousePosDelta[0];
       }
-      if (middleMouseButton) {
+      if (IsButtonPressed(&mouse_state, kMouseButton_Middle)) {
         // control z rotation via the middle mouse button
         landRotate[2] += mousePosDelta[1];
       }
@@ -796,68 +839,72 @@ void mouseMotionDragFunc(int x, int y) {
 
       // scale the landscape
     case SCALE:
-      if (leftMouseButton) {
+      if (IsButtonPressed(&mouse_state, kMouseButton_Left)) {
         // control x,y scaling via the left mouse button
         landScale[0] *= 1.0 + mousePosDelta[0] * 0.01;
         landScale[1] *= 1.0 - mousePosDelta[1] * 0.01;
       }
-      if (middleMouseButton) {
+      if (IsButtonPressed(&mouse_state, kMouseButton_Middle)) {
         // control z scaling via the middle mouse button
         landScale[2] *= 1.0 - mousePosDelta[1] * 0.01;
       }
       break;
   }
 
-  // store the new mouse position
-  mousePos[0] = x;
-  mousePos[1] = y;
+  UpdateMousePosition(x, y);
 }
 
-void mouseMotionFunc(int x, int y) {
-  // mouse has moved
-  // store the new mouse position
-  mousePos[0] = x;
-  mousePos[1] = y;
-}
-
-void mouseButtonFunc(int button, int state, int x, int y) {
+void UpdateMouseState(int button, int state, int x, int y) {
   // a mouse button has has been pressed or depressed
 
-  // keep track of the mouse button state, in leftMouseButton,
-  // middleMouseButton, rightMouseButton variables
   switch (button) {
-    case GLUT_LEFT_BUTTON:
-      leftMouseButton = (state == GLUT_DOWN);
+    case GLUT_LEFT_BUTTON: {
+      if (state == GLUT_DOWN) {
+        PressButton(&mouse_state, kMouseButton_Left);
+      } else {
+        ReleaseButton(&mouse_state, kMouseButton_Left);
+      }
       break;
-
-    case GLUT_MIDDLE_BUTTON:
-      middleMouseButton = (state == GLUT_DOWN);
+    }
+    case GLUT_MIDDLE_BUTTON: {
+      if (state == GLUT_DOWN) {
+        PressButton(&mouse_state, kMouseButton_Middle);
+      } else {
+        ReleaseButton(&mouse_state, kMouseButton_Middle);
+      }
       break;
-
-    case GLUT_RIGHT_BUTTON:
-      rightMouseButton = (state == GLUT_DOWN);
+    }
+    case GLUT_RIGHT_BUTTON: {
+      if (state == GLUT_DOWN) {
+        PressButton(&mouse_state, kMouseButton_Right);
+      } else {
+        ReleaseButton(&mouse_state, kMouseButton_Right);
+      }
       break;
+    }
+    default: {
+      assert(false);
+    }
   }
 
   // keep track of whether CTRL and SHIFT keys are pressed
   switch (glutGetModifiers()) {
-    case GLUT_ACTIVE_CTRL:
+    case GLUT_ACTIVE_CTRL: {
       controlState = TRANSLATE;
       break;
-
-    case GLUT_ACTIVE_SHIFT:
+    }
+    case GLUT_ACTIVE_SHIFT: {
       controlState = SCALE;
       break;
-
+    }
       // if CTRL and SHIFT are not pressed, we are in rotate mode
-    default:
+    default: {
       controlState = ROTATE;
       break;
+    }
   }
 
-  // store the new mouse position
-  mousePos[0] = x;
-  mousePos[1] = y;
+  UpdateMousePosition(x, y);
 }
 
 void keyboardFunc(unsigned char key, int x, int y) {
@@ -880,7 +927,7 @@ void keyboardFunc(unsigned char key, int x, int y) {
     case 'x':
       // toggle video record
       if (record == 1) {
-        screenshotCount = 0;
+        screenshot_count = 0;
       }
       record = !record;
       break;
@@ -906,7 +953,7 @@ void idleFunc() {
 }
 
 void displayFunc() {
-  ++frameCount;
+  ++frame_count;
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1054,13 +1101,14 @@ int main(int argc, char **argv) {
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_STENCIL);
 #endif
 
-  glutInitWindowSize(windowWidth, windowHeight);
+  glutInitWindowSize(window_w, window_h);
   glutInitWindowPosition(0, 0);
   glutCreateWindow(kWindowTitle);
 
-  std::printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
-  std::printf("OpenGL Renderer: %s\n", glGetString(GL_RENDERER));
-  std::printf("OpenGL Shading Language Version: %s\n",
+  std::printf("OpenGL Info: \n");
+  std::printf("  Version: %s\n", glGetString(GL_VERSION));
+  std::printf("  Renderer: %s\n", glGetString(GL_RENDERER));
+  std::printf("  Shading Language Version: %s\n",
               glGetString(GL_SHADING_LANGUAGE_VERSION));
 
   // tells glut to use a particular display function to redraw
@@ -1069,12 +1117,9 @@ int main(int argc, char **argv) {
   glutIdleFunc(idleFunc);
   // callback for mouse drags
   glutMotionFunc(mouseMotionDragFunc);
-  // callback for idle mouse movement
-  glutPassiveMotionFunc(mouseMotionFunc);
-  // callback for mouse button changes
-  glutMouseFunc(mouseButtonFunc);
-  // callback for resizing the window
-  glutReshapeFunc(reshapeFunc);
+  glutPassiveMotionFunc(UpdateMousePosition);
+  glutMouseFunc(UpdateMouseState);
+  glutReshapeFunc(ReshapeWindow);
   // callback for pressing the keys on the keyboard
   glutKeyboardFunc(keyboardFunc);
   // callback for timer
