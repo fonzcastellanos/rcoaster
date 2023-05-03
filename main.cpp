@@ -4,21 +4,37 @@
 #include <glm/glm.hpp>
 #include <iomanip>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "basicPipelineProgram.h"
-#include "glutHeader.h"
-#include "openGLHeader.h"
 #include "openGLMatrix.h"
+#include "opengl.hpp"
+#include "shader.hpp"
 #include "spline.hpp"
+#include "status.hpp"
 #include "stb_image.h"
 #include "stb_image_write.h"
-#include "texPipelineProgram.h"
 #include "types.hpp"
 
-char shaderBasePath[1024] = "openGLHelper";
+enum VertexFormat {
+  kVertexFormat_Untextured,
+  kVertexFormat_Textured,
+  kVertexFormat__Count
+};
+
+const char *const kVertexFormatStrings[kVertexFormat__Count]{"untextured",
+                                                             "textured"};
+
+static const char *String(VertexFormat f) {
+  assert(f < kVertexFormat__Count);
+  return kVertexFormatStrings[f];
+}
+
+const char *const kShaderFilepaths[kVertexFormat__Count][kShaderType__Count] = {
+    {"untextured.vert.glsl", "untextured.frag.glsl"},
+    {"textured.vert.glsl", "textured.frag.glsl"}};
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
@@ -38,8 +54,6 @@ char shaderBasePath[1024] = "openGLHelper";
 #define SCENE_AABB_SIDE_LEN 256
 #define GROUND_VERTEX_COUNT 6
 #define SKY_VERTEX_COUNT 36
-
-enum Status { kStatusOk, kStatusIOError };
 
 enum RgbaChannel {
   kRgbaChannel_Red,
@@ -72,9 +86,7 @@ uint frame_count = 0;
 // Helper matrix object
 OpenGLMatrix *matrix;
 
-// Pipeline programs
-BasicPipelineProgram *basicProgram;
-TexPipelineProgram *texProgram;
+GLuint program_names[kVertexFormat__Count];
 
 enum Button { kButton_Left, kButton_Middle, kButton_Right, kButton__Count };
 
@@ -172,12 +184,6 @@ static uint Count(const TexturedVertices *tv) {
 
 enum Texture { kTextureGround, kTextureSky, kTextureCrosstie, kTexture_Count };
 
-enum VertexFormat {
-  kVertexFormatTextured,
-  kVertexFormatUntextured,
-  kVertexFormat_Count
-};
-
 enum Vbo {
   kVboTexturedVertices,
   kVboUntexturedVertices,
@@ -191,7 +197,7 @@ static TexturedVertices crosstie_vertices;
 static SplineVertices spline_vertices;
 
 static GLuint textures[kTexture_Count];
-static GLuint vao_names[kVertexFormat_Count];
+static GLuint vao_names[kVertexFormat__Count];
 static GLuint vbo_names[kVbo_Count];
 
 const glm::vec3 scene_aabb_center = {};
@@ -641,7 +647,7 @@ static Status LoadSplines(const char *track_filepath,
   std::FILE *track_file = std::fopen(track_filepath, "r");
   if (!track_file) {
     std::fprintf(stderr, "Could not open track file %s\n", track_filepath);
-    return kStatusIOError;
+    return kStatus_IoError;
   }
 
   uint spline_count;
@@ -650,7 +656,7 @@ static Status LoadSplines(const char *track_filepath,
     std::fprintf(stderr, "Could not read spline count from track file %s\n",
                  track_filepath);
     std::fclose(track_file);
-    return kStatusIOError;
+    return kStatus_IoError;
   }
 
   splines->resize(spline_count);
@@ -663,14 +669,14 @@ static Status LoadSplines(const char *track_filepath,
                    "Could not read spline filename from track file %s\n",
                    track_filepath);
       std::fclose(track_file);
-      return kStatusIOError;
+      return kStatus_IoError;
     }
 
     FILE *file = std::fopen(filepath, "r");
     if (!file) {
       std::fprintf(stderr, "Could not open spline file %s\n", filepath);
       std::fclose(track_file);
-      return kStatusIOError;
+      return kStatus_IoError;
     }
 
     uint ctrl_point_count;
@@ -683,7 +689,7 @@ static Status LoadSplines(const char *track_filepath,
           filepath);
       std::fclose(file);
       std::fclose(track_file);
-      return kStatusIOError;
+      return kStatus_IoError;
     }
 
     splines_[j].resize(ctrl_point_count);
@@ -698,7 +704,7 @@ static Status LoadSplines(const char *track_filepath,
                    filepath);
       std::fclose(file);
       std::fclose(track_file);
-      return kStatusIOError;
+      return kStatus_IoError;
     }
 
     std::fclose(file);
@@ -706,7 +712,7 @@ static Status LoadSplines(const char *track_filepath,
 
   std::fclose(track_file);
 
-  return kStatusOk;
+  return kStatus_Ok;
 }
 
 static Status InitTexture(const char *img_filepath, GLuint texture_name) {
@@ -720,7 +726,7 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   if (!data) {
     std::fprintf(stderr, "Could not load texture from file %s.\n",
                  img_filepath);
-    return kStatusIOError;
+    return kStatus_IoError;
   }
 
   glBindTexture(GL_TEXTURE_2D, texture_name);
@@ -748,12 +754,12 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
     std::fprintf(stderr, "Texture initialization error. Error code: %d.\n",
                  errCode);
     stbi_image_free(data);
-    return kStatusIOError;
+    return kStatus_IoError;
   }
 
   stbi_image_free(data);
 
-  return kStatusOk;
+  return kStatus_Ok;
 }
 
 Status SaveScreenshot(const char *filepath) {
@@ -767,10 +773,10 @@ Status SaveScreenshot(const char *filepath) {
                            screenshot.data(), 95);
   if (ret == 0) {
     std::fprintf(stderr, "Could not write data to JPEG file.\n");
-    return kStatusIOError;
+    return kStatus_IoError;
   }
 
-  return kStatusOk;
+  return kStatus_Ok;
 }
 
 void timerFunc(int val) {
@@ -950,9 +956,9 @@ static void Display() {
    * Untextured models
    ***************************/
 
-  GLuint prog = basicProgram->GetProgramHandle();
-  GLint model_view_mat_loc = glGetUniformLocation(prog, "modelViewMatrix");
-  GLint proj_mat_loc = glGetUniformLocation(prog, "projectionMatrix");
+  GLuint prog = program_names[kVertexFormat_Untextured];
+  GLint model_view_mat_loc = glGetUniformLocation(prog, "model_view");
+  GLint proj_mat_loc = glGetUniformLocation(prog, "projection");
 
   glUseProgram(prog);
 
@@ -966,7 +972,7 @@ static void Display() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindVertexArray(vao_names[kVertexFormatUntextured]);
+  glBindVertexArray(vao_names[kVertexFormat_Untextured]);
 
   glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
                  BUFFER_OFFSET(0));
@@ -979,13 +985,13 @@ static void Display() {
    * Textured models
    ***********************/
 
-  prog = texProgram->GetProgramHandle();
-  model_view_mat_loc = glGetUniformLocation(prog, "modelViewMatrix");
-  proj_mat_loc = glGetUniformLocation(prog, "projectionMatrix");
+  prog = program_names[kVertexFormat_Textured];
+  model_view_mat_loc = glGetUniformLocation(prog, "model_view");
+  proj_mat_loc = glGetUniformLocation(prog, "projection");
 
   glUseProgram(prog);
 
-  glBindVertexArray(vao_names[kVertexFormatTextured]);
+  glBindVertexArray(vao_names[kVertexFormat_Textured]);
 
   GLint first = 0;
 
@@ -1053,16 +1059,6 @@ static void Display() {
   glutSwapBuffers();
 }
 
-void initBasicPipelineProgram() {
-  basicProgram = new BasicPipelineProgram();
-  basicProgram->Init("openGLHelper");
-}
-
-void initTexPipelineProgram() {
-  texProgram = new TexPipelineProgram();
-  texProgram->Init("openGLHelper");
-}
-
 int main(int argc, char **argv) {
   if (argc < 5) {
     std::fprintf(stderr,
@@ -1114,6 +1110,34 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  for (int i = 0; i < kVertexFormat__Count; ++i) {
+    std::vector<GLuint> shader_names(kShaderType__Count);
+    for (int j = 0; j < kShaderType__Count; ++j) {
+      std::string content;
+
+      Status status = LoadFile(kShaderFilepaths[i][j], &content);
+      if (status != kStatus_Ok) {
+        std::fprintf(stderr, "Failed to load shader file.\n");
+        return EXIT_FAILURE;
+      }
+
+      status = MakeShader(&content, (ShaderType)j, &shader_names[j]);
+      if (status != kStatus_Ok) {
+        std::fprintf(stderr, "Failed to make shader from file %s.\n",
+                     kShaderFilepaths[i][j]);
+        return EXIT_FAILURE;
+      }
+    }
+
+    Status status = MakeProgram(&shader_names, &program_names[i]);
+    if (status != kStatus_Ok) {
+      std::fprintf(stderr,
+                   "Failed to make shader program for vertex format \"%s\".\n",
+                   String((VertexFormat)i));
+      return EXIT_FAILURE;
+    }
+  }
+
   TexturedVertices ground_vertices;
   MakeGround(&ground_vertices);
 
@@ -1122,7 +1146,7 @@ int main(int argc, char **argv) {
 
   std::vector<std::vector<Point>> splines;
   Status status = LoadSplines(argv[1], &splines);
-  if (status != kStatusOk) {
+  if (status != kStatus_Ok) {
     std::fprintf(stderr, "Could not load splines.\n");
   }
   std::printf("Loaded spline count: %lu\n", splines.size());
@@ -1157,9 +1181,6 @@ int main(int argc, char **argv) {
   InitTexture(argv[2], textures[kTextureGround]);
   InitTexture(argv[3], textures[kTextureSky]);
   InitTexture(argv[4], textures[kTextureCrosstie]);
-
-  initBasicPipelineProgram();
-  initTexPipelineProgram();
 
   glGenBuffers(kVbo_Count, vbo_names);
 
@@ -1212,15 +1233,15 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  glGenVertexArrays(kVertexFormat_Count, vao_names);
+  glGenVertexArrays(kVertexFormat__Count, vao_names);
 
   // Setup textured VAO
   {
-    GLuint prog = texProgram->GetProgramHandle();
-    GLuint pos_loc = glGetAttribLocation(prog, "position");
-    GLuint tex_coord_loc = glGetAttribLocation(prog, "texCoord");
+    GLuint prog = program_names[kVertexFormat_Textured];
+    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
+    GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
 
-    glBindVertexArray(vao_names[kVertexFormatTextured]);
+    glBindVertexArray(vao_names[kVertexFormat_Textured]);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
@@ -1237,11 +1258,11 @@ int main(int argc, char **argv) {
 
   // Setup untextured VAO
   {
-    GLuint prog = basicProgram->GetProgramHandle();
-    GLuint pos_loc = glGetAttribLocation(prog, "position");
-    GLuint color_loc = glGetAttribLocation(prog, "color");
+    GLuint prog = program_names[kVertexFormat_Untextured];
+    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
+    GLuint color_loc = glGetAttribLocation(prog, "vert_color");
 
-    glBindVertexArray(vao_names[kVertexFormatUntextured]);
+    glBindVertexArray(vao_names[kVertexFormat_Untextured]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
 
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),

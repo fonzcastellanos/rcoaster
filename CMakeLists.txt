@@ -16,12 +16,17 @@ add_subdirectory(openGLHelper)
 add_library(spline spline.cpp)
 target_link_libraries(spline PUBLIC glm)
 
+add_library(shader shader.cpp)
+
 add_executable(main main.cpp)
 target_include_directories(main PRIVATE vendor openGLHelper)
-target_link_libraries(main PRIVATE glm spline texPipelineProgram basicPipelineProgram openglMatrix)
+target_link_libraries(main PRIVATE glm spline shader openglMatrix)
+
 if(LINUX)
     target_compile_options(main PRIVATE -lGLEW -lGL -lglut)
 elseif(APPLE)
+    target_compile_options(shader PRIVATE -Wno-deprecated-declarations)
+
     target_link_libraries(main PRIVATE "-framework OpenGL" "-framework GLUT")
     target_compile_options(main PRIVATE -Wno-deprecated-declarations)
 endif()
