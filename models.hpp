@@ -38,14 +38,36 @@ uint Count(const CameraPathVertices *c);
 void EvalCatmullRomSpline(const std::vector<glm::vec3> *control_points,
                           SplineVertices *vertices);
 
-void AxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                              TexturedVertices *tvs);
+void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
+                                  TexturedVertices *tvs);
 
-void AxisAlignedBox(float side_len, uint tex_repeat_count,
-                    TexturedVertices *tvs);
+void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
+                        TexturedVertices *tvs);
 
 void MakeCameraPath(const SplineVertices *spline, CameraPathVertices *path);
 
+/*
+Gauge is the distance between the two rails.
+
+Rail cross section:
+
+  Rectangle defined by vertices [1, 6] is called the head.
+  Rectangle defined by vertices {0, 1, 6, 7} is called the web.
+
+  Width is along horizontal dimension (<-------->).
+
+  4 ------------------------ 3
+  |                          |
+  |                          |
+  |                          |
+  5 ----- 6          1 ----- 2
+          |          |
+          |          |
+          |          |
+          |          |
+          |          |
+          7 -------- 0
+*/
 void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,

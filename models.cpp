@@ -85,8 +85,8 @@ void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
   }
 }
 
-void AxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                              TexturedVertices *tvs) {
+void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
+                                  TexturedVertices *tvs) {
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(tvs);
@@ -106,8 +106,8 @@ void AxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
                      {tex_repeat_count, 0}};
 }
 
-void AxisAlignedBox(float side_len, uint tex_repeat_count,
-                    TexturedVertices *tvs) {
+void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
+                        TexturedVertices *tvs) {
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(tvs);
@@ -232,28 +232,6 @@ void MakeCameraPath(const SplineVertices *spline, CameraPathVertices *path) {
   }
 }
 
-/*
-Gauge is the distance between the two rails.
-
-Rail cross section:
-
-  Rectangle defined by vertices [1, 6] is called the head.
-  Rectangle defined by vertices {0, 1, 6, 7} is called the web.
-
-  Width is along horizontal dimension (<-------->).
-
-  4 ------------------------ 3
-  |                          |
-  |                          |
-  |                          |
-  5 ----- 6          1 ----- 2
-          |          |
-          |          |
-          |          |
-          |          |
-          |          |
-          7 -------- 0
-*/
 void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
@@ -288,8 +266,8 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   for (uint i = 0; i < 2; ++i) {
     for (uint j = 0; j < cv_count; ++j) {
       uint k = kCrossSectionVertexCount * (j + i * cv_count);
-      // See the comment block immediately above this function definition for
-      // the visual index-to-position mapping
+      // See the comment block above the function declaration in the header file
+      // for the visual index-to-position mapping.
       rv[k].position =
           cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
       rv[k + 1].position = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
@@ -305,7 +283,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
     }
   }
 
-  // Set rail pair `gauge` distance apart
+  // Set rail pair `gauge` distance apart.
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
@@ -334,7 +312,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
     for (uint j = i * rv_count / 2;
          j + kCrossSectionVertexCount < rv_count / (2 - i);
          j += kCrossSectionVertexCount) {
-      // top face
+      // Top face
       ri.push_back(j + 4);
       ri.push_back(j + 12);
       ri.push_back(j + 3);
@@ -342,7 +320,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 11);
       ri.push_back(j + 3);
 
-      // top right right face
+      // Top right right face
       ri.push_back(j + 3);
       ri.push_back(j + 11);
       ri.push_back(j + 2);
@@ -350,7 +328,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 10);
       ri.push_back(j + 2);
 
-      // top right bottom face
+      // Top right bottom face
       ri.push_back(j + 2);
       ri.push_back(j + 10);
       ri.push_back(j + 1);
@@ -358,7 +336,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 9);
       ri.push_back(j + 1);
 
-      // bottom right face
+      // Bottom right face
       ri.push_back(j + 1);
       ri.push_back(j + 9);
       ri.push_back(j);
@@ -366,7 +344,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 8);
       ri.push_back(j);
 
-      // bottom face
+      // Bottom face
       ri.push_back(j);
       ri.push_back(j + 8);
       ri.push_back(j + 7);
@@ -374,7 +352,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 15);
       ri.push_back(j + 7);
 
-      // bottom left face
+      // Bottom left face
       ri.push_back(j + 14);
       ri.push_back(j + 6);
       ri.push_back(j + 15);
@@ -382,7 +360,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 7);
       ri.push_back(j + 15);
 
-      // top left bottom face
+      // Top left bottom face
       ri.push_back(j + 13);
       ri.push_back(j + 5);
       ri.push_back(j + 14);
@@ -390,7 +368,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
       ri.push_back(j + 6);
       ri.push_back(j + 14);
 
-      // top left left face
+      // Top left left face
       ri.push_back(j + 12);
       ri.push_back(j + 4);
       ri.push_back(j + 13);
@@ -449,7 +427,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
       v[j] += pos_offset_in_campath_norm_dir * p_norm[i];
     }
 
-    // top face
+    // Top face
     b_pos.push_back(v[6]);
     b_pos.push_back(v[5]);
     b_pos.push_back(v[2]);
@@ -457,7 +435,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     b_pos.push_back(v[1]);
     b_pos.push_back(v[2]);
 
-    // right face
+    // Right face
     b_pos.push_back(v[5]);
     b_pos.push_back(v[4]);
     b_pos.push_back(v[1]);
@@ -465,7 +443,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     b_pos.push_back(v[0]);
     b_pos.push_back(v[1]);
 
-    // bottom face
+    // Bottom face
     b_pos.push_back(v[4]);
     b_pos.push_back(v[7]);
     b_pos.push_back(v[0]);
@@ -473,7 +451,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     b_pos.push_back(v[3]);
     b_pos.push_back(v[0]);
 
-    // left face
+    // Left face
     b_pos.push_back(v[7]);
     b_pos.push_back(v[6]);
     b_pos.push_back(v[3]);
@@ -481,7 +459,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     b_pos.push_back(v[2]);
     b_pos.push_back(v[3]);
 
-    // back face
+    // Back face
     b_pos.push_back(v[5]);
     b_pos.push_back(v[6]);
     b_pos.push_back(v[4]);
@@ -489,7 +467,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     b_pos.push_back(v[7]);
     b_pos.push_back(v[4]);
 
-    // front face
+    // Front face
     b_pos.push_back(v[2]);
     b_pos.push_back(v[1]);
     b_pos.push_back(v[3]);

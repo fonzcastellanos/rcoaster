@@ -35,7 +35,8 @@ struct MouseState {
 enum WorldStateOp {
   kWorldStateOp_Rotate,
   kWorldStateOp_Translate,
-  kWorldStateOp_Scale
+  kWorldStateOp_Scale,
+  kWorldStateOp__Count
 };
 
 struct WorldState {
@@ -44,13 +45,18 @@ struct WorldState {
   glm::vec3 scale;
 };
 
-enum Texture { kTextureGround, kTextureSky, kTextureCrosstie, kTexture_Count };
+enum Texture {
+  kTexture_Ground,
+  kTexture_Sky,
+  kTexture_Crosstie,
+  kTexture__Count
+};
 
 enum Vbo {
-  kVboTexturedVertices,
-  kVboUntexturedVertices,
-  kVboRailIndices,
-  kVbo_Count
+  kVbo_TexturedVertices,
+  kVbo_UntexturedVertices,
+  kVbo_RailIndices,
+  kVbo__Count
 };
 
 #endif  // RCOASTER_MAIN_HPP

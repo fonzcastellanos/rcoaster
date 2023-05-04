@@ -188,8 +188,8 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
 
   GLfloat fLargest;
   glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fLargest);
-  printf("Max available anisotropic samples: %f\n", fLargest);
-  // set anisotropic texture filtering
+  std::printf("Max available anisotropic samples: %f\n", fLargest);
+  // Set anisotropic texture filtering.
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT,
                   0.5f * fLargest);
 
@@ -248,9 +248,9 @@ static std::vector<GLuint> rail_indices;
 static TexturedVertices crosstie_vertices;
 static SplineVertices spline_vertices;
 
-static GLuint textures[kTexture_Count];
+static GLuint textures[kTexture__Count];
 static GLuint vao_names[kVertexFormat__Count];
-static GLuint vbo_names[kVbo_Count];
+static GLuint vbo_names[kVbo__Count];
 
 const glm::vec3 scene_aabb_center = {};
 const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
@@ -258,13 +258,13 @@ const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
 static void Timer(int val) {
   if (val) {
     char *temp = new char[512 + strlen(kWindowTitle)];
-    // Update title bar info
-    sprintf(temp, "%s: %d fps , %d x %d resolution", kWindowTitle,
-            frame_count * 30, window_w, window_h);
+    // Update title bar info.
+    std::sprintf(temp, "%s: %d fps , %d x %d resolution", kWindowTitle,
+                 frame_count * 30, window_w, window_h);
     glutSetWindowTitle(temp);
     delete[] temp;
 
-    if (record_video) {  // take a screenshot
+    if (record_video) {  // Take a screenshot.
       temp = new char[8];
       sprintf(temp, "%03d.jpg", screenshot_count);
       SaveScreenshot(temp, window_w, window_h);
@@ -275,7 +275,7 @@ static void Timer(int val) {
   }
 
   frame_count = 0;
-  glutTimerFunc(33, Timer, 1);  //~30 fps
+  glutTimerFunc(33, Timer, 1);  // ~30 fps
 }
 
 static void OnWindowReshape(int w, int h) {
@@ -298,7 +298,7 @@ static void OnPassiveMouseMotion(int x, int y) {
 }
 
 static void OnMouseDrag(int x, int y) {
-  // the change in mouse position since the last invocation of this function
+  // The change in mouse position since the last invocation of this function.
   glm::vec2 pos_delta = {x - mouse_state.position.x,
                          y - mouse_state.position.y};
 
@@ -355,7 +355,7 @@ static void OnMousePressOrRelease(int button, int state, int x, int y) {
     }
   }
 
-  // keep track of whether CTRL and SHIFT keys are pressed
+  // Keep track of whether CTRL and SHIFT keys are pressed.
   switch (glutGetModifiers()) {
     case GLUT_ACTIVE_CTRL: {
       world_state_op = kWorldStateOp_Translate;
@@ -365,7 +365,7 @@ static void OnMousePressOrRelease(int button, int state, int x, int y) {
       world_state_op = kWorldStateOp_Scale;
       break;
     }
-      // if CTRL and SHIFT are not pressed, we are in rotate mode
+    // If CTRL and SHIFT are not pressed, we are in rotate mode.
     default: {
       world_state_op = kWorldStateOp_Rotate;
       break;
@@ -404,7 +404,7 @@ static void Idle() {
   // for example, here, you can save the screenshots to disk (to make the
   // animation)
 
-  // make the screen update
+  // Make the screen update.
   glutPostRedisplay();
 }
 
@@ -428,9 +428,9 @@ static void Display() {
   float proj_mat[16];
   GLboolean is_row_major = GL_FALSE;
 
-  /**************************
+  /*********************
    * Untextured models
-   ***************************/
+   *********************/
 
   GLuint prog = program_names[kVertexFormat_Untextured];
   GLint model_view_mat_loc = glGetUniformLocation(prog, "model_view");
@@ -438,7 +438,7 @@ static void Display() {
 
   glUseProgram(prog);
 
-  /* Rails */
+  // Rails
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -457,9 +457,9 @@ static void Display() {
 
   glBindVertexArray(0);
 
-  /**********************
+  /*******************
    * Textured models
-   ***********************/
+   *******************/
 
   prog = program_names[kVertexFormat_Textured];
   model_view_mat_loc = glGetUniformLocation(prog, "model_view");
@@ -471,7 +471,7 @@ static void Display() {
 
   GLint first = 0;
 
-  /* Ground */
+  // Ground
 
   matrix->PushMatrix();
 
@@ -490,11 +490,11 @@ static void Display() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindTexture(GL_TEXTURE_2D, textures[kTextureGround]);
+  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
   glDrawArrays(GL_TRIANGLES, first, GROUND_VERTEX_COUNT);
   first += GROUND_VERTEX_COUNT;
 
-  /* Sky */
+  // Sky
 
   matrix->PushMatrix();
 
@@ -511,11 +511,11 @@ static void Display() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindTexture(GL_TEXTURE_2D, textures[kTextureSky]);
+  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
   glDrawArrays(GL_TRIANGLES, first, SKY_VERTEX_COUNT);
   first += SKY_VERTEX_COUNT;
 
-  /* Crossties */
+  // Crossties
 
   matrix->GetMatrix(model_view_mat);
   matrix->SetMatrixMode(OpenGLMatrix::Projection);
@@ -525,7 +525,7 @@ static void Display() {
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
 
-  glBindTexture(GL_TEXTURE_2D, textures[kTextureCrosstie]);
+  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crosstie]);
   for (uint offset = 0; offset < Count(&crosstie_vertices); offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
@@ -613,12 +613,12 @@ int main(int argc, char **argv) {
   }
 
   TexturedVertices ground_vertices;
-  AxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN,
-                           SCENE_AABB_SIDE_LEN * 0.25f * 0.5f,
-                           &ground_vertices);
+  MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN,
+                               SCENE_AABB_SIDE_LEN * 0.25f * 0.5f,
+                               &ground_vertices);
 
   TexturedVertices sky_vertices;
-  AxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_vertices);
+  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_vertices);
 
   std::vector<std::vector<glm::vec3>> splines;
   Status status = LoadSplines(argv[1], &splines);
@@ -652,22 +652,22 @@ int main(int argc, char **argv) {
 
   matrix = new OpenGLMatrix();
 
-  glGenTextures(kTexture_Count, textures);
+  glGenTextures(kTexture__Count, textures);
 
-  InitTexture(argv[2], textures[kTextureGround]);
-  InitTexture(argv[3], textures[kTextureSky]);
-  InitTexture(argv[4], textures[kTextureCrosstie]);
+  InitTexture(argv[2], textures[kTexture_Ground]);
+  InitTexture(argv[3], textures[kTexture_Sky]);
+  InitTexture(argv[4], textures[kTexture_Crosstie]);
 
-  glGenBuffers(kVbo_Count, vbo_names);
+  glGenBuffers(kVbo__Count, vbo_names);
 
   assert(SKY_VERTEX_COUNT == Count(&sky_vertices));
 
   uint vertex_count =
       GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + Count(&crosstie_vertices);
 
-  // Buffer textured vertices
+  // Buffer textured vertices.
   {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
 
     uint buffer_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
@@ -701,9 +701,9 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Buffer untextured vertices
+  // Buffer untextured vertices.
   {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_UntexturedVertices]);
     glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
                  rail_vertices.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -711,7 +711,7 @@ int main(int argc, char **argv) {
 
   glGenVertexArrays(kVertexFormat__Count, vao_names);
 
-  // Setup textured VAO
+  // Setup textured VAO.
   {
     GLuint prog = program_names[kVertexFormat_Textured];
     GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
@@ -719,7 +719,7 @@ int main(int argc, char **argv) {
 
     glBindVertexArray(vao_names[kVertexFormat_Textured]);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboTexturedVertices]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
                           BUFFER_OFFSET(0));
     glVertexAttribPointer(tex_coord_loc, 2, GL_FLOAT, GL_FALSE,
@@ -732,14 +732,14 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Setup untextured VAO
+  // Setup untextured VAO.
   {
     GLuint prog = program_names[kVertexFormat_Untextured];
     GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
     GLuint color_loc = glGetAttribLocation(prog, "vert_color");
 
     glBindVertexArray(vao_names[kVertexFormat_Untextured]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVboUntexturedVertices]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_UntexturedVertices]);
 
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                           BUFFER_OFFSET(0));
@@ -749,7 +749,7 @@ int main(int argc, char **argv) {
     glEnableVertexAttribArray(pos_loc);
     glEnableVertexAttribArray(color_loc);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVboRailIndices]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
                  rail_indices.data(), GL_STATIC_DRAW);
 
@@ -757,6 +757,5 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // sink forever into the glut loop
   glutMainLoop();
 }
