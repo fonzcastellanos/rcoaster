@@ -9,6 +9,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "main.hpp"
 #include "models.hpp"
 #include "openGLMatrix.h"
 #include "opengl.hpp"
@@ -19,6 +20,14 @@
 #include "types.hpp"
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
+
+#define FOV_Y 45
+#define NEAR_Z 0.01
+#define FAR_Z 10000
+
+#define SCENE_AABB_SIDE_LEN 256
+#define GROUND_VERTEX_COUNT 6
+#define SKY_VERTEX_COUNT 36
 
 #define RAIL_COLOR_RED 0.5
 #define RAIL_COLOR_BLUE 0.5
@@ -33,83 +42,32 @@
 #define CROSSTIE_SEPARATION_DIST 1
 #define CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
 
-#define SCENE_AABB_SIDE_LEN 256
-#define GROUND_VERTEX_COUNT 6
-#define SKY_VERTEX_COUNT 36
-
-enum VertexFormat {
-  kVertexFormat_Untextured,
-  kVertexFormat_Textured,
-  kVertexFormat__Count
-};
+const char *kWindowTitle = "Roller Coaster";
 
 const char *const kVertexFormatStrings[kVertexFormat__Count]{"untextured",
                                                              "textured"};
+
+const char *const kShaderFilepaths[kVertexFormat__Count][kShaderType__Count] = {
+    {"untextured.vert.glsl", "untextured.frag.glsl"},
+    {"textured.vert.glsl", "textured.frag.glsl"}};
 
 static const char *String(VertexFormat f) {
   assert(f < kVertexFormat__Count);
   return kVertexFormatStrings[f];
 }
 
-const char *const kShaderFilepaths[kVertexFormat__Count][kShaderType__Count] = {
-    {"untextured.vert.glsl", "untextured.frag.glsl"},
-    {"textured.vert.glsl", "textured.frag.glsl"}};
-
-enum RgbaChannel {
-  kRgbaChannel_Red,
-  kRgbaChannel_Green,
-  kRgbaChannel_Blue,
-  kRgbaChannel_Alpha,
-  kRgbaChannel__Count
-};
-
-enum RgbChannel {
-  kRgbChannel_Red,
-  kRgbChannel_Green,
-  kRgbChannel_Blue,
-  kRgbChannel__Count
-};
-
-uint screenshot_count = 0;
-uint record_video = 0;
-
-uint window_w = 1280;
-uint window_h = 720;
-const char *kWindowTitle = "Roller Coaster";
-
-#define FOV_Y 45
-#define NEAR_Z 0.01
-#define FAR_Z 10000
-
-uint frame_count = 0;
-
-// Helper matrix object
-OpenGLMatrix *matrix;
-
-GLuint program_names[kVertexFormat__Count];
-
-enum Button { kButton_Left, kButton_Middle, kButton_Right, kButton__Count };
-
-struct MouseState {
-  glm::ivec2 position;
-  int pressed_buttons;
-};
-
 static void PressButton(MouseState *s, Button b) {
   assert(s);
-
   s->pressed_buttons |= 1 << b;
 }
 
 static void ReleaseButton(MouseState *s, Button b) {
   assert(s);
-
   s->pressed_buttons &= ~(1 << b);
 }
 
 static int IsButtonPressed(MouseState *s, Button b) {
   assert(s);
-
   return s->pressed_buttons >> b & 1;
 }
 
@@ -129,46 +87,6 @@ static Button FromGlButton(int button) {
     }
   }
 }
-
-MouseState mouse_state = {};
-
-enum WorldStateOp {
-  kWorldStateOp_Rotate,
-  kWorldStateOp_Translate,
-  kWorldStateOp_Scale
-};
-WorldStateOp world_state_op = kWorldStateOp_Rotate;
-
-struct WorldState {
-  glm::vec3 rotation;
-  glm::vec3 translation;
-  glm::vec3 scale;
-};
-
-static WorldState world_state = {{}, {}, {1, 1, 1}};
-
-uint camera_path_index = 0;
-
-enum Texture { kTextureGround, kTextureSky, kTextureCrosstie, kTexture_Count };
-
-enum Vbo {
-  kVboTexturedVertices,
-  kVboUntexturedVertices,
-  kVboRailIndices,
-  kVbo_Count
-};
-
-static CameraPathVertices camera_path_vertices;
-static std::vector<GLuint> rail_indices;
-static TexturedVertices crosstie_vertices;
-static SplineVertices spline_vertices;
-
-static GLuint textures[kTexture_Count];
-static GLuint vao_names[kVertexFormat__Count];
-static GLuint vbo_names[kVbo_Count];
-
-const glm::vec3 scene_aabb_center = {};
-const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
 
 static Status LoadSplines(const char *track_filepath,
                           std::vector<std::vector<glm::vec3>> *splines) {
@@ -291,7 +209,7 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   return kStatus_Ok;
 }
 
-Status SaveScreenshot(const char *filepath) {
+Status SaveScreenshot(const char *filepath, int window_w, int window_h) {
   std::vector<uchar> screenshot(window_w * window_h * kRgbChannel__Count);
 
   glReadPixels(0, 0, window_w, window_h, GL_RGB, GL_UNSIGNED_BYTE,
@@ -308,7 +226,39 @@ Status SaveScreenshot(const char *filepath) {
   return kStatus_Ok;
 }
 
-void timerFunc(int val) {
+static uint screenshot_count = 0;
+static uint record_video = 0;
+
+static uint window_w = 1280;
+static uint window_h = 720;
+
+static uint frame_count = 0;
+
+static OpenGLMatrix *matrix;
+
+static GLuint program_names[kVertexFormat__Count];
+
+static MouseState mouse_state = {};
+
+static WorldStateOp world_state_op = kWorldStateOp_Rotate;
+
+static WorldState world_state = {{}, {}, {1, 1, 1}};
+
+static uint camera_path_index = 0;
+
+static CameraPathVertices camera_path_vertices;
+static std::vector<GLuint> rail_indices;
+static TexturedVertices crosstie_vertices;
+static SplineVertices spline_vertices;
+
+static GLuint textures[kTexture_Count];
+static GLuint vao_names[kVertexFormat__Count];
+static GLuint vbo_names[kVbo_Count];
+
+const glm::vec3 scene_aabb_center = {};
+const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
+
+static void Timer(int val) {
   if (val) {
     char *temp = new char[512 + strlen(kWindowTitle)];
     // Update title bar info
@@ -320,7 +270,7 @@ void timerFunc(int val) {
     if (record_video) {  // take a screenshot
       temp = new char[8];
       sprintf(temp, "%03d.jpg", screenshot_count);
-      SaveScreenshot(temp);
+      SaveScreenshot(temp, window_w, window_h);
       std::printf("Saved screenshot to file %s.\n", temp);
       delete[] temp;
       ++screenshot_count;
@@ -328,7 +278,7 @@ void timerFunc(int val) {
   }
 
   frame_count = 0;
-  glutTimerFunc(33, timerFunc, 1);  //~30 fps
+  glutTimerFunc(33, Timer, 1);  //~30 fps
 }
 
 static void OnWindowReshape(int w, int h) {
@@ -350,7 +300,7 @@ static void OnPassiveMouseMotion(int x, int y) {
   mouse_state.position.y = y;
 }
 
-void OnMouseDrag(int x, int y) {
+static void OnMouseDrag(int x, int y) {
   // the change in mouse position since the last invocation of this function
   glm::vec2 pos_delta = {x - mouse_state.position.x,
                          y - mouse_state.position.y};
@@ -436,7 +386,7 @@ static void OnKeyPress(uchar key, int x, int y) {
       break;
     }
     case 'i': {
-      SaveScreenshot("screenshot.jpg");
+      SaveScreenshot("screenshot.jpg", window_w, window_h);
       break;
     }
     case 'v': {
@@ -449,7 +399,7 @@ static void OnKeyPress(uchar key, int x, int y) {
   }
 }
 
-void idleFunc() {
+static void Idle() {
   if (camera_path_index < Count(&camera_path_vertices)) {
     camera_path_index += 3;
   }
@@ -617,15 +567,13 @@ int main(int argc, char **argv) {
               glGetString(GL_SHADING_LANGUAGE_VERSION));
 
   glutDisplayFunc(Display);
-  // perform animation inside idleFunc
-  glutIdleFunc(idleFunc);
+  glutIdleFunc(Idle);
   glutMotionFunc(OnMouseDrag);
   glutPassiveMotionFunc(OnPassiveMouseMotion);
   glutMouseFunc(OnMousePressOrRelease);
   glutReshapeFunc(OnWindowReshape);
   glutKeyboardFunc(OnKeyPress);
-  // callback for timer
-  glutTimerFunc(0, timerFunc, 0);
+  glutTimerFunc(0, Timer, 0);
 
 // init glew
 #ifdef __APPLE__
