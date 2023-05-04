@@ -1,2 +1,0 @@
-add_library(openglMatrix openGLMatrix.cpp)
-target_link_libraries(openglMatrix PUBLIC glm)

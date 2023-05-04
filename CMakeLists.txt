@@ -11,15 +11,15 @@ endif()
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_subdirectory(vendor/glm)
-add_subdirectory(openGLHelper)
+add_subdirectory(vendor/openGLMatrix)
 
 add_library(shader shader.cpp)
 add_library(models models.cpp)
 target_link_libraries(models PUBLIC glm)
 
 add_executable(main main.cpp)
-target_include_directories(main PRIVATE vendor openGLHelper)
-target_link_libraries(main PRIVATE glm shader models openglMatrix)
+target_link_libraries(main PRIVATE glm shader models openGlMatrix)
+target_include_directories(main PRIVATE vendor vendor/openGLMatrix)
 
 if(LINUX)
     target_compile_options(main PRIVATE -lGLEW -lGL -lglut)
