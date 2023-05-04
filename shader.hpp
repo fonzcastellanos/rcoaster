@@ -21,8 +21,9 @@ ShaderType FromFilepath(const char *path);
 
 Status LoadFile(const char *path, std::string *content);
 
-Status MakeShader(const std::string *content, ShaderType type, GLuint *name);
+Status MakeShaderObj(const std::string *src, ShaderType type, GLuint *name);
 
-Status MakeProgram(const std::vector<GLuint> *shader_names, GLuint *name);
+Status MakeShaderProg(const std::vector<GLuint> *shader_obj_names,
+                      GLuint *name);
 
 #endif  // RCOASTER_SHADER_HPP

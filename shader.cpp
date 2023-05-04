@@ -91,8 +91,8 @@ Status LoadFile(const char *path, std::string *content) {
   return kStatus_Ok;
 }
 
-Status MakeShader(const std::string *content, ShaderType type, GLuint *name) {
-  assert(content);
+Status MakeShaderObj(const std::string *src, ShaderType type, GLuint *name) {
+  assert(src);
   assert(name);
 
   *name = glCreateShader(GlShaderType(type));
@@ -103,8 +103,8 @@ Status MakeShader(const std::string *content, ShaderType type, GLuint *name) {
     return kStatus_GlError;
   }
 
-  const GLchar *srcs[1] = {content->data()};
-  const GLint lens[1] = {(GLint)content->size()};
+  const GLchar *srcs[1] = {src->data()};
+  const GLint lens[1] = {(GLint)src->size()};
 
   glShaderSource(*name, 1, srcs, lens);
   glCompileShader(*name);
@@ -124,8 +124,9 @@ Status MakeShader(const std::string *content, ShaderType type, GLuint *name) {
   return kStatus_Ok;
 }
 
-Status MakeProgram(const std::vector<GLuint> *shader_names, GLuint *name) {
-  assert(shader_names);
+Status MakeShaderProg(const std::vector<GLuint> *shader_obj_names,
+                      GLuint *name) {
+  assert(shader_obj_names);
   assert(name);
 
   *name = glCreateProgram();
@@ -134,7 +135,7 @@ Status MakeProgram(const std::vector<GLuint> *shader_names, GLuint *name) {
     return kStatus_GlError;
   }
 
-  for (GLuint n : *shader_names) {
+  for (GLuint n : *shader_obj_names) {
     glAttachShader(*name, n);
   }
 
@@ -152,7 +153,7 @@ Status MakeProgram(const std::vector<GLuint> *shader_names, GLuint *name) {
     return kStatus_GlError;
   }
 
-  for (GLuint n : *shader_names) {
+  for (GLuint n : *shader_obj_names) {
     glDeleteShader(n);
   }
 

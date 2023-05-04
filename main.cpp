@@ -195,7 +195,6 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT,
                   0.5f * fLargest);
 
-  // query for any errors
   GLenum errCode = glGetError();
   if (errCode != 0) {
     std::fprintf(stderr, "Texture initialization error. Error code: %d.\n",
@@ -598,15 +597,15 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
       }
 
-      status = MakeShader(&content, (ShaderType)j, &shader_names[j]);
+      status = MakeShaderObj(&content, (ShaderType)j, &shader_names[j]);
       if (status != kStatus_Ok) {
-        std::fprintf(stderr, "Failed to make shader from file %s.\n",
+        std::fprintf(stderr, "Failed to make shader object from file %s.\n",
                      kShaderFilepaths[i][j]);
         return EXIT_FAILURE;
       }
     }
 
-    Status status = MakeProgram(&shader_names, &program_names[i]);
+    Status status = MakeShaderProg(&shader_names, &program_names[i]);
     if (status != kStatus_Ok) {
       std::fprintf(stderr,
                    "Failed to make shader program for vertex format \"%s\".\n",
