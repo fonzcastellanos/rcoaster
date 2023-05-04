@@ -2,8 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <glm/glm.hpp>
-#include <iomanip>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -578,11 +576,11 @@ int main(int argc, char **argv) {
 #ifdef __APPLE__
   // nothing is needed on Apple
 #else
-  // Windows, Linux
+  // Linux
   GLint result = glewInit();
   if (result != GLEW_OK) {
-    std::cout << "error: " << glewGetErrorString(result) << std::endl;
-    exit(EXIT_FAILURE);
+    std::fprintf(stderr, glewGetErrorString(result));
+    return EXIT_FAILURE;
   }
 #endif
 
