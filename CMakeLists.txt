@@ -13,19 +13,19 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 add_subdirectory(vendor/glm)
 add_subdirectory(openGLHelper)
 
-add_library(spline spline.cpp)
-target_link_libraries(spline PUBLIC glm)
-
 add_library(shader shader.cpp)
+add_library(models models.cpp)
+target_link_libraries(models PUBLIC glm)
 
 add_executable(main main.cpp)
 target_include_directories(main PRIVATE vendor openGLHelper)
-target_link_libraries(main PRIVATE glm spline shader openglMatrix)
+target_link_libraries(main PRIVATE glm shader models openglMatrix)
 
 if(LINUX)
     target_compile_options(main PRIVATE -lGLEW -lGL -lglut)
 elseif(APPLE)
     target_compile_options(shader PRIVATE -Wno-deprecated-declarations)
+    target_compile_options(models PRIVATE -Wno-deprecated-declarations)
 
     target_link_libraries(main PRIVATE "-framework OpenGL" "-framework GLUT")
     target_compile_options(main PRIVATE -Wno-deprecated-declarations)
