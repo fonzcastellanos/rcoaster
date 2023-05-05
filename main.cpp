@@ -21,15 +21,19 @@
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
+#define WINDOW_TITLE_BUFFER_SIZE 512
+#define SCREENSHOT_FILENAME_BUFFER_SIZE 8
+#define FILEPATH_BUFFER_SIZE 4096
+
+#define FPS_DISPLAY_TIME_MSEC 1000
+
 // Scene is contained in an axis-aligned bounding box.
 #define SCENE_AABB_SIDE_LEN 256
 
+// View frustum
 #define FOV_Y 45
 #define NEAR_Z 0.01
 #define FAR_Z 10000
-
-#define GROUND_VERTEX_COUNT 6
-#define SKY_VERTEX_COUNT 36
 
 #define GROUND_TEX_REPEAT_COUNT 36
 #define SKY_TEX_REPEAT_COUNT 1
@@ -50,11 +54,7 @@
 
 #define SPLINE_MAX_LINE_LEN 0.5
 
-#define WINDOW_TITLE_BUFFER_SIZE 512
-#define SCREENSHOT_FILENAME_BUFFER_SIZE 8
-#define FILEPATH_BUFFER_SIZE 4096
-
-#define FPS_DISPLAY_TIME_MSEC 1000
+#define CAMERA_PATH_INDEX_STEP_PER_FRAME 3
 
 const char *kWindowTitle = "Roller Coaster";
 
@@ -111,14 +111,14 @@ static Status LoadSplines(const char *track_filepath,
 
   std::FILE *track_file = std::fopen(track_filepath, "r");
   if (!track_file) {
-    std::fprintf(stderr, "Could not open track file %s\n", track_filepath);
+    std::fprintf(stderr, "Failed to open track file %s.\n", track_filepath);
     return kStatus_IoError;
   }
 
   uint spline_count;
-  int ret = std::fscanf(track_file, "%u", &spline_count);
-  if (ret < 1) {
-    std::fprintf(stderr, "Could not read spline count from track file %s\n",
+  int rc = std::fscanf(track_file, "%u", &spline_count);
+  if (rc < 1) {
+    std::fprintf(stderr, "Failed to read spline count from track file %s.\n",
                  track_filepath);
     std::fclose(track_file);
     return kStatus_IoError;
@@ -127,11 +127,11 @@ static Status LoadSplines(const char *track_filepath,
   splines->resize(spline_count);
 
   char filepath[FILEPATH_BUFFER_SIZE];
-  for (uint j = 0; j < spline_count; ++j) {
-    int ret = std::fscanf(track_file, "%s", filepath);
-    if (ret < 1) {
+  for (uint i = 0; i < spline_count; ++i) {
+    rc = std::fscanf(track_file, "%s", filepath);
+    if (rc < 1) {
       std::fprintf(stderr,
-                   "Could not read spline filename from track file %s\n",
+                   "Failed to read path of spline file from track file %s.\n",
                    track_filepath);
       std::fclose(track_file);
       return kStatus_IoError;
@@ -139,33 +139,34 @@ static Status LoadSplines(const char *track_filepath,
 
     FILE *file = std::fopen(filepath, "r");
     if (!file) {
-      std::fprintf(stderr, "Could not open spline file %s\n", filepath);
+      std::fprintf(stderr, "Failed to open spline file %s.\n", filepath);
       std::fclose(track_file);
       return kStatus_IoError;
     }
 
     uint ctrl_point_count;
     uint type;
-    ret = std::fscanf(file, "%u %u", &ctrl_point_count, &type);
-    if (ret < 1) {
-      std::fprintf(
-          stderr,
-          "Could not read control point count and type from spline file %s\n",
-          filepath);
+    rc = std::fscanf(file, "%u %u", &ctrl_point_count, &type);
+    if (rc < 1) {
+      std::fprintf(stderr,
+                   "Failed to read control point count and spline type from "
+                   "spline file %s.\n",
+                   filepath);
       std::fclose(file);
       std::fclose(track_file);
       return kStatus_IoError;
     }
 
-    splines_[j].resize(ctrl_point_count);
+    splines_[i].resize(ctrl_point_count);
 
-    uint i = 0;
-    while ((ret = std::fscanf(file, "%f %f %f", &splines_[j][i].x,
-                              &splines_[j][i].y, &splines_[j][i].z)) > 0) {
-      ++i;
+    uint j = 0;
+    while ((rc = std::fscanf(file, "%f %f %f", &splines_[i][j].x,
+                             &splines_[i][j].y, &splines_[i][j].z)) > 0) {
+      ++j;
     }
-    if (ret == 0) {
-      std::fprintf(stderr, "Could not read control point from spline file %s\n",
+    if (rc == 0) {
+      std::fprintf(stderr,
+                   "Failed to read control point from spline file %s.\n",
                    filepath);
       std::fclose(file);
       std::fclose(track_file);
@@ -214,16 +215,20 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name,
 }
 
 Status SaveScreenshot(const char *filepath, int window_w, int window_h) {
+  assert(filepath);
+  assert(window_w >= 0);
+  assert(window_h >= 0);
+
   std::vector<uchar> screenshot(window_w * window_h * kRgbChannel__Count);
 
   glReadPixels(0, 0, window_w, window_h, GL_RGB, GL_UNSIGNED_BYTE,
                screenshot.data());
 
   stbi_flip_vertically_on_write(1);
-  int ret = stbi_write_jpg(filepath, window_w, window_h, kRgbChannel__Count,
-                           screenshot.data(), 95);
-  if (ret == 0) {
-    std::fprintf(stderr, "Could not write data to JPEG file.\n");
+  int rc = stbi_write_jpg(filepath, window_w, window_h, kRgbChannel__Count,
+                          screenshot.data(), 95);
+  if (rc == 0) {
+    std::fprintf(stderr, "Could not write data to JPEG file %s\n", filepath);
     return kStatus_IoError;
   }
 
@@ -250,6 +255,8 @@ static uint camera_path_index;
 static CameraPathVertices camera_path_vertices;
 
 static uint rails_indices_count;
+static uint ground_vertex_count;
+static uint sky_vertex_count;
 static uint crossties_vertex_count;
 
 static GLuint program_names[kVertexFormat__Count];
@@ -385,7 +392,7 @@ static void OnKeyPress(uchar key, int x, int y) {
 
 static void Idle() {
   if (camera_path_index < Count(&camera_path_vertices)) {
-    camera_path_index += 3;
+    camera_path_index += CAMERA_PATH_INDEX_STEP_PER_FRAME;
   }
 
   int current_time = glutGet(GLUT_ELAPSED_TIME);
@@ -478,8 +485,8 @@ static void Display() {
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-  glDrawArrays(GL_TRIANGLES, first, GROUND_VERTEX_COUNT);
-  first += GROUND_VERTEX_COUNT;
+  glDrawArrays(GL_TRIANGLES, first, ground_vertex_count);
+  first += ground_vertex_count;
 
   // Sky
 
@@ -490,8 +497,8 @@ static void Display() {
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-  glDrawArrays(GL_TRIANGLES, first, SKY_VERTEX_COUNT);
-  first += SKY_VERTEX_COUNT;
+  glDrawArrays(GL_TRIANGLES, first, sky_vertex_count);
+  first += sky_vertex_count;
 
   // Crossties
 
@@ -576,6 +583,8 @@ int main(int argc, char **argv) {
                 splines[i].size());
   }
 
+  // TODO: Support for multiple splines.
+  assert(splines.size() == 1);
   EvalCatmullRomSpline(&splines[0], SPLINE_MAX_LINE_LEN,
                        &camera_path_vertices.positions,
                        &camera_path_vertices.tangents);
@@ -592,11 +601,13 @@ int main(int argc, char **argv) {
   std::vector<glm::vec2> ground_tex_coords;
   MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN, GROUND_TEX_REPEAT_COUNT,
                                &ground_positions, &ground_tex_coords);
+  ground_vertex_count = ground_positions.size();
 
   std::vector<glm::vec3> sky_positions;
   std::vector<glm::vec2> sky_tex_coords;
   MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, SKY_TEX_REPEAT_COUNT, &sky_positions,
                      &sky_tex_coords);
+  sky_vertex_count = sky_positions.size();
 
   glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
                        RAIL_COLOR_ALPHA);
@@ -685,7 +696,7 @@ int main(int argc, char **argv) {
   glGenBuffers(kVbo__Count, vbo_names);
 
   uint textured_vertex_count =
-      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossties_vertex_count;
+      ground_vertex_count + sky_vertex_count + crossties_vertex_count;
   uint untextured_vertex_count = rail_positions.size();
 
   // Buffer textured vertices.
@@ -697,20 +708,20 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = GROUND_VERTEX_COUNT * sizeof(glm::vec3);
+    uint size = ground_vertex_count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_positions.data());
     offset += size;
-    size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
+    size = sky_vertex_count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_positions.data());
     offset += size;
     size = crossties_vertex_count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_positions.data());
 
     offset += size;
-    size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
+    size = ground_vertex_count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords.data());
     offset += size;
-    size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
+    size = sky_vertex_count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords.data());
     offset += size;
     size = crossties_vertex_count * sizeof(glm::vec2),
