@@ -250,7 +250,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
                std::vector<glm::vec3> *positions,
-               std::vector<glm::vec4> *colors, std::vector<GLuint> *indices) {
+               std::vector<glm::vec4> *colors, std::vector<uint> *indices) {
   assert(campath);
   assert(color);
   assert(positions);
