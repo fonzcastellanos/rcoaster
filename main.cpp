@@ -21,11 +21,12 @@
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
+#define SCENE_AABB_SIDE_LEN 256
+
 #define FOV_Y 45
 #define NEAR_Z 0.01
 #define FAR_Z 10000
 
-#define SCENE_AABB_SIDE_LEN 256
 #define GROUND_VERTEX_COUNT 6
 #define SKY_VERTEX_COUNT 36
 
@@ -504,6 +505,10 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
+  /*************************************
+   * Configure GLUT.
+   *************************************/
+
   glutInit(&argc, argv);
 
 #ifdef __APPLE__
@@ -532,18 +537,76 @@ int main(int argc, char **argv) {
   glutKeyboardFunc(OnKeyPress);
   glutTimerFunc(0, Timer, 0);
 
-// init glew
-#ifdef __APPLE__
-  // nothing is needed on Apple
-#else
-  // Linux
+#ifdef linux
   GLenum result = glewInit();
   if (result != GLEW_OK) {
     std::fprintf(stderr, "glewInit failed: %s", glewGetErrorString(result));
     return EXIT_FAILURE;
   }
 #endif
+  /************************************
+   * Create camera path.
+   ************************************/
 
+  std::vector<std::vector<glm::vec3>> splines;
+  Status status = LoadSplines(argv[1], &splines);
+  if (status != kStatus_Ok) {
+    std::fprintf(stderr, "Could not load splines.\n");
+  }
+  std::printf("Loaded spline count: %lu\n", splines.size());
+
+  for (uint i = 0; i < splines.size(); ++i) {
+    std::printf("Control point count in spline %u: %lu\n", i,
+                splines[i].size());
+  }
+
+  EvalCatmullRomSpline(&splines[0], SPLINE_MAX_LINE_LEN,
+                       &camera_path_vertices.positions,
+                       &camera_path_vertices.tangents);
+
+  CameraOrientation(&camera_path_vertices.tangents,
+                    &camera_path_vertices.normals,
+                    &camera_path_vertices.binormals);
+
+  /*************************************
+   * Create models.
+   *************************************/
+
+  std::vector<glm::vec3> ground_positions;
+  std::vector<glm::vec2> ground_tex_coords;
+  MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN,
+                               SCENE_AABB_SIDE_LEN * 0.25f * 0.5f,
+                               &ground_positions, &ground_tex_coords);
+
+  std::vector<glm::vec3> sky_positions;
+  std::vector<glm::vec2> sky_tex_coords;
+  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_positions, &sky_tex_coords);
+
+  glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
+                       RAIL_COLOR_ALPHA);
+  std::vector<glm::vec3> rail_positions;
+  std::vector<glm::vec4> rail_colors;
+  std::vector<GLuint> rail_indices;
+  MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
+            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_positions,
+            &rail_colors, &rail_indices);
+  rail_indices_count = rail_indices.size();
+
+  std::vector<glm::vec3> crossties_positions;
+  std::vector<glm::vec2> crossties_tex_coords;
+  MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
+                CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
+                &crossties_positions, &crossties_tex_coords);
+  crosstie_vertex_count = crossties_positions.size();
+
+  /************************************
+   * Setup OpenGL state.
+   ************************************/
+
+  glClearColor(0, 0, 0, 0);
+  glEnable(GL_DEPTH_TEST);
+
+  // Setup shader programs.
   for (int i = 0; i < kVertexFormat__Count; ++i) {
     std::vector<GLuint> shader_names(kShaderType__Count);
     for (int j = 0; j < kShaderType__Count; ++j) {
@@ -572,59 +635,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  std::vector<glm::vec3> ground_positions;
-  std::vector<glm::vec2> ground_tex_coords;
-  MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN,
-                               SCENE_AABB_SIDE_LEN * 0.25f * 0.5f,
-                               &ground_positions, &ground_tex_coords);
-
-  std::vector<glm::vec3> sky_positions;
-  std::vector<glm::vec2> sky_tex_coords;
-  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_positions, &sky_tex_coords);
-
-  std::vector<std::vector<glm::vec3>> splines;
-  Status status = LoadSplines(argv[1], &splines);
-  if (status != kStatus_Ok) {
-    std::fprintf(stderr, "Could not load splines.\n");
-  }
-  std::printf("Loaded spline count: %lu\n", splines.size());
-
-  for (uint i = 0; i < splines.size(); ++i) {
-    std::printf("Control point count in spline %u: %lu\n", i,
-                splines[i].size());
-  }
-
-  EvalCatmullRomSpline(&splines[0], SPLINE_MAX_LINE_LEN,
-                       &camera_path_vertices.positions,
-                       &camera_path_vertices.tangents);
-
-  CameraOrientation(&camera_path_vertices.tangents,
-                    &camera_path_vertices.normals,
-                    &camera_path_vertices.binormals);
-
-  glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
-                       RAIL_COLOR_ALPHA);
-
-  std::vector<glm::vec3> rail_positions;
-  std::vector<glm::vec4> rail_colors;
-  std::vector<GLuint> rail_indices;
-  MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
-            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_positions,
-            &rail_colors, &rail_indices);
-  rail_indices_count = rail_indices.size();
-
-  std::vector<glm::vec3> crossties_positions;
-  std::vector<glm::vec2> crossties_tex_coords;
-  MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
-                CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
-                &crossties_positions, &crossties_tex_coords);
-  crosstie_vertex_count = crossties_positions.size();
-
-  glClearColor(0, 0, 0, 0);
-  glEnable(GL_DEPTH_TEST);
-
+  // Setup textures.
   glGenTextures(kTexture__Count, textures);
-
   {
     GLfloat max_anisotropy_degree;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
