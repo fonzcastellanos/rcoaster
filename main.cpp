@@ -42,6 +42,7 @@
 #define RAIL_WEB_W 0.1
 #define RAIL_WEB_H 0.1
 #define RAIL_GAUGE 2
+#define RAIL_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
 
 #define CROSSTIE_SEPARATION_DIST 1
 #define CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
@@ -222,15 +223,15 @@ Status SaveScreenshot(const char *filepath, int window_w, int window_h) {
   return kStatus_Ok;
 }
 
-static uint screenshot_count = 0;
-static uint record_video = 0;
+static uint screenshot_count;
+static uint record_video;
 
 static uint window_w = 1280;
 static uint window_h = 720;
 
-static uint frame_count = 0;
+static uint frame_count;
 
-static MouseState mouse_state = {};
+static MouseState mouse_state;
 
 static WorldStateOp world_state_op = kWorldStateOp_Rotate;
 
@@ -238,8 +239,9 @@ static WorldState world_state = {{}, {}, {1, 1, 1}};
 
 static uint camera_path_index;
 static CameraPathVertices camera_path_vertices;
-static uint rail_indices_count;
-static uint crosstie_vertex_count;
+
+static uint rails_indices_count;
+static uint crossties_vertex_count;
 
 static GLuint program_names[kVertexFormat__Count];
 static GLuint textures[kTexture__Count];
@@ -248,8 +250,10 @@ static GLuint vbo_names[kVbo__Count];
 
 static glm::mat4 projection;
 
-const glm::vec3 scene_aabb_center = {};
-const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
+const glm::vec3 ground_position = {0, -SCENE_AABB_SIDE_LEN * (1.0f / 4), 0};
+const glm::vec3 sky_position = {};
+const glm::vec3 rails_position = {};
+const glm::vec3 crossties_position = {};
 
 static void Timer(int val) {
   if (val) {
@@ -429,16 +433,18 @@ static void Display() {
 
   // Rails
 
+  glm::mat4 rails_model_view = glm::translate(model_view, rails_position);
+
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
-                     glm::value_ptr(model_view));
+                     glm::value_ptr(rails_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindVertexArray(vao_names[kVertexFormat_Untextured]);
 
-  glDrawElements(GL_TRIANGLES, rail_indices_count / 2, GL_UNSIGNED_INT,
+  glDrawElements(GL_TRIANGLES, rails_indices_count / 2, GL_UNSIGNED_INT,
                  BUFFER_OFFSET(0));
-  glDrawElements(GL_TRIANGLES, rail_indices_count / 2, GL_UNSIGNED_INT,
-                 BUFFER_OFFSET(rail_indices_count / 2 * sizeof(GLuint)));
+  glDrawElements(GL_TRIANGLES, rails_indices_count / 2, GL_UNSIGNED_INT,
+                 BUFFER_OFFSET(rails_indices_count / 2 * sizeof(GLuint)));
 
   glBindVertexArray(0);
 
@@ -458,10 +464,7 @@ static void Display() {
 
   // Ground
 
-  float scene_aabb_half_side_len = glm::length(scene_aabb_size) * 0.5f;
-  glm::mat4 ground_model_view =
-      glm::translate(model_view, {0, -scene_aabb_half_side_len * 0.5f, 0});
-  ground_model_view = glm::translate(ground_model_view, -scene_aabb_center);
+  glm::mat4 ground_model_view = glm::translate(model_view, ground_position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(ground_model_view));
@@ -473,10 +476,10 @@ static void Display() {
 
   // Sky
 
-  glm::mat4 sky_model_view = glm::translate(sky_model_view, -scene_aabb_center);
+  glm::mat4 sky_model_view = glm::translate(model_view, sky_position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
-                     glm::value_ptr(model_view));
+                     glm::value_ptr(sky_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
@@ -485,12 +488,15 @@ static void Display() {
 
   // Crossties
 
+  glm::mat4 crossties_model_view =
+      glm::translate(model_view, crossties_position);
+
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
-                     glm::value_ptr(model_view));
+                     glm::value_ptr(crossties_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crosstie]);
-  for (uint offset = 0; offset < crosstie_vertex_count; offset += 36) {
+  for (uint offset = 0; offset < crossties_vertex_count; offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 
@@ -591,16 +597,17 @@ int main(int argc, char **argv) {
   std::vector<glm::vec4> rail_colors;
   std::vector<GLuint> rail_indices;
   MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
-            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_positions,
+            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE,
+            RAIL_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR, &rail_positions,
             &rail_colors, &rail_indices);
-  rail_indices_count = rail_indices.size();
+  rails_indices_count = rail_indices.size();
 
   std::vector<glm::vec3> crossties_positions;
   std::vector<glm::vec2> crossties_tex_coords;
   MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
                 CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
                 &crossties_positions, &crossties_tex_coords);
-  crosstie_vertex_count = crossties_positions.size();
+  crossties_vertex_count = crossties_positions.size();
 
   /************************************
    * Setup OpenGL state.
@@ -671,7 +678,7 @@ int main(int argc, char **argv) {
   glGenBuffers(kVbo__Count, vbo_names);
 
   uint textured_vertex_count =
-      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crosstie_vertex_count;
+      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crossties_vertex_count;
   uint untextured_vertex_count = rail_positions.size();
 
   // Buffer textured vertices.
@@ -689,7 +696,7 @@ int main(int argc, char **argv) {
     size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_positions.data());
     offset += size;
-    size = crosstie_vertex_count * sizeof(glm::vec3),
+    size = crossties_vertex_count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_positions.data());
 
     offset += size;
@@ -699,7 +706,7 @@ int main(int argc, char **argv) {
     size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords.data());
     offset += size;
-    size = crosstie_vertex_count * sizeof(glm::vec2),
+    size = crossties_vertex_count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_tex_coords.data());
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -725,7 +732,7 @@ int main(int argc, char **argv) {
 
   // Buffer untextured indices.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices_count * sizeof(GLuint),
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rails_indices_count * sizeof(GLuint),
                rail_indices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
