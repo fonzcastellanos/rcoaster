@@ -611,10 +611,11 @@ int main(int argc, char **argv) {
 
   glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
                        RAIL_COLOR_ALPHA);
-  std::vector<Vertex> rail_vertices;
+  std::vector<glm::vec3> rail_positions;
+  std::vector<glm::vec4> rail_colors;
   MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
-            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_vertices,
-            &rail_indices);
+            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_positions,
+            &rail_colors, &rail_indices);
 
   MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
                 CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
@@ -633,14 +634,16 @@ int main(int argc, char **argv) {
 
   assert(SKY_VERTEX_COUNT == Count(&sky_vertices));
 
-  uint vertex_count =
+  uint textured_vertex_count =
       GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + Count(&crosstie_vertices);
+  uint untextured_vertex_count = rail_positions.size();
 
   // Buffer textured vertices.
   {
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
 
-    uint buffer_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
+    uint buffer_size =
+        textured_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
@@ -675,10 +678,26 @@ int main(int argc, char **argv) {
   // Buffer untextured vertices.
   {
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_UntexturedVertices]);
-    glBufferData(GL_ARRAY_BUFFER, rail_vertices.size() * sizeof(Vertex),
-                 rail_vertices.data(), GL_STATIC_DRAW);
+
+    uint buffer_size =
+        untextured_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
+    glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
+
+    uint offset = 0;
+    uint size = untextured_vertex_count * sizeof(glm::vec3);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, rail_positions.data());
+    offset += size;
+    size = untextured_vertex_count * sizeof(glm::vec4),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, rail_colors.data());
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
+
+  // Buffer untextured indices
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
+               rail_indices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   glGenVertexArrays(kVertexFormat__Count, vao_names);
 
@@ -691,11 +710,13 @@ int main(int argc, char **argv) {
     glBindVertexArray(vao_names[kVertexFormat_Textured]);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
+
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
                           BUFFER_OFFSET(0));
-    glVertexAttribPointer(tex_coord_loc, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(glm::vec2),
-                          BUFFER_OFFSET(vertex_count * sizeof(glm::vec3)));
+    glVertexAttribPointer(
+        tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
+        BUFFER_OFFSET(textured_vertex_count * sizeof(glm::vec3)));
+
     glEnableVertexAttribArray(pos_loc);
     glEnableVertexAttribArray(tex_coord_loc);
 
@@ -712,20 +733,20 @@ int main(int argc, char **argv) {
     glBindVertexArray(vao_names[kVertexFormat_Untextured]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_UntexturedVertices]);
 
-    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
                           BUFFER_OFFSET(0));
-    glVertexAttribPointer(color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                          BUFFER_OFFSET(sizeof(glm::vec3)));
+    glVertexAttribPointer(
+        color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4),
+        BUFFER_OFFSET(untextured_vertex_count * sizeof(glm::vec3)));
 
     glEnableVertexAttribArray(pos_loc);
     glEnableVertexAttribArray(color_loc);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
-                 rail_indices.data(), GL_STATIC_DRAW);
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
   glutMainLoop();

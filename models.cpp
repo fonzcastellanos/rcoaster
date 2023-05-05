@@ -249,10 +249,12 @@ void CameraOrientation(const std::vector<glm::vec3> *tangents,
 void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
-               std::vector<Vertex> *vertices, std::vector<GLuint> *indices) {
+               std::vector<glm::vec3> *positions,
+               std::vector<glm::vec4> *colors, std::vector<GLuint> *indices) {
   assert(campath);
   assert(color);
-  assert(vertices);
+  assert(positions);
+  assert(colors);
   assert(indices);
 
   assert(head_w > 0);
@@ -266,34 +268,33 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   auto &cv_binorm = campath->binormals;
   auto &cv_norm = campath->normals;
 
-  auto &rv = *vertices;
-
   uint cv_count = Count(campath);
-
   uint rv_count = 2 * cv_count * kCrossSectionVertexCount;
-  rv.resize(rv_count);
 
-  for (uint i = 0; i < rv_count; ++i) {
-    rv[i].color = *color;
+  positions->resize(rv_count);
+  colors->resize(rv_count);
+
+  for (glm::vec4 &c : *colors) {
+    c = *color;
   }
+
+  auto &pos = *positions;
 
   for (uint i = 0; i < 2; ++i) {
     for (uint j = 0; j < cv_count; ++j) {
       uint k = kCrossSectionVertexCount * (j + i * cv_count);
       // See the comment block above the function declaration in the header file
       // for the visual index-to-position mapping.
-      rv[k].position =
-          cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
-      rv[k + 1].position = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
-      rv[k + 2].position = cv_pos[j] + 0.5f * head_w * cv_binorm[j];
-      rv[k + 3].position =
+      pos[k] = cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
+      pos[k + 1] = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
+      pos[k + 2] = cv_pos[j] + 0.5f * head_w * cv_binorm[j];
+      pos[k + 3] =
           cv_pos[j] + head_h * cv_norm[j] + 0.5f * head_w * cv_binorm[j];
-      rv[k + 4].position = rv[k + 4].position =
+      pos[k + 4] =
           cv_pos[j] + head_h * cv_norm[j] - 0.5f * head_w * cv_binorm[j];
-      rv[k + 5].position = cv_pos[j] - 0.5f * head_w * cv_binorm[j];
-      rv[k + 6].position = cv_pos[j] - 0.5f * web_w * cv_binorm[j];
-      rv[k + 7].position =
-          cv_pos[j] - web_h * cv_norm[j] - 0.5f * web_w * cv_binorm[j];
+      pos[k + 5] = cv_pos[j] - 0.5f * head_w * cv_binorm[j];
+      pos[k + 6] = cv_pos[j] - 0.5f * web_w * cv_binorm[j];
+      pos[k + 7] = cv_pos[j] - web_h * cv_norm[j] - 0.5f * web_w * cv_binorm[j];
     }
   }
 
@@ -301,13 +302,13 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      rv[j + k].position += 0.5f * gauge * cv_binorm[i];
+      pos[j + k] += 0.5f * gauge * cv_binorm[i];
     }
   }
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * (i + cv_count);
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      rv[j + k].position -= 0.5f * gauge * cv_binorm[i];
+      pos[j + k] -= 0.5f * gauge * cv_binorm[i];
     }
   }
 
@@ -315,7 +316,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
     for (uint j = 0; j < cv_count; ++j) {
       uint k = kCrossSectionVertexCount * (j + i * cv_count);
       for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
-        rv[k + l].position += pos_offset_in_campath_norm_dir * cv_norm[j];
+        pos[k + l] += pos_offset_in_campath_norm_dir * cv_norm[j];
       }
     }
   }

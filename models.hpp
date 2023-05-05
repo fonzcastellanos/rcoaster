@@ -9,11 +9,6 @@
 #include "opengl.hpp"
 #include "types.hpp"
 
-struct Vertex {
-  glm::vec3 position;
-  glm::vec4 color;
-};
-
 struct TexturedVertices {
   std::vector<glm::vec3> positions;
   std::vector<glm::vec2> tex_coords;
@@ -68,7 +63,8 @@ Rail cross section:
 void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
-               std::vector<Vertex> *vertices, std::vector<GLuint> *indices);
+               std::vector<glm::vec3> *positions,
+               std::vector<glm::vec4> *colors, std::vector<GLuint> *indices);
 
 void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
                    float pos_offset_in_campath_norm_dir,
