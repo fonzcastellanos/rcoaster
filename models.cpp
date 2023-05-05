@@ -3,13 +3,6 @@
 #include <cassert>
 #include <glm/glm.hpp>
 
-uint Count(const SplineVertices *v) {
-  assert(v);
-  assert(v->positions.size() == v->tangents.size());
-
-  return v->positions.size();
-}
-
 uint Count(const TexturedVertices *v) {
   assert(v);
   assert(v->positions.size() == v->tex_coords.size());
@@ -43,18 +36,24 @@ static glm::vec3 CatmullRomSplineTangent(float u, const glm::mat4x3 *control) {
 }
 
 static void Subdivide(float u0, float u1, float max_line_len,
-                      const glm::mat4x3 *control, SplineVertices *vertices) {
+                      const glm::mat4x3 *control,
+                      std::vector<glm::vec3> *positions,
+                      std::vector<glm::vec3> *tangents) {
+  assert(control);
+  assert(positions);
+  assert(tangents);
+
   glm::vec3 p0 = CatmullRomSplinePosition(u0, control);
   glm::vec3 p1 = CatmullRomSplinePosition(u1, control);
 
   if (glm::length(p1 - p0) > max_line_len) {
     float umid = (u0 + u1) * 0.5f;
 
-    Subdivide(u0, umid, max_line_len, control, vertices);
-    Subdivide(umid, u1, max_line_len, control, vertices);
+    Subdivide(u0, umid, max_line_len, control, positions, tangents);
+    Subdivide(umid, u1, max_line_len, control, positions, tangents);
   } else {
-    vertices->positions.push_back(p0);
-    vertices->positions.push_back(p1);
+    positions->push_back(p0);
+    positions->push_back(p1);
 
     glm::vec3 t0 = CatmullRomSplineTangent(u0, control);
     glm::vec3 t1 = CatmullRomSplineTangent(u1, control);
@@ -62,13 +61,18 @@ static void Subdivide(float u0, float u1, float max_line_len,
     glm::vec3 t0_norm = glm::normalize(t0);
     glm::vec3 t1_norm = glm::normalize(t1);
 
-    vertices->tangents.push_back(t0_norm);
-    vertices->tangents.push_back(t1_norm);
+    tangents->push_back(t0_norm);
+    tangents->push_back(t1_norm);
   }
 }
 
 void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
-                          SplineVertices *vertices) {
+                          std::vector<glm::vec3> *positions,
+                          std::vector<glm::vec3> *tangents) {
+  assert(spline);
+  assert(positions);
+  assert(tangents);
+
   auto &spline_ = *spline;
   static constexpr float kMaxLineLen = 0.5;
 
@@ -81,7 +85,7 @@ void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
       spline_[i + 2].x, spline_[i + 2].y, spline_[i + 2].z
     );
     // clang-format on
-    Subdivide(0, 1, kMaxLineLen, &control, vertices);
+    Subdivide(0, 1, kMaxLineLen, &control, positions, tangents);
   }
 }
 
@@ -202,33 +206,30 @@ void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
                      {tex_repeat_count, 0}};
 }
 
-void MakeCameraPath(const SplineVertices *spline, CameraPathVertices *path) {
+void CameraOrientation(const std::vector<glm::vec3> *tangents,
+                       std::vector<glm::vec3> *normals,
+                       std::vector<glm::vec3> *binormals) {
+  assert(tangents);
+  assert(normals);
+  assert(binormals);
+  assert(!tangents->empty());
+
   // Initial binormal chosen arbitrarily.
   static const glm::vec3 kInitialBinormal = {0, 1, -0.5};
 
-  assert(spline);
-  assert(path);
+  normals->resize(tangents->size());
+  binormals->resize(tangents->size());
 
-  uint count = Count(spline);
+  const auto &tangents_ = *tangents;
+  auto &normals_ = *normals;
+  auto &binormals_ = *binormals;
 
-  assert(count > 0);
+  normals_[0] = glm::normalize(glm::cross(tangents_[0], kInitialBinormal));
+  binormals_[0] = glm::normalize(glm::cross(tangents_[0], normals_[0]));
 
-  path->positions = spline->positions;
-  path->tangents = spline->tangents;
-
-  path->normals.resize(count);
-  path->binormals.resize(count);
-
-  path->normals[0] =
-      glm::normalize(glm::cross(spline->tangents[0], kInitialBinormal));
-  path->binormals[0] =
-      glm::normalize(glm::cross(spline->tangents[0], path->normals[0]));
-
-  for (uint i = 1; i < count; ++i) {
-    path->normals[i] =
-        glm::normalize(glm::cross(path->binormals[i - 1], spline->tangents[i]));
-    path->binormals[i] =
-        glm::normalize(glm::cross(spline->tangents[i], path->normals[i]));
+  for (uint i = 1; i < tangents->size(); ++i) {
+    normals_[i] = glm::normalize(glm::cross(binormals_[i - 1], tangents_[i]));
+    binormals_[i] = glm::normalize(glm::cross(tangents_[i], normals_[i]));
   }
 }
 

@@ -243,7 +243,6 @@ static uint camera_path_index = 0;
 static CameraPathVertices camera_path_vertices;
 static std::vector<GLuint> rail_indices;
 static TexturedVertices crosstie_vertices;
-static SplineVertices spline_vertices;
 
 static GLuint program_names[kVertexFormat__Count];
 static GLuint textures[kTexture__Count];
@@ -600,9 +599,12 @@ int main(int argc, char **argv) {
                 splines[i].size());
   }
 
-  EvalCatmullRomSpline(&splines[0], &spline_vertices);
+  EvalCatmullRomSpline(&splines[0], &camera_path_vertices.positions,
+                       &camera_path_vertices.tangents);
 
-  MakeCameraPath(&spline_vertices, &camera_path_vertices);
+  CameraOrientation(&camera_path_vertices.tangents,
+                    &camera_path_vertices.normals,
+                    &camera_path_vertices.binormals);
 
   glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
                        RAIL_COLOR_ALPHA);

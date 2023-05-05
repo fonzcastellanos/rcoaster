@@ -14,11 +14,6 @@ struct Vertex {
   glm::vec4 color;
 };
 
-struct SplineVertices {
-  std::vector<glm::vec3> positions;
-  std::vector<glm::vec3> tangents;
-};
-
 struct TexturedVertices {
   std::vector<glm::vec3> positions;
   std::vector<glm::vec2> tex_coords;
@@ -31,12 +26,12 @@ struct CameraPathVertices {
   std::vector<glm::vec3> binormals;
 };
 
-uint Count(const SplineVertices *s);
 uint Count(const TexturedVertices *t);
 uint Count(const CameraPathVertices *c);
 
 void EvalCatmullRomSpline(const std::vector<glm::vec3> *control_points,
-                          SplineVertices *vertices);
+                          std::vector<glm::vec3> *positions,
+                          std::vector<glm::vec3> *tangents);
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
                                   TexturedVertices *tvs);
@@ -44,7 +39,9 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
                         TexturedVertices *tvs);
 
-void MakeCameraPath(const SplineVertices *spline, CameraPathVertices *path);
+void CameraOrientation(const std::vector<glm::vec3> *tangents,
+                       std::vector<glm::vec3> *normals,
+                       std::vector<glm::vec3> *binormals);
 
 /*
 Gauge is the distance between the two rails.
