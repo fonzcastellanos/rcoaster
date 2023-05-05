@@ -68,6 +68,6 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
 
 void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
                    float pos_offset_in_campath_norm_dir,
-                   TexturedVertices *crosstie);
+                   TexturedVertices *crossties);
 
 #endif  // RCOASTER_MODELS_HPP

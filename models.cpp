@@ -396,12 +396,16 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
 
 void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
                    float pos_offset_in_campath_norm_dir,
-                   TexturedVertices *crosstie) {
+                   TexturedVertices *crossties) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
   static constexpr int kVertexCount = 8;
   static constexpr float kBarDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
+
+  assert(campath);
+  assert(crossties);
+  assert(separation_dist + kTolerance > 0);
 
   auto &p_pos = campath->positions;
   auto &p_tan = campath->tangents;
@@ -409,8 +413,8 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
   auto &p_norm = campath->normals;
   uint p_count = Count(campath);
 
-  auto &b_pos = crosstie->positions;
-  auto &b_tex_coords = crosstie->tex_coords;
+  auto &t_pos = crossties->positions;
+  auto &t_tex_coords = crossties->tex_coords;
 
   glm::vec3 v[kVertexCount];
   float dist_moved = 0;
@@ -443,60 +447,60 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     }
 
     // Top face
-    b_pos.push_back(v[6]);
-    b_pos.push_back(v[5]);
-    b_pos.push_back(v[2]);
-    b_pos.push_back(v[5]);
-    b_pos.push_back(v[1]);
-    b_pos.push_back(v[2]);
+    t_pos.push_back(v[6]);
+    t_pos.push_back(v[5]);
+    t_pos.push_back(v[2]);
+    t_pos.push_back(v[5]);
+    t_pos.push_back(v[1]);
+    t_pos.push_back(v[2]);
 
     // Right face
-    b_pos.push_back(v[5]);
-    b_pos.push_back(v[4]);
-    b_pos.push_back(v[1]);
-    b_pos.push_back(v[4]);
-    b_pos.push_back(v[0]);
-    b_pos.push_back(v[1]);
+    t_pos.push_back(v[5]);
+    t_pos.push_back(v[4]);
+    t_pos.push_back(v[1]);
+    t_pos.push_back(v[4]);
+    t_pos.push_back(v[0]);
+    t_pos.push_back(v[1]);
 
     // Bottom face
-    b_pos.push_back(v[4]);
-    b_pos.push_back(v[7]);
-    b_pos.push_back(v[0]);
-    b_pos.push_back(v[7]);
-    b_pos.push_back(v[3]);
-    b_pos.push_back(v[0]);
+    t_pos.push_back(v[4]);
+    t_pos.push_back(v[7]);
+    t_pos.push_back(v[0]);
+    t_pos.push_back(v[7]);
+    t_pos.push_back(v[3]);
+    t_pos.push_back(v[0]);
 
     // Left face
-    b_pos.push_back(v[7]);
-    b_pos.push_back(v[6]);
-    b_pos.push_back(v[3]);
-    b_pos.push_back(v[6]);
-    b_pos.push_back(v[2]);
-    b_pos.push_back(v[3]);
+    t_pos.push_back(v[7]);
+    t_pos.push_back(v[6]);
+    t_pos.push_back(v[3]);
+    t_pos.push_back(v[6]);
+    t_pos.push_back(v[2]);
+    t_pos.push_back(v[3]);
 
     // Back face
-    b_pos.push_back(v[5]);
-    b_pos.push_back(v[6]);
-    b_pos.push_back(v[4]);
-    b_pos.push_back(v[6]);
-    b_pos.push_back(v[7]);
-    b_pos.push_back(v[4]);
+    t_pos.push_back(v[5]);
+    t_pos.push_back(v[6]);
+    t_pos.push_back(v[4]);
+    t_pos.push_back(v[6]);
+    t_pos.push_back(v[7]);
+    t_pos.push_back(v[4]);
 
     // Front face
-    b_pos.push_back(v[2]);
-    b_pos.push_back(v[1]);
-    b_pos.push_back(v[3]);
-    b_pos.push_back(v[1]);
-    b_pos.push_back(v[0]);
-    b_pos.push_back(v[3]);
+    t_pos.push_back(v[2]);
+    t_pos.push_back(v[1]);
+    t_pos.push_back(v[3]);
+    t_pos.push_back(v[1]);
+    t_pos.push_back(v[0]);
+    t_pos.push_back(v[3]);
 
     for (uint j = 0; j < 6; ++j) {
-      b_tex_coords.emplace_back(0, 1);
-      b_tex_coords.emplace_back(1, 1);
-      b_tex_coords.emplace_back(0, 0);
-      b_tex_coords.emplace_back(1, 1);
-      b_tex_coords.emplace_back(1, 0);
-      b_tex_coords.emplace_back(0, 0);
+      t_tex_coords.emplace_back(0, 1);
+      t_tex_coords.emplace_back(1, 1);
+      t_tex_coords.emplace_back(0, 0);
+      t_tex_coords.emplace_back(1, 1);
+      t_tex_coords.emplace_back(1, 0);
+      t_tex_coords.emplace_back(0, 0);
     }
 
     dist_moved = 0;

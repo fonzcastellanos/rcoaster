@@ -92,6 +92,9 @@ static Button FromGlButton(int button) {
 
 static Status LoadSplines(const char *track_filepath,
                           std::vector<std::vector<glm::vec3>> *splines) {
+  assert(track_filepath);
+  assert(splines);
+
   auto &splines_ = *splines;
 
   std::FILE *track_file = std::fopen(track_filepath, "r");
@@ -175,7 +178,7 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name,
   uchar *data =
       stbi_load(img_filepath, &w, &h, &channel_count, kRgbaChannel__Count);
   if (!data) {
-    std::fprintf(stderr, "Failed to load image file.\n", img_filepath);
+    std::fprintf(stderr, "Failed to load image file %s.\n", img_filepath);
     return kStatus_IoError;
   }
 
@@ -229,10 +232,10 @@ static WorldStateOp world_state_op = kWorldStateOp_Rotate;
 
 static WorldState world_state = {{}, {}, {1, 1, 1}};
 
-static uint camera_path_index = 0;
+static uint camera_path_index;
 static CameraPathVertices camera_path_vertices;
-static std::vector<GLuint> rail_indices;
-static TexturedVertices crosstie_vertices;
+static uint rail_indices_count;
+static uint crosstie_vertex_count;
 
 static GLuint program_names[kVertexFormat__Count];
 static GLuint textures[kTexture__Count];
@@ -247,7 +250,6 @@ const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
 static void Timer(int val) {
   if (val) {
     char *temp = new char[512 + strlen(kWindowTitle)];
-    // Update title bar info.
     std::sprintf(temp, "%s: %d fps , %d x %d resolution", kWindowTitle,
                  frame_count * 30, window_w, window_h);
     glutSetWindowTitle(temp);
@@ -255,7 +257,7 @@ static void Timer(int val) {
 
     if (record_video) {  // Take a screenshot.
       temp = new char[8];
-      sprintf(temp, "%03d.jpg", screenshot_count);
+      std::sprintf(temp, "%03d.jpg", screenshot_count);
       SaveScreenshot(temp, window_w, window_h);
       std::printf("Saved screenshot to file %s.\n", temp);
       delete[] temp;
@@ -319,6 +321,9 @@ static void OnMouseDrag(int x, int y) {
         world_state.scale.z *= 1 - pos_delta.y * 0.01f;
       }
       break;
+    }
+    default: {
+      assert(false);
     }
   }
 
@@ -426,10 +431,10 @@ static void Display() {
 
   glBindVertexArray(vao_names[kVertexFormat_Untextured]);
 
-  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
+  glDrawElements(GL_TRIANGLES, rail_indices_count / 2, GL_UNSIGNED_INT,
                  BUFFER_OFFSET(0));
-  glDrawElements(GL_TRIANGLES, rail_indices.size() / 2, GL_UNSIGNED_INT,
-                 BUFFER_OFFSET(rail_indices.size() / 2 * sizeof(GLuint)));
+  glDrawElements(GL_TRIANGLES, rail_indices_count / 2, GL_UNSIGNED_INT,
+                 BUFFER_OFFSET(rail_indices_count / 2 * sizeof(GLuint)));
 
   glBindVertexArray(0);
 
@@ -448,8 +453,6 @@ static void Display() {
   GLint first = 0;
 
   // Ground
-
-  // matrix->PushMatrix();
 
   float scene_aabb_half_side_len = glm::length(scene_aabb_size) * 0.5f;
   glm::mat4 ground_model_view =
@@ -483,7 +486,7 @@ static void Display() {
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crosstie]);
-  for (uint offset = 0; offset < Count(&crosstie_vertices); offset += 36) {
+  for (uint offset = 0; offset < crosstie_vertex_count; offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 
@@ -599,35 +602,58 @@ int main(int argc, char **argv) {
 
   glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
                        RAIL_COLOR_ALPHA);
+
   std::vector<glm::vec3> rail_positions;
   std::vector<glm::vec4> rail_colors;
+  std::vector<GLuint> rail_indices;
   MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
             RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE, -2, &rail_positions,
             &rail_colors, &rail_indices);
+  rail_indices_count = rail_indices.size();
 
+  TexturedVertices crosstie_vertices;
   MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
                 CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
                 &crosstie_vertices);
+  crosstie_vertex_count = Count(&crosstie_vertices);
 
   glClearColor(0, 0, 0, 0);
   glEnable(GL_DEPTH_TEST);
 
   glGenTextures(kTexture__Count, textures);
 
-  GLfloat max_anisotropy_degree;
-  glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
-  std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
+  {
+    GLfloat max_anisotropy_degree;
+    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
 
-  InitTexture(argv[2], textures[kTexture_Ground], max_anisotropy_degree);
-  InitTexture(argv[3], textures[kTexture_Sky], max_anisotropy_degree);
-  InitTexture(argv[4], textures[kTexture_Crosstie], max_anisotropy_degree);
+    std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
+
+    GLfloat anisotropy_degree = max_anisotropy_degree * 0.5f;
+
+    status = InitTexture(argv[2], textures[kTexture_Ground], anisotropy_degree);
+    if (status != kStatus_Ok) {
+      std::fprintf(stderr, "Failed to initialize ground texture.\n");
+      return EXIT_FAILURE;
+    }
+
+    status = InitTexture(argv[3], textures[kTexture_Sky], anisotropy_degree);
+    if (status != kStatus_Ok) {
+      std::fprintf(stderr, "Failed to initialize sky texture.\n");
+      return EXIT_FAILURE;
+    }
+
+    status =
+        InitTexture(argv[4], textures[kTexture_Crosstie], anisotropy_degree);
+    if (status != kStatus_Ok) {
+      std::fprintf(stderr, "Failed to initialize crosstie texture.\n");
+      return EXIT_FAILURE;
+    }
+  }
 
   glGenBuffers(kVbo__Count, vbo_names);
 
-  assert(SKY_VERTEX_COUNT == Count(&sky_vertices));
-
   uint textured_vertex_count =
-      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + Count(&crosstie_vertices);
+      GROUND_VERTEX_COUNT + SKY_VERTEX_COUNT + crosstie_vertex_count;
   uint untextured_vertex_count = rail_positions.size();
 
   // Buffer textured vertices.
@@ -647,7 +673,7 @@ int main(int argc, char **argv) {
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     sky_vertices.positions.data());
     offset += size;
-    size = Count(&crosstie_vertices) * sizeof(glm::vec3),
+    size = crosstie_vertex_count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     crosstie_vertices.positions.data());
 
@@ -660,7 +686,7 @@ int main(int argc, char **argv) {
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     sky_vertices.tex_coords.data());
     offset += size;
-    size = Count(&crosstie_vertices) * sizeof(glm::vec2),
+    size = crosstie_vertex_count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     crosstie_vertices.tex_coords.data());
 
@@ -685,9 +711,9 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Buffer untextured indices
+  // Buffer untextured indices.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices.size() * sizeof(GLuint),
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rail_indices_count * sizeof(GLuint),
                rail_indices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
