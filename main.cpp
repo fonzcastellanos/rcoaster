@@ -30,6 +30,9 @@
 #define GROUND_VERTEX_COUNT 6
 #define SKY_VERTEX_COUNT 36
 
+#define GROUND_TEX_REPEAT_COUNT 36
+#define SKY_TEX_REPEAT_COUNT 1
+
 #define RAIL_COLOR_RED 0.5
 #define RAIL_COLOR_BLUE 0.5
 #define RAIL_COLOR_GREEN 0.5
@@ -574,13 +577,13 @@ int main(int argc, char **argv) {
 
   std::vector<glm::vec3> ground_positions;
   std::vector<glm::vec2> ground_tex_coords;
-  MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN,
-                               SCENE_AABB_SIDE_LEN * 0.25f * 0.5f,
+  MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN, GROUND_TEX_REPEAT_COUNT,
                                &ground_positions, &ground_tex_coords);
 
   std::vector<glm::vec3> sky_positions;
   std::vector<glm::vec2> sky_tex_coords;
-  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_positions, &sky_tex_coords);
+  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, SKY_TEX_REPEAT_COUNT, &sky_positions,
+                     &sky_tex_coords);
 
   glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
                        RAIL_COLOR_ALPHA);
