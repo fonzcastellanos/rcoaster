@@ -21,6 +21,7 @@
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
+// Scene is contained in an axis-aligned bounding box.
 #define SCENE_AABB_SIDE_LEN 256
 
 #define FOV_Y 45
@@ -48,6 +49,12 @@
 #define CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
 
 #define SPLINE_MAX_LINE_LEN 0.5
+
+#define WINDOW_TITLE_BUFFER_SIZE 512
+#define SCREENSHOT_FILENAME_BUFFER_SIZE 8
+#define FILEPATH_BUFFER_SIZE 4096
+
+#define FPS_DISPLAY_TIME_MSEC 1000
 
 const char *kWindowTitle = "Roller Coaster";
 
@@ -119,7 +126,7 @@ static Status LoadSplines(const char *track_filepath,
 
   splines->resize(spline_count);
 
-  char filepath[4096];
+  char filepath[FILEPATH_BUFFER_SIZE];
   for (uint j = 0; j < spline_count; ++j) {
     int ret = std::fscanf(track_file, "%s", filepath);
     if (ret < 1) {
@@ -230,6 +237,8 @@ static uint window_w = 1280;
 static uint window_h = 720;
 
 static uint frame_count;
+static int previous_time;
+static uint avg_fps;
 
 static MouseState mouse_state;
 
@@ -257,23 +266,31 @@ const glm::vec3 crossties_position = {};
 
 static void Timer(int val) {
   if (val) {
-    char *temp = new char[512 + strlen(kWindowTitle)];
-    std::sprintf(temp, "%s: %d fps , %d x %d resolution", kWindowTitle,
-                 frame_count * 30, window_w, window_h);
-    glutSetWindowTitle(temp);
-    delete[] temp;
+    int current_time = glutGet(GLUT_ELAPSED_TIME);
+    int elapsed_time = current_time - previous_time;
+    if (elapsed_time > FPS_DISPLAY_TIME_MSEC) {
+      avg_fps = frame_count * (1000.0f / elapsed_time);
+      frame_count = 0;
+      previous_time = current_time;
+    }
 
-    if (record_video) {  // Take a screenshot.
-      temp = new char[8];
-      std::sprintf(temp, "%03d.jpg", screenshot_count);
-      SaveScreenshot(temp, window_w, window_h);
-      std::printf("Saved screenshot to file %s.\n", temp);
-      delete[] temp;
+    char *title = new char[WINDOW_TITLE_BUFFER_SIZE];
+    std::sprintf(title, "%s: %d fps , %d x %d resolution", kWindowTitle,
+                 avg_fps, window_w, window_h);
+    glutSetWindowTitle(title);
+    delete[] title;
+
+    if (record_video) {
+      char *filename = new char[SCREENSHOT_FILENAME_BUFFER_SIZE];
+      std::sprintf(filename, "%03d.jpg", screenshot_count);
+      SaveScreenshot(filename, window_w, window_h);
+      std::printf("Saved screenshot to file %s.\n", filename);
+      delete[] filename;
+
       ++screenshot_count;
     }
   }
 
-  frame_count = 0;
   glutTimerFunc(33, Timer, 1);  // ~30 fps
 }
 
@@ -553,6 +570,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 #endif
+
   /************************************
    * Create camera path.
    ************************************/
