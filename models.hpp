@@ -30,7 +30,7 @@ uint Count(const TexturedVertices *t);
 uint Count(const CameraPathVertices *c);
 
 void EvalCatmullRomSpline(const std::vector<glm::vec3> *control_points,
-                          std::vector<glm::vec3> *positions,
+                          float max_line_len, std::vector<glm::vec3> *positions,
                           std::vector<glm::vec3> *tangents);
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,

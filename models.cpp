@@ -26,13 +26,17 @@ const glm::mat4x4 kCatmullRomBasis(-kTension, 2 - kTension, kTension - 2,
                                    kTension, 0, 0, 1, 0, 0);
 
 static glm::vec3 CatmullRomSplinePosition(float u, const glm::mat4x3 *control) {
+  assert(control);
+
   glm::vec4 parameters(u * u * u, u * u, u, 1);
-  return (*control) * kCatmullRomBasis * parameters;
+  return *control * kCatmullRomBasis * parameters;
 }
 
 static glm::vec3 CatmullRomSplineTangent(float u, const glm::mat4x3 *control) {
+  assert(control);
+
   glm::vec4 parameters(3 * u * u, 2 * u, 1, 0);
-  return (*control) * kCatmullRomBasis * parameters;
+  return *control * kCatmullRomBasis * parameters;
 }
 
 static void Subdivide(float u0, float u1, float max_line_len,
@@ -42,6 +46,11 @@ static void Subdivide(float u0, float u1, float max_line_len,
   assert(control);
   assert(positions);
   assert(tangents);
+
+#ifndef NDEBUG
+  static constexpr float kTolerance = 0.00001;
+#endif
+  assert(max_line_len + kTolerance > 0);
 
   glm::vec3 p0 = CatmullRomSplinePosition(u0, control);
   glm::vec3 p1 = CatmullRomSplinePosition(u1, control);
@@ -67,14 +76,18 @@ static void Subdivide(float u0, float u1, float max_line_len,
 }
 
 void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
-                          std::vector<glm::vec3> *positions,
+                          float max_line_len, std::vector<glm::vec3> *positions,
                           std::vector<glm::vec3> *tangents) {
   assert(spline);
   assert(positions);
   assert(tangents);
 
+#ifndef NDEBUG
+  static constexpr float kTolerance = 0.00001;
+#endif
+  assert(max_line_len + kTolerance > 0);
+
   auto &spline_ = *spline;
-  static constexpr float kMaxLineLen = 0.5;
 
   for (uint i = 1; i + 2 < spline->size(); ++i) {
     // clang-format off
@@ -85,7 +98,7 @@ void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
       spline_[i + 2].x, spline_[i + 2].y, spline_[i + 2].z
     );
     // clang-format on
-    Subdivide(0, 1, kMaxLineLen, &control, positions, tangents);
+    Subdivide(0, 1, max_line_len, &control, positions, tangents);
   }
 }
 

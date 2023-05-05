@@ -42,6 +42,8 @@
 #define CROSSTIE_SEPARATION_DIST 1
 #define CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
 
+#define SPLINE_MAX_LINE_LEN 0.5
+
 const char *kWindowTitle = "Roller Coaster";
 
 const char *const kVertexFormatStrings[kVertexFormat__Count]{"untextured",
@@ -599,7 +601,8 @@ int main(int argc, char **argv) {
                 splines[i].size());
   }
 
-  EvalCatmullRomSpline(&splines[0], &camera_path_vertices.positions,
+  EvalCatmullRomSpline(&splines[0], SPLINE_MAX_LINE_LEN,
+                       &camera_path_vertices.positions,
                        &camera_path_vertices.tangents);
 
   CameraOrientation(&camera_path_vertices.tangents,
