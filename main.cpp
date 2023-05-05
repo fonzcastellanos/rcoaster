@@ -165,7 +165,8 @@ static Status LoadSplines(const char *track_filepath,
   return kStatus_Ok;
 }
 
-static Status InitTexture(const char *img_filepath, GLuint texture_name) {
+static Status InitTexture(const char *img_filepath, GLuint texture_name,
+                          GLfloat anisotropy_degree) {
   assert(img_filepath);
 
   int w;
@@ -174,8 +175,7 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   uchar *data =
       stbi_load(img_filepath, &w, &h, &channel_count, kRgbaChannel__Count);
   if (!data) {
-    std::fprintf(stderr, "Could not load texture from file %s.\n",
-                 img_filepath);
+    std::fprintf(stderr, "Failed to load image file.\n", img_filepath);
     return kStatus_IoError;
   }
 
@@ -190,20 +190,8 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name) {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-  GLfloat fLargest;
-  glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fLargest);
-  std::printf("Max available anisotropic samples: %f\n", fLargest);
-  // Set anisotropic texture filtering.
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT,
-                  0.5f * fLargest);
-
-  GLenum errCode = glGetError();
-  if (errCode != 0) {
-    std::fprintf(stderr, "Texture initialization error. Error code: %d.\n",
-                 errCode);
-    stbi_image_free(data);
-    return kStatus_IoError;
-  }
+                  anisotropy_degree);
 
   stbi_image_free(data);
 
@@ -626,9 +614,13 @@ int main(int argc, char **argv) {
 
   glGenTextures(kTexture__Count, textures);
 
-  InitTexture(argv[2], textures[kTexture_Ground]);
-  InitTexture(argv[3], textures[kTexture_Sky]);
-  InitTexture(argv[4], textures[kTexture_Crosstie]);
+  GLfloat max_anisotropy_degree;
+  glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
+  std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
+
+  InitTexture(argv[2], textures[kTexture_Ground], max_anisotropy_degree);
+  InitTexture(argv[3], textures[kTexture_Sky], max_anisotropy_degree);
+  InitTexture(argv[4], textures[kTexture_Crosstie], max_anisotropy_degree);
 
   glGenBuffers(kVbo__Count, vbo_names);
 
