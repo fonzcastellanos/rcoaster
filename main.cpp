@@ -264,36 +264,6 @@ const glm::vec3 sky_position = {};
 const glm::vec3 rails_position = {};
 const glm::vec3 crossties_position = {};
 
-static void Timer(int val) {
-  if (val) {
-    int current_time = glutGet(GLUT_ELAPSED_TIME);
-    int elapsed_time = current_time - previous_time;
-    if (elapsed_time > FPS_DISPLAY_TIME_MSEC) {
-      avg_fps = frame_count * (1000.0f / elapsed_time);
-      frame_count = 0;
-      previous_time = current_time;
-    }
-
-    char *title = new char[WINDOW_TITLE_BUFFER_SIZE];
-    std::sprintf(title, "%s: %d fps , %d x %d resolution", kWindowTitle,
-                 avg_fps, window_w, window_h);
-    glutSetWindowTitle(title);
-    delete[] title;
-
-    if (record_video) {
-      char *filename = new char[SCREENSHOT_FILENAME_BUFFER_SIZE];
-      std::sprintf(filename, "%03d.jpg", screenshot_count);
-      SaveScreenshot(filename, window_w, window_h);
-      std::printf("Saved screenshot to file %s.\n", filename);
-      delete[] filename;
-
-      ++screenshot_count;
-    }
-  }
-
-  glutTimerFunc(33, Timer, 1);  // ~30 fps
-}
-
 static void OnWindowReshape(int w, int h) {
   window_w = w;
   window_h = h;
@@ -418,10 +388,30 @@ static void Idle() {
     camera_path_index += 3;
   }
 
-  // for example, here, you can save the screenshots to disk (to make the
-  // animation)
+  int current_time = glutGet(GLUT_ELAPSED_TIME);
+  int elapsed_time = current_time - previous_time;
+  if (elapsed_time > FPS_DISPLAY_TIME_MSEC) {
+    avg_fps = frame_count * (1000.0f / elapsed_time);
+    frame_count = 0;
+    previous_time = current_time;
+  }
 
-  // Make the screen update.
+  char *title = new char[WINDOW_TITLE_BUFFER_SIZE];
+  std::sprintf(title, "%s: %d fps , %d x %d resolution", kWindowTitle, avg_fps,
+               window_w, window_h);
+  glutSetWindowTitle(title);
+  delete[] title;
+
+  if (record_video) {
+    char *filename = new char[SCREENSHOT_FILENAME_BUFFER_SIZE];
+    std::sprintf(filename, "%03d.jpg", screenshot_count);
+    SaveScreenshot(filename, window_w, window_h);
+    std::printf("Saved screenshot to file %s.\n", filename);
+    delete[] filename;
+
+    ++screenshot_count;
+  }
+
   glutPostRedisplay();
 }
 
@@ -561,7 +551,6 @@ int main(int argc, char **argv) {
   glutMouseFunc(OnMousePressOrRelease);
   glutReshapeFunc(OnWindowReshape);
   glutKeyboardFunc(OnKeyPress);
-  glutTimerFunc(0, Timer, 0);
 
 #ifdef linux
   GLenum result = glewInit();
