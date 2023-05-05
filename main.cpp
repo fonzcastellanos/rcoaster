@@ -2,14 +2,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <string>
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include "main.hpp"
 #include "models.hpp"
-#include "openGLMatrix.h"
 #include "opengl.hpp"
 #include "shader.hpp"
 #include "status.hpp"
@@ -231,10 +233,6 @@ static uint window_h = 720;
 
 static uint frame_count = 0;
 
-static OpenGLMatrix *matrix;
-
-static GLuint program_names[kVertexFormat__Count];
-
 static MouseState mouse_state = {};
 
 static WorldStateOp world_state_op = kWorldStateOp_Rotate;
@@ -242,15 +240,17 @@ static WorldStateOp world_state_op = kWorldStateOp_Rotate;
 static WorldState world_state = {{}, {}, {1, 1, 1}};
 
 static uint camera_path_index = 0;
-
 static CameraPathVertices camera_path_vertices;
 static std::vector<GLuint> rail_indices;
 static TexturedVertices crosstie_vertices;
 static SplineVertices spline_vertices;
 
+static GLuint program_names[kVertexFormat__Count];
 static GLuint textures[kTexture__Count];
 static GLuint vao_names[kVertexFormat__Count];
 static GLuint vbo_names[kVbo__Count];
+
+static glm::mat4 projection;
 
 const glm::vec3 scene_aabb_center = {};
 const glm::vec3 scene_aabb_size(SCENE_AABB_SIDE_LEN);
@@ -286,10 +286,8 @@ static void OnWindowReshape(int w, int h) {
 
   float aspect = (float)window_w / window_h;
 
-  matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->LoadIdentity();
-  matrix->Perspective(FOV_Y, aspect, NEAR_Z, FAR_Z);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // By default in ModelView
+  projection = glm::perspective(glm::radians((float)FOV_Y), aspect,
+                                (float)NEAR_Z, (float)FAR_Z);
 }
 
 static void OnPassiveMouseMotion(int x, int y) {
@@ -413,19 +411,12 @@ static void Display() {
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  matrix->LoadIdentity();
+  auto i = camera_path_index;
+  glm::mat4 model_view = glm::lookAt(
+      camera_path_vertices.positions[i],
+      camera_path_vertices.positions[i] + camera_path_vertices.tangents[i],
+      camera_path_vertices.normals[i]);
 
-  {
-    auto i = camera_path_index;
-    auto &p = camera_path_vertices.positions;
-    auto &t = spline_vertices.tangents;
-    auto &n = camera_path_vertices.normals;
-    matrix->LookAt(p[i].x, p[i].y, p[i].z, p[i].x + t[i].x, p[i].y + t[i].y,
-                   p[i].z + t[i].z, n[i].x, n[i].y, n[i].z);
-  }
-
-  float model_view_mat[16];
-  float proj_mat[16];
   GLboolean is_row_major = GL_FALSE;
 
   /*********************
@@ -440,13 +431,9 @@ static void Display() {
 
   // Rails
 
-  matrix->GetMatrix(model_view_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(proj_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);
-
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
+                     glm::value_ptr(model_view));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindVertexArray(vao_names[kVertexFormat_Untextured]);
 
@@ -473,22 +460,16 @@ static void Display() {
 
   // Ground
 
-  matrix->PushMatrix();
+  // matrix->PushMatrix();
 
   float scene_aabb_half_side_len = glm::length(scene_aabb_size) * 0.5f;
-  matrix->Translate(0, -scene_aabb_half_side_len * 0.5f, 0);
-  matrix->Translate(-scene_aabb_center.x, -scene_aabb_center.y,
-                    -scene_aabb_center.z);
+  glm::mat4 ground_model_view =
+      glm::translate(model_view, {0, -scene_aabb_half_side_len * 0.5f, 0});
+  ground_model_view = glm::translate(ground_model_view, -scene_aabb_center);
 
-  matrix->GetMatrix(model_view_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(proj_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
-
-  matrix->PopMatrix();
-
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
+                     glm::value_ptr(ground_model_view));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
   glDrawArrays(GL_TRIANGLES, first, GROUND_VERTEX_COUNT);
@@ -496,20 +477,11 @@ static void Display() {
 
   // Sky
 
-  matrix->PushMatrix();
+  glm::mat4 sky_model_view = glm::translate(sky_model_view, -scene_aabb_center);
 
-  matrix->Translate(-scene_aabb_center.x, -scene_aabb_center.y,
-                    -scene_aabb_center.z);
-
-  matrix->GetMatrix(model_view_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(proj_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
-
-  matrix->PopMatrix();
-
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
+                     glm::value_ptr(model_view));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
   glDrawArrays(GL_TRIANGLES, first, SKY_VERTEX_COUNT);
@@ -517,13 +489,9 @@ static void Display() {
 
   // Crossties
 
-  matrix->GetMatrix(model_view_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::Projection);
-  matrix->GetMatrix(proj_mat);
-  matrix->SetMatrixMode(OpenGLMatrix::ModelView);  // default matrix mode
-
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major, model_view_mat);
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, proj_mat);
+  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
+                     glm::value_ptr(model_view));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crosstie]);
   for (uint offset = 0; offset < Count(&crosstie_vertices); offset += 36) {
@@ -649,8 +617,6 @@ int main(int argc, char **argv) {
 
   glClearColor(0, 0, 0, 0);
   glEnable(GL_DEPTH_TEST);
-
-  matrix = new OpenGLMatrix();
 
   glGenTextures(kTexture__Count, textures);
 

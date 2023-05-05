@@ -11,15 +11,14 @@ endif()
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 add_subdirectory(vendor/glm)
-add_subdirectory(vendor/openGLMatrix)
 
 add_library(shader shader.cpp)
 add_library(models models.cpp)
 target_link_libraries(models PUBLIC glm)
 
 add_executable(rcoaster main.cpp)
-target_link_libraries(rcoaster PRIVATE glm shader models openGlMatrix)
-target_include_directories(rcoaster PRIVATE vendor vendor/openGLMatrix)
+target_link_libraries(rcoaster PRIVATE glm shader models)
+target_include_directories(rcoaster PRIVATE vendor)
 
 if(LINUX)
     target_compile_options(rcoaster PRIVATE -lGLEW -lGL -lglut)
