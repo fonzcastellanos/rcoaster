@@ -537,9 +537,9 @@ int main(int argc, char **argv) {
   // nothing is needed on Apple
 #else
   // Linux
-  GLint result = glewInit();
+  GLenum result = glewInit();
   if (result != GLEW_OK) {
-    std::fprintf(stderr, glewGetErrorString(result));
+    std::fprintf(stderr, "glewInit failed: %s", glewGetErrorString(result));
     return EXIT_FAILURE;
   }
 #endif
@@ -572,13 +572,15 @@ int main(int argc, char **argv) {
     }
   }
 
-  TexturedVertices ground_vertices;
+  std::vector<glm::vec3> ground_positions;
+  std::vector<glm::vec2> ground_tex_coords;
   MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN,
                                SCENE_AABB_SIDE_LEN * 0.25f * 0.5f,
-                               &ground_vertices);
+                               &ground_positions, &ground_tex_coords);
 
-  TexturedVertices sky_vertices;
-  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_vertices);
+  std::vector<glm::vec3> sky_positions;
+  std::vector<glm::vec2> sky_tex_coords;
+  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, 1, &sky_positions, &sky_tex_coords);
 
   std::vector<std::vector<glm::vec3>> splines;
   Status status = LoadSplines(argv[1], &splines);
@@ -611,11 +613,12 @@ int main(int argc, char **argv) {
             &rail_colors, &rail_indices);
   rail_indices_count = rail_indices.size();
 
-  TexturedVertices crosstie_vertices;
+  std::vector<glm::vec3> crossties_positions;
+  std::vector<glm::vec2> crossties_tex_coords;
   MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
                 CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
-                &crosstie_vertices);
-  crosstie_vertex_count = Count(&crosstie_vertices);
+                &crossties_positions, &crossties_tex_coords);
+  crosstie_vertex_count = crossties_positions.size();
 
   glClearColor(0, 0, 0, 0);
   glEnable(GL_DEPTH_TEST);
@@ -666,29 +669,23 @@ int main(int argc, char **argv) {
 
     uint offset = 0;
     uint size = GROUND_VERTEX_COUNT * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    ground_vertices.positions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_positions.data());
     offset += size;
     size = SKY_VERTEX_COUNT * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    sky_vertices.positions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_positions.data());
     offset += size;
     size = crosstie_vertex_count * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    crosstie_vertices.positions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_positions.data());
 
     offset += size;
     size = GROUND_VERTEX_COUNT * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    ground_vertices.tex_coords.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords.data());
     offset += size;
     size = SKY_VERTEX_COUNT * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    sky_vertices.tex_coords.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords.data());
     offset += size;
     size = crosstie_vertex_count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    crosstie_vertices.tex_coords.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_tex_coords.data());
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
