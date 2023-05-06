@@ -2,8 +2,10 @@
 #define RCOASTER_OPENGL_HPP
 
 #ifdef linux
+// clang-format off
 #include <GL/freeglut.h>
 #include <GL/glew.h>
+// clang-format on
 #elif defined(__APPLE__)
 #include <OpenGL/gl3.h>
 #include <OpenGL/gl3ext.h>
