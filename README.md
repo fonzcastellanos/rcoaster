@@ -69,6 +69,8 @@ The built targets are placed in the directory `build`. There is only one executa
 ./build/rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
 ```
 
+To exit the program, have the window in focus and press `x`. You can also terminate the program by pressing `CTRL + C` in the terminal.
+
 ### Example
 
 ```sh
