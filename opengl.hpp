@@ -2,8 +2,8 @@
 #define RCOASTER_OPENGL_HPP
 
 #ifdef linux
+#include <GL/freeglut.h>
 #include <GL/glew.h>
-#include <GL/glut.h>
 #elif defined(__APPLE__)
 #include <OpenGL/gl3.h>
 #include <OpenGL/gl3ext.h>

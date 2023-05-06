@@ -21,7 +21,7 @@ target_link_libraries(rcoaster PRIVATE glm shader models)
 target_include_directories(rcoaster PRIVATE vendor)
 
 if(LINUX)
-    target_compile_options(rcoaster PRIVATE -lGLEW -lGL -lglut)
+    target_link_libraries(rcoaster PRIVATE -lGLEW -lGL -lglut)
 elseif(APPLE)
     target_compile_options(shader PRIVATE -Wno-deprecated-declarations)
     target_compile_options(models PRIVATE -Wno-deprecated-declarations)
