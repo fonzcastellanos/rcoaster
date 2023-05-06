@@ -22,7 +22,7 @@ A simulated roller coaster experience built with OpenGL.
 - Operating system: macOS or Linux
 - C++ compiler supporting at least C++17
 - CMake >= 3.2
-- OpenGL >= 3.3
+- OpenGL >= 3.2
 
 My development environment and tooling:
 - Hardware: MacBook Pro (Retina, 13-inch, Early 2015)
@@ -30,6 +30,16 @@ My development environment and tooling:
 - C++ compiler: Clang == 10.0.01
 - CMake == 3.25.1
 - OpenGL == 4.1
+
+I built `rcoaster` on a Linux machine as well:
+- Operating system: Debian == 11.7
+- C++ compiler: gcc == 10.2.1
+- CMake == 3.26.3
+- OpenGL == 4.5
+
+Make sure to install the following packages on Linux:
+- libglew-dev
+- freeglut3-dev
 
 ## Build Steps
 
