@@ -373,7 +373,13 @@ static void OnMousePressOrRelease(int button, int state, int x, int y) {
 static void OnKeyPress(uchar key, int x, int y) {
   switch (key) {
     case 27: {  // ESC key
+#ifdef __APPLE__
       exit(0);
+#elif defined(linux)
+      glutLeaveMainLoop();
+#else
+#error Unsupported platform.
+#endif
       break;
     }
     case 'i': {
