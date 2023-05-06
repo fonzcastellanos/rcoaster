@@ -67,7 +67,9 @@ The built targets are placed in the directory `build`. There is only one executa
 
 ### Track File
 
-The track file lists the spline files to load to create the track. The first line is the number of spline files to load. Each subsequent line is a path to a spline file. Paths may be absolute or relative. Relative paths are relative to the current working directory of the `rcoaster` process.
+A track file lists the spline files to load to create the track. The first line is the number of spline files to load. Each subsequent line is a path to a spline file. Paths may be absolute or relative. Relative paths are relative to the current working directory of the `rcoaster` process.
+
+Currently only the first spline file listed is used.
 
 An example track file is [`track.txt`](track.txt). 
 
@@ -75,7 +77,7 @@ An example track file is [`track.txt`](track.txt).
 
 A spline file contains the control points of a spline. The first line consists of two space-separated fields: the number of control points and a number indicating the type of spline. Each subsequent line is a control point.
 
-The only supported spline type are Catmull-Rom splines. Use `0` in the spline file to indicate a Catmull-Rom spline.
+Currently the only supported spline type are Catmull-Rom splines. Use `0` in the spline file to indicate a Catmull-Rom spline.
 
 Example spline files are in the directory `splines`. I tailored the spline file [`custom.sp`](splines/custom.sp) to produce a track optimized for my hard-coded scene size, ground size, sky box size, and camera movement speed. The other spline files were for initial testing testing and unfortunately produce tracks that are too small for my current configuration.
  
