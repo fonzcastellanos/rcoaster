@@ -47,9 +47,9 @@ The build system must be generated before the project can be built. From the pro
 ```sh
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE:STRING=Release ..
 ```
-The `-G` option is omitted in `cmake ..`, so CMake will choose a default build system generator type based on your platform. To learn more about generators, see the [CMake docs](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).
+The `-G` option is omitted in `cmake -DCMAKE_BUILD_TYPE:STRING=Release ..`, so CMake will choose a default build system generator type based on your platform. To learn more about generators, see the [CMake docs](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).
 
 After having generated the build system, go back to the project directory:
 ```sh
