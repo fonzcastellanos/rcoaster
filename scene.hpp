@@ -1,6 +1,7 @@
 #ifndef RCOASTER_SCENE_HPP
 #define RCOASTER_SCENE_HPP
 
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
 #include "models.hpp"
