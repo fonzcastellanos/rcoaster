@@ -23,7 +23,6 @@
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
-#define WINDOW_TITLE_BUFFER_SIZE 512
 #define SCREENSHOT_FILENAME_BUFFER_SIZE 8
 #define FILEPATH_BUFFER_SIZE 4096
 
@@ -210,6 +209,8 @@ Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
     return kStatus_IoError;
   }
 
+  std::printf("Saved screenshot to file %s.\n", filepath);
+
   return kStatus_Ok;
 }
 
@@ -218,13 +219,14 @@ static Scene scene;
 
 static uint screenshot_count;
 static uint record_video;
+static char screenshot_filename_buffer[8];
 
 static uint window_w = 1280;
 static uint window_h = 720;
+static char window_title_buffer[512];
 
 static uint frame_count;
 static int previous_fps_display_time;
-static uint avg_fps;
 
 static int previous_idle_callback_time;
 
@@ -375,7 +377,12 @@ static void Idle() {
 
   int time_since_fps_displayed = current_time - previous_fps_display_time;
   if (time_since_fps_displayed > FPS_DISPLAY_PERIOD_MSEC) {
-    avg_fps = frame_count * (1000.0f / time_since_fps_displayed);
+    uint avg_fps = frame_count * (1000.0f / time_since_fps_displayed);
+
+    std::sprintf(window_title_buffer, "%s: %d fps , %d x %d resolution",
+                 kWindowTitle, avg_fps, window_w, window_h);
+    glutSetWindowTitle(window_title_buffer);
+
     frame_count = 0;
     previous_fps_display_time = current_time;
   }
@@ -387,19 +394,9 @@ static void Idle() {
 
   previous_idle_callback_time = current_time;
 
-  char *title = new char[WINDOW_TITLE_BUFFER_SIZE];
-  std::sprintf(title, "%s: %d fps , %d x %d resolution", kWindowTitle, avg_fps,
-               window_w, window_h);
-  glutSetWindowTitle(title);
-  delete[] title;
-
   if (record_video) {
-    char *filename = new char[SCREENSHOT_FILENAME_BUFFER_SIZE];
-    std::sprintf(filename, "%03d.jpg", screenshot_count);
-    SaveScreenshot(filename, window_w, window_h);
-    std::printf("Saved screenshot to file %s.\n", filename);
-    delete[] filename;
-
+    std::sprintf(screenshot_filename_buffer, "%03d.jpg", screenshot_count);
+    SaveScreenshot(screenshot_filename_buffer, window_w, window_h);
     ++screenshot_count;
   }
 
