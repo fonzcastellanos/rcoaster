@@ -4,6 +4,14 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+struct Config {
+  char* track_filepath;
+  char* ground_texture_filepath;
+  char* sky_texture_filepath;
+  char* crossties_texture_filepath;
+  int is_verbose;
+};
+
 enum RgbaChannel {
   kRgbaChannel_Red,
   kRgbaChannel_Green,

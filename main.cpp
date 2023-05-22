@@ -10,6 +10,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
+#include "cli.hpp"
 #include "main.hpp"
 #include "models.hpp"
 #include "opengl.hpp"
@@ -35,6 +36,10 @@
 
 #define SPLINE_MAX_LINE_LEN 0.5
 #define CAMERA_PATH_INDEX_STEP_PER_FRAME 3
+
+const char *kUsageMessage =
+    "usage: %s <track-filepath> <ground-texture-filepath> "
+    "<sky-texture-filepath> <crosstie-texture-filepath>\n";
 
 const char *kWindowTitle = "rcoaster";
 
@@ -551,21 +556,84 @@ void ConfigureGlut(int argc, char **argv, uint window_w, uint window_h,
   glutKeyboardFunc(OnKeyPress);
 }
 
+void DefaultInit(Config *c) {
+  assert(c);
+  c->is_verbose = 0;
+}
+
+static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
+  assert(argv);
+  assert(cfg);
+
+  cli::Opt opts[] = {
+      {"verbose", cli::kOptArgType_Int, &cfg->is_verbose},
+  };
+  uint size = sizeof(opts) / sizeof(opts[0]);
+  uint argi;
+  cli::Status st = ParseOpts(argc, argv, opts, size, &argi);
+  if (st != cli::kStatus_Ok) {
+    std::fprintf(stderr, "Failed to parse options: %s\n",
+                 cli::StatusMessage(st));
+    return kStatus_UnspecifiedError;
+  }
+
+  if (argi >= argc) {
+    std::fprintf(stderr, "Missing required track filepath argument.\n");
+    std::fprintf(stderr, kUsageMessage, argv[0]);
+    return kStatus_UnspecifiedError;
+  }
+
+  cfg->track_filepath = argv[argi];
+
+  ++argi;
+  if (argi >= argc) {
+    std::fprintf(stderr,
+                 "Missing required ground texture filepath argument.\n");
+    std::fprintf(stderr, kUsageMessage, argv[0]);
+    return kStatus_UnspecifiedError;
+  }
+
+  cfg->ground_texture_filepath = argv[argi];
+
+  ++argi;
+  if (argi >= argc) {
+    std::fprintf(stderr, "Missing required sky texture filepath argument.\n");
+    std::fprintf(stderr, kUsageMessage, argv[0]);
+    return kStatus_UnspecifiedError;
+  }
+
+  cfg->sky_texture_filepath = argv[argi];
+
+  ++argi;
+  if (argi >= argc) {
+    std::fprintf(stderr,
+                 "Missing required crossties texture filepath argument.\n");
+    std::fprintf(stderr, kUsageMessage, argv[0]);
+    return kStatus_UnspecifiedError;
+  }
+
+  cfg->crossties_texture_filepath = argv[argi];
+
+  return kStatus_Ok;
+}
+
 int main(int argc, char **argv) {
   ConfigureGlut(argc, argv, window_w, window_h, 0, 0, kWindowTitle);
 
-  std::printf("OpenGL Info: \n");
-  std::printf("  Version: %s\n", glGetString(GL_VERSION));
-  std::printf("  Renderer: %s\n", glGetString(GL_RENDERER));
-  std::printf("  Shading Language Version: %s\n",
-              glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-  if (argc < 5) {
-    std::fprintf(stderr,
-                 "usage: %s <track-file> <ground-texture> <sky-texture> "
-                 "<crosstie-texture>\n",
-                 argv[0]);
+  Config cfg;
+  DefaultInit(&cfg);
+  Status status = ParseConfig(argc, argv, &cfg);
+  if (status != kStatus_Ok) {
+    std::fprintf(stderr, "Failed to parse config.\n");
     return EXIT_FAILURE;
+  }
+
+  if (cfg.is_verbose) {
+    std::printf("OpenGL Info: \n");
+    std::printf("  Version: %s\n", glGetString(GL_VERSION));
+    std::printf("  Renderer: %s\n", glGetString(GL_RENDERER));
+    std::printf("  Shading Language Version: %s\n",
+                glGetString(GL_SHADING_LANGUAGE_VERSION));
   }
 
 #ifdef linux
@@ -581,15 +649,16 @@ int main(int argc, char **argv) {
    ************************************/
 
   std::vector<std::vector<glm::vec3>> splines;
-  Status status = LoadSplines(argv[1], &splines);
+  status = LoadSplines(cfg.track_filepath, &splines);
   if (status != kStatus_Ok) {
     std::fprintf(stderr, "Could not load splines.\n");
   }
-  std::printf("Loaded spline count: %lu\n", splines.size());
-
-  for (uint i = 0; i < splines.size(); ++i) {
-    std::printf("Control point count in spline %u: %lu\n", i,
-                splines[i].size());
+  if (cfg.is_verbose) {
+    std::printf("Loaded spline count: %lu\n", splines.size());
+    for (uint i = 0; i < splines.size(); ++i) {
+      std::printf("Control point count in spline %u: %lu\n", i,
+                  splines[i].size());
+    }
   }
 
   // TODO: Support for multiple splines.
@@ -651,24 +720,28 @@ int main(int argc, char **argv) {
     GLfloat max_anisotropy_degree;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
 
-    std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
+    if (cfg.is_verbose) {
+      std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
+    }
 
     GLfloat anisotropy_degree = max_anisotropy_degree * 0.5f;
 
-    status = InitTexture(argv[2], textures[kTexture_Ground], anisotropy_degree);
+    status = InitTexture(cfg.ground_texture_filepath, textures[kTexture_Ground],
+                         anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize ground texture.\n");
       return EXIT_FAILURE;
     }
 
-    status = InitTexture(argv[3], textures[kTexture_Sky], anisotropy_degree);
+    status = InitTexture(cfg.sky_texture_filepath, textures[kTexture_Sky],
+                         anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize sky texture.\n");
       return EXIT_FAILURE;
     }
 
-    status =
-        InitTexture(argv[4], textures[kTexture_Crossties], anisotropy_degree);
+    status = InitTexture(cfg.crossties_texture_filepath,
+                         textures[kTexture_Crossties], anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize crosstie texture.\n");
       return EXIT_FAILURE;
