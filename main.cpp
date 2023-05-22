@@ -524,19 +524,8 @@ static void Init(SceneConfig *cfg) {
   cfg->crossties_pos_offset_in_campath_norm_dir = -2;
 }
 
-int main(int argc, char **argv) {
-  if (argc < 5) {
-    std::fprintf(stderr,
-                 "usage: %s <track-file> <ground-texture> <sky-texture> "
-                 "<crosstie-texture>\n",
-                 argv[0]);
-    return EXIT_FAILURE;
-  }
-
-  /*************************************
-   * Configure GLUT.
-   *************************************/
-
+void ConfigureGlut(int argc, char **argv, uint window_w, uint window_h,
+                   uint window_x, uint window_y, const char *window_title) {
   glutInit(&argc, argv);
 
 #ifdef __APPLE__
@@ -549,14 +538,8 @@ int main(int argc, char **argv) {
 #endif
 
   glutInitWindowSize(window_w, window_h);
-  glutInitWindowPosition(0, 0);
-  glutCreateWindow(kWindowTitle);
-
-  std::printf("OpenGL Info: \n");
-  std::printf("  Version: %s\n", glGetString(GL_VERSION));
-  std::printf("  Renderer: %s\n", glGetString(GL_RENDERER));
-  std::printf("  Shading Language Version: %s\n",
-              glGetString(GL_SHADING_LANGUAGE_VERSION));
+  glutInitWindowPosition(window_x, window_y);
+  glutCreateWindow(window_title);
 
   glutDisplayFunc(Display);
   glutIdleFunc(Idle);
@@ -565,6 +548,24 @@ int main(int argc, char **argv) {
   glutMouseFunc(OnMousePressOrRelease);
   glutReshapeFunc(OnWindowReshape);
   glutKeyboardFunc(OnKeyPress);
+}
+
+int main(int argc, char **argv) {
+  ConfigureGlut(argc, argv, window_w, window_h, 0, 0, kWindowTitle);
+
+  std::printf("OpenGL Info: \n");
+  std::printf("  Version: %s\n", glGetString(GL_VERSION));
+  std::printf("  Renderer: %s\n", glGetString(GL_RENDERER));
+  std::printf("  Shading Language Version: %s\n",
+              glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+  if (argc < 5) {
+    std::fprintf(stderr,
+                 "usage: %s <track-file> <ground-texture> <sky-texture> "
+                 "<crosstie-texture>\n",
+                 argv[0]);
+    return EXIT_FAILURE;
+  }
 
 #ifdef linux
   GLenum result = glewInit();
