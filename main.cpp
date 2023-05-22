@@ -23,14 +23,13 @@
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
-#define FILEPATH_BUFFER_SIZE 4096
-#define FPS_DISPLAY_PERIOD_MSEC 1000
+#define WINDOW_TITLE_UPDATE_PERIOD_MSEC 1000
 
 const char *kUsageMessage =
     "usage: %s [options...] <track-filepath> <ground-texture-filepath> "
     "<sky-texture-filepath> <crosstie-texture-filepath>\n";
 
-const char *kWindowTitle = "rcoaster";
+const char *kWindowTitlePrefix = "rcoaster";
 
 const char *const kVertexFormatStrings[kVertexFormat__Count]{"textured",
                                                              "colored"};
@@ -100,7 +99,7 @@ static Status LoadSplines(const char *track_filepath,
 
   splines->resize(spline_count);
 
-  char filepath[FILEPATH_BUFFER_SIZE];
+  char filepath[4096];
   for (uint i = 0; i < spline_count; ++i) {
     rc = std::fscanf(track_file, "%s", filepath);
     if (rc < 1) {
@@ -217,16 +216,11 @@ static Scene scene;
 
 static uint screenshot_count;
 static uint record_video;
-static char screenshot_filename_buffer[8];
 
 static uint window_w = 1280;
 static uint window_h = 720;
-static char window_title_buffer[512];
 
 static uint frame_count;
-static int previous_fps_display_time;
-
-static int previous_idle_callback_time;
 
 static MouseState mouse_state;
 
@@ -242,19 +236,14 @@ static GLuint textures[kTexture__Count];
 static GLuint vao_names[kVertexFormat__Count];
 static GLuint vbo_names[kVbo__Count];
 
-static glm::mat4 projection;
+static glm::mat4 view_mat;
+static glm::mat4 projection_mat;
 
 static void OnWindowReshape(int w, int h) {
   window_w = w;
   window_h = h;
 
-  glViewport(0, 0, window_w, window_h);
-
-  float aspect = (float)window_w / window_h;
-
-  projection =
-      glm::perspective(glm::radians(config.view_frustum.fov_y), aspect,
-                       config.view_frustum.near_z, config.view_frustum.far_z);
+  glViewport(0, 0, w, h);
 }
 
 static void OnPassiveMouseMotion(int x, int y) {
@@ -370,33 +359,63 @@ static void OnKeyPress(uchar key, int x, int y) {
   }
 }
 
+static void UpdateWindowTitle(uint update_period, uint current_time,
+                              const char *title_prefix, uint w, uint h,
+                              uint *frame_count) {
+  static char window_title_buffer[512];
+  static uint previous_fps_display_time;
+
+  assert(frame_count);
+
+  uint delta_time = current_time - previous_fps_display_time;
+
+  if (delta_time < update_period) {
+    return;
+  }
+
+  uint fps = *frame_count * (1000.0f / delta_time);
+
+  std::sprintf(window_title_buffer, "%s: %u fps , %u x %u resolution",
+               title_prefix, fps, w, h);
+
+  glutSetWindowTitle(window_title_buffer);
+
+  *frame_count = 0;
+  previous_fps_display_time = current_time;
+}
+
 static void Idle() {
+  static uint previous_idle_callback_time;
+  static char screenshot_filename_buffer[8];
+
   int current_time = glutGet(GLUT_ELAPSED_TIME);
 
-  int time_since_fps_displayed = current_time - previous_fps_display_time;
-  if (time_since_fps_displayed > FPS_DISPLAY_PERIOD_MSEC) {
-    uint avg_fps = frame_count * (1000.0f / time_since_fps_displayed);
-
-    std::sprintf(window_title_buffer, "%s: %d fps , %d x %d resolution",
-                 kWindowTitle, avg_fps, window_w, window_h);
-    glutSetWindowTitle(window_title_buffer);
-
-    frame_count = 0;
-    previous_fps_display_time = current_time;
-  }
+  UpdateWindowTitle(WINDOW_TITLE_UPDATE_PERIOD_MSEC, current_time,
+                    kWindowTitlePrefix, window_w, window_h, &frame_count);
 
   if (camera_path_index < camera_path_vertices.count) {
     float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
     camera_path_index += config.camera_speed * delta_time;
   }
 
-  previous_idle_callback_time = current_time;
+  view_mat = glm::lookAt(camera_path_vertices.positions[camera_path_index],
+                         camera_path_vertices.positions[camera_path_index] +
+                             camera_path_vertices.tangents[camera_path_index],
+                         camera_path_vertices.normals[camera_path_index]);
+
+  assert(window_h > 0);
+  float aspect = (float)window_w / window_h;
+  projection_mat =
+      glm::perspective(glm::radians(config.view_frustum.fov_y), aspect,
+                       config.view_frustum.near_z, config.view_frustum.far_z);
 
   if (record_video) {
     std::sprintf(screenshot_filename_buffer, "%03d.jpg", screenshot_count);
     SaveScreenshot(screenshot_filename_buffer, window_w, window_h);
     ++screenshot_count;
   }
+
+  previous_idle_callback_time = current_time;
 
   glutPostRedisplay();
 }
@@ -405,12 +424,6 @@ static void Display() {
   ++frame_count;
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  uint i = camera_path_index;
-  glm::mat4 model_view = glm::lookAt(
-      camera_path_vertices.positions[i],
-      camera_path_vertices.positions[i] + camera_path_vertices.tangents[i],
-      camera_path_vertices.normals[i]);
 
   GLboolean is_row_major = GL_FALSE;
 
@@ -426,11 +439,12 @@ static void Display() {
 
   // Rails
 
-  glm::mat4 rails_model_view = glm::translate(model_view, scene.rails.position);
+  glm::mat4 rails_model_view = glm::translate(view_mat, scene.rails.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(rails_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
+                     glm::value_ptr(projection_mat));
 
   glBindVertexArray(vao_names[kVertexFormat_Colored]);
 
@@ -458,12 +472,12 @@ static void Display() {
 
   // Ground
 
-  glm::mat4 ground_model_view =
-      glm::translate(model_view, scene.ground.position);
+  glm::mat4 ground_model_view = glm::translate(view_mat, scene.ground.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(ground_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
+                     glm::value_ptr(projection_mat));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
   glDrawArrays(GL_TRIANGLES, first, scene.ground.vertices.count);
@@ -471,11 +485,12 @@ static void Display() {
 
   // Sky
 
-  glm::mat4 sky_model_view = glm::translate(model_view, scene.sky.position);
+  glm::mat4 sky_model_view = glm::translate(view_mat, scene.sky.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(sky_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
+                     glm::value_ptr(projection_mat));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
   glDrawArrays(GL_TRIANGLES, first, scene.sky.vertices.count);
@@ -484,11 +499,12 @@ static void Display() {
   // Crossties
 
   glm::mat4 crossties_model_view =
-      glm::translate(model_view, scene.crossties.position);
+      glm::translate(view_mat, scene.crossties.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(crossties_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
+  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
+                     glm::value_ptr(projection_mat));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
   for (uint offset = 0; offset < scene.crossties.vertices.count; offset += 36) {
@@ -623,7 +639,7 @@ static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
 }
 
 int main(int argc, char **argv) {
-  ConfigureGlut(argc, argv, window_w, window_h, 0, 0, kWindowTitle);
+  ConfigureGlut(argc, argv, window_w, window_h, 0, 0, kWindowTitlePrefix);
 
   DefaultInit(&config);
   Status status = ParseConfig(argc, argv, &config);
