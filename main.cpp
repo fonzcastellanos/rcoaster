@@ -194,19 +194,20 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name,
   return kStatus_Ok;
 }
 
-Status SaveScreenshot(const char *filepath, int window_w, int window_h) {
+Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
   assert(filepath);
   assert(window_w >= 0);
   assert(window_h >= 0);
 
-  std::vector<uchar> screenshot(window_w * window_h * kRgbChannel__Count);
+  uchar *buffer = new uchar[window_w * window_h * kRgbChannel__Count];
 
-  glReadPixels(0, 0, window_w, window_h, GL_RGB, GL_UNSIGNED_BYTE,
-               screenshot.data());
-
+  glReadPixels(0, 0, window_w, window_h, GL_RGB, GL_UNSIGNED_BYTE, buffer);
   stbi_flip_vertically_on_write(1);
   int rc = stbi_write_jpg(filepath, window_w, window_h, kRgbChannel__Count,
-                          screenshot.data(), 95);
+                          buffer, 95);
+
+  delete[] buffer;
+
   if (rc == 0) {
     std::fprintf(stderr, "Could not write data to JPEG file %s\n", filepath);
     return kStatus_IoError;
