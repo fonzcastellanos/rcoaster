@@ -20,8 +20,8 @@ enum RgbChannel {
 };
 
 enum VertexFormat {
-  kVertexFormat_Untextured,
   kVertexFormat_Textured,
+  kVertexFormat_Colored,
   kVertexFormat__Count
 };
 
@@ -54,7 +54,7 @@ enum Texture {
 
 enum Vbo {
   kVbo_TexturedVertices,
-  kVbo_UntexturedVertices,
+  kVbo_ColoredVertices,
   kVbo_RailIndices,
   kVbo__Count
 };
