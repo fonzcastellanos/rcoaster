@@ -22,6 +22,16 @@ struct ColoredVertices {
   std::vector<uint> indices;
 };
 
+struct TexturedModel {
+  TexturedVertices vertices;
+  glm::vec3 position;
+};
+
+struct ColoredModel {
+  ColoredVertices vertices;
+  glm::vec3 position;
+};
+
 struct CameraPathVertices {
   std::vector<glm::vec3> positions;
   std::vector<glm::vec3> tangents;

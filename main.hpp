@@ -48,7 +48,7 @@ struct WorldState {
 enum Texture {
   kTexture_Ground,
   kTexture_Sky,
-  kTexture_Crosstie,
+  kTexture_Crossties,
   kTexture__Count
 };
 

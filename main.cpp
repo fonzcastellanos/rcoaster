@@ -28,9 +28,6 @@
 
 #define FPS_DISPLAY_TIME_MSEC 1000
 
-// Scene is contained in an axis-aligned bounding box.
-#define SCENE_AABB_SIDE_LEN 256
-
 // View frustum
 #define FOV_Y 45
 #define NEAR_Z 0.01
@@ -38,11 +35,6 @@
 
 #define SPLINE_MAX_LINE_LEN 0.5
 #define CAMERA_PATH_INDEX_STEP_PER_FRAME 3
-
-const glm::vec3 kGroundPosition = {0, -SCENE_AABB_SIDE_LEN * (1.0f / 4), 0};
-const glm::vec3 kSkyPosition = {};
-const glm::vec3 kRailsPosition = {};
-const glm::vec3 kCrosstiesPosition = {};
 
 const char *kWindowTitle = "rcoaster";
 
@@ -433,7 +425,7 @@ static void Display() {
 
   // Rails
 
-  glm::mat4 rails_model_view = glm::translate(model_view, kRailsPosition);
+  glm::mat4 rails_model_view = glm::translate(model_view, scene.rails.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(rails_model_view));
@@ -441,11 +433,11 @@ static void Display() {
 
   glBindVertexArray(vao_names[kVertexFormat_Untextured]);
 
-  glDrawElements(GL_TRIANGLES, scene.rails_vertices.indices.size() / 2,
+  glDrawElements(GL_TRIANGLES, scene.rails.vertices.indices.size() / 2,
                  GL_UNSIGNED_INT, BUFFER_OFFSET(0));
   glDrawElements(
-      GL_TRIANGLES, scene.rails_vertices.indices.size() / 2, GL_UNSIGNED_INT,
-      BUFFER_OFFSET(scene.rails_vertices.indices.size() / 2 * sizeof(GLuint)));
+      GL_TRIANGLES, scene.rails.vertices.indices.size() / 2, GL_UNSIGNED_INT,
+      BUFFER_OFFSET(scene.rails.vertices.indices.size() / 2 * sizeof(GLuint)));
 
   glBindVertexArray(0);
 
@@ -465,39 +457,40 @@ static void Display() {
 
   // Ground
 
-  glm::mat4 ground_model_view = glm::translate(model_view, kGroundPosition);
+  glm::mat4 ground_model_view =
+      glm::translate(model_view, scene.ground.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(ground_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-  glDrawArrays(GL_TRIANGLES, first, scene.ground_vertices.count);
-  first += scene.ground_vertices.count;
+  glDrawArrays(GL_TRIANGLES, first, scene.ground.vertices.count);
+  first += scene.ground.vertices.count;
 
   // Sky
 
-  glm::mat4 sky_model_view = glm::translate(model_view, kSkyPosition);
+  glm::mat4 sky_model_view = glm::translate(model_view, scene.sky.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(sky_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-  glDrawArrays(GL_TRIANGLES, first, scene.sky_vertices.count);
-  first += scene.sky_vertices.count;
+  glDrawArrays(GL_TRIANGLES, first, scene.sky.vertices.count);
+  first += scene.sky.vertices.count;
 
   // Crossties
 
   glm::mat4 crossties_model_view =
-      glm::translate(model_view, kCrosstiesPosition);
+      glm::translate(model_view, scene.crossties.position);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(crossties_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
-  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crosstie]);
-  for (uint offset = 0; offset < scene.crossties_vertices.count; offset += 36) {
+  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
+  for (uint offset = 0; offset < scene.crossties.vertices.count; offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 
@@ -509,12 +502,15 @@ static void Display() {
 static void Init(SceneConfig *cfg) {
   assert(cfg);
 
-  cfg->aabb_side_len = SCENE_AABB_SIDE_LEN;
+  cfg->aabb_side_len = 256;
 
+  cfg->ground_position = {0, -cfg->aabb_side_len * (1.0f / 4), 0};
   cfg->ground_tex_repeat_count = 36;
 
+  cfg->sky_position = {};
   cfg->sky_tex_repeat_count = 1;
 
+  cfg->rails_position = {};
   cfg->rails_color = {0.5, 0.5, 0.5, 1};
   cfg->rails_head_w = 0.2;
   cfg->rails_head_h = 0.1;
@@ -523,6 +519,7 @@ static void Init(SceneConfig *cfg) {
   cfg->rails_gauge = 2;
   cfg->rails_pos_offset_in_campath_norm_dir = -2;
 
+  cfg->crossties_position = {};
   cfg->crossties_separation_dist = 1;
   cfg->crossties_pos_offset_in_campath_norm_dir = -2;
 }
@@ -666,7 +663,7 @@ int main(int argc, char **argv) {
     }
 
     status =
-        InitTexture(argv[4], textures[kTexture_Crosstie], anisotropy_degree);
+        InitTexture(argv[4], textures[kTexture_Crossties], anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize crosstie texture.\n");
       return EXIT_FAILURE;
@@ -675,10 +672,10 @@ int main(int argc, char **argv) {
 
   glGenBuffers(kVbo__Count, vbo_names);
 
-  uint textured_vertex_count = scene.ground_vertices.count +
-                               scene.sky_vertices.count +
-                               scene.crossties_vertices.count;
-  uint untextured_vertex_count = scene.rails_vertices.count;
+  uint textured_vertex_count = scene.ground.vertices.count +
+                               scene.sky.vertices.count +
+                               scene.crossties.vertices.count;
+  uint untextured_vertex_count = scene.rails.vertices.count;
 
   // Buffer textured vertices.
   {
@@ -689,30 +686,30 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.ground_vertices.count * sizeof(glm::vec3);
+    uint size = scene.ground.vertices.count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.ground_vertices.positions);
+                    scene.ground.vertices.positions);
     offset += size;
-    size = scene.sky_vertices.count * sizeof(glm::vec3),
+    size = scene.sky.vertices.count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.sky_vertices.positions);
+                    scene.sky.vertices.positions);
     offset += size;
-    size = scene.crossties_vertices.count * sizeof(glm::vec3),
+    size = scene.crossties.vertices.count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.crossties_vertices.positions);
+                    scene.crossties.vertices.positions);
 
     offset += size;
-    size = scene.ground_vertices.count * sizeof(glm::vec2),
+    size = scene.ground.vertices.count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.ground_vertices.tex_coords);
+                    scene.ground.vertices.tex_coords);
     offset += size;
-    size = scene.sky_vertices.count * sizeof(glm::vec2),
+    size = scene.sky.vertices.count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.sky_vertices.tex_coords);
+                    scene.sky.vertices.tex_coords);
     offset += size;
-    size = scene.crossties_vertices.count * sizeof(glm::vec2),
+    size = scene.crossties.vertices.count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.crossties_vertices.tex_coords);
+                    scene.crossties.vertices.tex_coords);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -728,10 +725,10 @@ int main(int argc, char **argv) {
     uint offset = 0;
     uint size = untextured_vertex_count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.rails_vertices.positions);
+                    scene.rails.vertices.positions);
     offset += size;
     size = untextured_vertex_count * sizeof(glm::vec4),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, scene.rails_vertices.colors);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, scene.rails.vertices.colors);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -739,8 +736,8 @@ int main(int argc, char **argv) {
   // Buffer untextured indices.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-               scene.rails_vertices.indices.size() * sizeof(uint),
-               scene.rails_vertices.indices.data(), GL_STATIC_DRAW);
+               scene.rails.vertices.indices.size() * sizeof(uint),
+               scene.rails.vertices.indices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   glGenVertexArrays(kVertexFormat__Count, vao_names);
