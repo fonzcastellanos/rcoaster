@@ -405,7 +405,7 @@ static void Display() {
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  auto i = camera_path_index;
+  uint i = camera_path_index;
   glm::mat4 model_view = glm::lookAt(
       camera_path_vertices.positions[i],
       camera_path_vertices.positions[i] + camera_path_vertices.tangents[i],
@@ -414,10 +414,10 @@ static void Display() {
   GLboolean is_row_major = GL_FALSE;
 
   /*********************
-   * Untextured models
+   * Colored models
    *********************/
 
-  GLuint prog = program_names[kVertexFormat_Untextured];
+  GLuint prog = program_names[kVertexFormat_Colored];
   GLint model_view_mat_loc = glGetUniformLocation(prog, "model_view");
   GLint proj_mat_loc = glGetUniformLocation(prog, "projection");
 
@@ -431,7 +431,7 @@ static void Display() {
                      glm::value_ptr(rails_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
-  glBindVertexArray(vao_names[kVertexFormat_Untextured]);
+  glBindVertexArray(vao_names[kVertexFormat_Colored]);
 
   glDrawElements(GL_TRIANGLES, scene.rails.vertices.indices.size() / 2,
                  GL_UNSIGNED_INT, BUFFER_OFFSET(0));
@@ -676,7 +676,7 @@ int main(int argc, char **argv) {
   uint textured_vertex_count = scene.ground.vertices.count +
                                scene.sky.vertices.count +
                                scene.crossties.vertices.count;
-  uint untextured_vertex_count = scene.rails.vertices.count;
+  uint colored_vertex_count = scene.rails.vertices.count;
 
   // Buffer textured vertices.
   {
@@ -715,26 +715,26 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Buffer untextured vertices.
+  // Buffer colored vertices.
   {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_UntexturedVertices]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_ColoredVertices]);
 
     uint buffer_size =
-        untextured_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
+        colored_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = untextured_vertex_count * sizeof(glm::vec3);
+    uint size = colored_vertex_count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                     scene.rails.vertices.positions);
     offset += size;
-    size = untextured_vertex_count * sizeof(glm::vec4),
+    size = colored_vertex_count * sizeof(glm::vec4),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size, scene.rails.vertices.colors);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Buffer untextured indices.
+  // Buffer colored indices.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                scene.rails.vertices.indices.size() * sizeof(uint),
@@ -766,20 +766,20 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Setup untextured VAO.
+  // Setup colored VAO.
   {
-    GLuint prog = program_names[kVertexFormat_Untextured];
+    GLuint prog = program_names[kVertexFormat_Colored];
     GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
     GLuint color_loc = glGetAttribLocation(prog, "vert_color");
 
-    glBindVertexArray(vao_names[kVertexFormat_Untextured]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_UntexturedVertices]);
+    glBindVertexArray(vao_names[kVertexFormat_Colored]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_ColoredVertices]);
 
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
                           BUFFER_OFFSET(0));
     glVertexAttribPointer(
         color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4),
-        BUFFER_OFFSET(untextured_vertex_count * sizeof(glm::vec3)));
+        BUFFER_OFFSET(colored_vertex_count * sizeof(glm::vec3)));
 
     glEnableVertexAttribArray(pos_loc);
     glEnableVertexAttribArray(color_loc);
