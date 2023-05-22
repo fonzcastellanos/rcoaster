@@ -33,28 +33,26 @@ struct ColoredModel {
 };
 
 struct CameraPathVertices {
-  std::vector<glm::vec3> positions;
-  std::vector<glm::vec3> tangents;
-  std::vector<glm::vec3> normals;
-  std::vector<glm::vec3> binormals;
+  glm::vec3 *positions;
+  glm::vec3 *tangents;
+  glm::vec3 *normals;
+  glm::vec3 *binormals;
+  uint count;
 };
 
-uint Count(const CameraPathVertices *c);
+void EvalCatmullRomSpline(const glm::vec3 *control_points,
+                          uint control_point_count, float max_line_len,
+                          glm::vec3 **positions, glm::vec3 **tangents,
+                          uint *vertices_count);
 
-void EvalCatmullRomSpline(const std::vector<glm::vec3> *control_points,
-                          float max_line_len, std::vector<glm::vec3> *positions,
-                          std::vector<glm::vec3> *tangents);
+void CameraOrientation(const glm::vec3 *tangents, uint vertex_count,
+                       glm::vec3 *normals, glm::vec3 *binormals);
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
                                   TexturedVertices *vertices);
 
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
                         TexturedVertices *vertices);
-
-void CameraOrientation(const std::vector<glm::vec3> *tangents,
-                       std::vector<glm::vec3> *normals,
-                       std::vector<glm::vec3> *binormals);
-
 /*
 Gauge is the distance between the two rails.
 

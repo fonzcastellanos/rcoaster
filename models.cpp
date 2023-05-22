@@ -3,15 +3,6 @@
 #include <cassert>
 #include <glm/glm.hpp>
 
-uint Count(const CameraPathVertices *v) {
-  assert(v);
-  assert(v->positions.size() == v->tangents.size());
-  assert(v->tangents.size() == v->normals.size());
-  assert(v->normals.size() == v->binormals.size());
-
-  return v->positions.size();
-}
-
 constexpr float kTension = 0.5;
 const glm::mat4x4 kCatmullRomBasis(-kTension, 2 - kTension, kTension - 2,
                                    kTension, 2 * kTension, kTension - 3,
@@ -68,30 +59,64 @@ static void Subdivide(float u0, float u1, float max_line_len,
   }
 }
 
-void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
-                          float max_line_len, std::vector<glm::vec3> *positions,
-                          std::vector<glm::vec3> *tangents) {
-  assert(spline);
+void EvalCatmullRomSpline(const glm::vec3 *control_points,
+                          uint control_point_count, float max_line_len,
+                          glm::vec3 **positions, glm::vec3 **tangents,
+                          uint *vertex_count) {
+  assert(control_points);
   assert(positions);
   assert(tangents);
+  assert(vertex_count);
 
 #ifndef NDEBUG
   static constexpr float kTolerance = 0.00001;
 #endif
   assert(max_line_len + kTolerance > 0);
 
-  auto &spline_ = *spline;
+  std::vector<glm::vec3> positions_vec;
+  std::vector<glm::vec3> tangents_vec;
 
-  for (uint i = 1; i + 2 < spline->size(); ++i) {
+  const glm::vec3 *cp = control_points;
+  for (uint i = 1; i + 2 < control_point_count; ++i) {
     // clang-format off
     glm::mat4x3 control(
-      spline_[i - 1].x, spline_[i - 1].y, spline_[i - 1].z,
-      spline_[i].x, spline_[i].y, spline_[i].z,
-      spline_[i + 1].x, spline_[i + 1].y, spline_[i + 1].z,
-      spline_[i + 2].x, spline_[i + 2].y, spline_[i + 2].z
+      cp[i - 1].x, cp[i - 1].y, cp[i - 1].z,
+      cp[i].x, cp[i].y, cp[i].z,
+      cp[i + 1].x, cp[i + 1].y, cp[i + 1].z,
+      cp[i + 2].x, cp[i + 2].y, cp[i + 2].z
     );
     // clang-format on
-    Subdivide(0, 1, max_line_len, &control, positions, tangents);
+    Subdivide(0, 1, max_line_len, &control, &positions_vec, &tangents_vec);
+  }
+
+  assert(positions_vec.size() == tangents_vec.size());
+
+  *vertex_count = positions_vec.size();
+  *positions = new glm::vec3[*vertex_count];
+  *tangents = new glm::vec3[*vertex_count];
+
+  for (uint i = 0; i < *vertex_count; ++i) {
+    (*positions)[i] = positions_vec[i];
+    (*tangents)[i] = tangents_vec[i];
+  }
+}
+
+void CameraOrientation(const glm::vec3 *tangents, uint vertex_count,
+                       glm::vec3 *normals, glm::vec3 *binormals) {
+  assert(tangents);
+  assert(normals);
+  assert(binormals);
+  assert(vertex_count != 0);
+
+  // Initial binormal chosen arbitrarily.
+  static const glm::vec3 kInitialBinormal = {0, 1, -0.5};
+
+  normals[0] = glm::normalize(glm::cross(tangents[0], kInitialBinormal));
+  binormals[0] = glm::normalize(glm::cross(tangents[0], normals[0]));
+
+  for (uint i = 1; i < vertex_count; ++i) {
+    normals[i] = glm::normalize(glm::cross(binormals[i - 1], tangents[i]));
+    binormals[i] = glm::normalize(glm::cross(tangents[i], normals[i]));
   }
 }
 
@@ -218,33 +243,6 @@ void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
   }
 }
 
-void CameraOrientation(const std::vector<glm::vec3> *tangents,
-                       std::vector<glm::vec3> *normals,
-                       std::vector<glm::vec3> *binormals) {
-  assert(tangents);
-  assert(normals);
-  assert(binormals);
-  assert(!tangents->empty());
-
-  // Initial binormal chosen arbitrarily.
-  static const glm::vec3 kInitialBinormal = {0, 1, -0.5};
-
-  normals->resize(tangents->size());
-  binormals->resize(tangents->size());
-
-  const auto &tangents_ = *tangents;
-  auto &normals_ = *normals;
-  auto &binormals_ = *binormals;
-
-  normals_[0] = glm::normalize(glm::cross(tangents_[0], kInitialBinormal));
-  binormals_[0] = glm::normalize(glm::cross(tangents_[0], normals_[0]));
-
-  for (uint i = 1; i < tangents->size(); ++i) {
-    normals_[i] = glm::normalize(glm::cross(binormals_[i - 1], tangents_[i]));
-    binormals_[i] = glm::normalize(glm::cross(tangents_[i], normals_[i]));
-  }
-}
-
 void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
@@ -264,7 +262,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   auto &cv_binorm = campath->binormals;
   auto &cv_norm = campath->normals;
 
-  uint cv_count = Count(campath);
+  uint cv_count = campath->count;
   uint rv_count = 2 * cv_count * kCrossSectionVertexCount;
 
   vertices->count = rv_count;
@@ -281,8 +279,8 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   for (uint i = 0; i < 2; ++i) {
     for (uint j = 0; j < cv_count; ++j) {
       uint k = kCrossSectionVertexCount * (j + i * cv_count);
-      // See the comment block above the function declaration in the header file
-      // for the visual index-to-position mapping.
+      // See the comment block above the function declaration in the header
+      // file for the visual index-to-position mapping.
       pos[k] = cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
       pos[k + 1] = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
       pos[k + 2] = cv_pos[j] + 0.5f * head_w * cv_binorm[j];
@@ -409,7 +407,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
   auto &path_tan = campath->tangents;
   auto &path_binorm = campath->binormals;
   auto &path_norm = campath->normals;
-  uint path_count = Count(campath);
+  uint path_count = campath->count;
 
   uint max_vertex_count = 36 * (path_count - 1);
   glm::vec3 *pos = new glm::vec3[max_vertex_count];

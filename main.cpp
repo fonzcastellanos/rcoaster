@@ -369,7 +369,7 @@ static void OnKeyPress(uchar key, int x, int y) {
 }
 
 static void Idle() {
-  if (camera_path_index < Count(&camera_path_vertices)) {
+  if (camera_path_index < camera_path_vertices.count) {
     camera_path_index += CAMERA_PATH_INDEX_STEP_PER_FRAME;
   }
 
@@ -593,13 +593,16 @@ int main(int argc, char **argv) {
 
   // TODO: Support for multiple splines.
   assert(splines.size() == 1);
-  EvalCatmullRomSpline(&splines[0], SPLINE_MAX_LINE_LEN,
-                       &camera_path_vertices.positions,
-                       &camera_path_vertices.tangents);
+  EvalCatmullRomSpline(splines[0].data(), splines[0].size(),
+                       SPLINE_MAX_LINE_LEN, &camera_path_vertices.positions,
+                       &camera_path_vertices.tangents,
+                       &camera_path_vertices.count);
 
-  CameraOrientation(&camera_path_vertices.tangents,
-                    &camera_path_vertices.normals,
-                    &camera_path_vertices.binormals);
+  camera_path_vertices.normals = new glm::vec3[camera_path_vertices.count];
+  camera_path_vertices.binormals = new glm::vec3[camera_path_vertices.count];
+  CameraOrientation(camera_path_vertices.tangents, camera_path_vertices.count,
+                    camera_path_vertices.normals,
+                    camera_path_vertices.binormals);
 
   SceneConfig scene_cfg;
   Init(&scene_cfg);
