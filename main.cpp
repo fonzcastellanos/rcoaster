@@ -350,10 +350,10 @@ static void OnKeyPress(uchar key, int x, int y) {
       break;
     }
     case 'v': {
-      if (record_video == 1) {
+      record_video = !record_video;
+      if (!record_video) {
         screenshot_count = 0;
       }
-      record_video = !record_video;
       break;
     }
   }
