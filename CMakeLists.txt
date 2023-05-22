@@ -13,11 +13,15 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 add_subdirectory(vendor/glm)
 
 add_library(shader shader.cpp)
+
 add_library(models models.cpp)
 target_link_libraries(models PUBLIC glm)
 
+add_library(scene scene.cpp)
+target_link_libraries(scene PUBLIC glm models)
+
 add_executable(rcoaster main.cpp)
-target_link_libraries(rcoaster PRIVATE glm shader models)
+target_link_libraries(rcoaster PRIVATE glm scene shader models)
 target_include_directories(rcoaster PRIVATE vendor)
 
 if(LINUX)

@@ -96,125 +96,111 @@ void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  std::vector<glm::vec3> *positions,
-                                  std::vector<glm::vec2> *tex_coords) {
+                                  glm::vec3 *positions, glm::vec2 *tex_coords) {
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(positions);
   assert(tex_coords);
 
-  *positions = {{-side_len, 0, side_len}, {-side_len, 0, -side_len},
-                {side_len, 0, -side_len}, {-side_len, 0, side_len},
-                {side_len, 0, -side_len}, {side_len, 0, side_len}};
+  positions[0] = {-side_len, 0, side_len};
+  positions[1] = {-side_len, 0, -side_len};
+  positions[2] = {side_len, 0, -side_len};
+  positions[3] = {-side_len, 0, side_len};
+  positions[4] = {side_len, 0, -side_len};
+  positions[5] = {side_len, 0, side_len};
 
-  for (auto &p : *positions) {
-    p *= 0.5f;
+  for (uint i = 0; i < 6; ++i) {
+    positions[i] *= 0.5f;
   }
 
-  *tex_coords = {{0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0}};
+  tex_coords[0] = {0, 0};
+  tex_coords[1] = {0, tex_repeat_count};
+  tex_coords[2] = {tex_repeat_count, tex_repeat_count};
+  tex_coords[3] = {0, 0};
+  tex_coords[4] = {tex_repeat_count, tex_repeat_count};
+  tex_coords[5] = {tex_repeat_count, 0};
 }
 
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        std::vector<glm::vec3> *positions,
-                        std::vector<glm::vec2> *tex_coords) {
+                        glm::vec3 *positions, glm::vec2 *tex_coords) {
   assert(side_len > 0);
   assert(positions);
   assert(tex_coords);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
 
-  *positions = {// x = -1 face
-                {-side_len, -side_len, -side_len},
-                {-side_len, side_len, -side_len},
-                {-side_len, side_len, side_len},
-                {-side_len, -side_len, -side_len},
-                {-side_len, side_len, side_len},
-                {-side_len, -side_len, side_len},
+  uint i = 0;
 
-                // x = 1 face
-                {side_len, -side_len, -side_len},
-                {side_len, side_len, -side_len},
-                {side_len, side_len, side_len},
-                {side_len, -side_len, -side_len},
-                {side_len, side_len, side_len},
-                {side_len, -side_len, side_len},
+  // x = -1 face
+  positions[i] = {-side_len, -side_len, -side_len};
+  positions[i + 1] = {-side_len, side_len, -side_len};
+  positions[i + 2] = {-side_len, side_len, side_len};
+  positions[i + 3] = {-side_len, -side_len, -side_len};
+  positions[i + 4] = {-side_len, side_len, side_len};
+  positions[i + 5] = {-side_len, -side_len, side_len};
 
-                // y = -1 face
-                {-side_len, -side_len, -side_len},
-                {-side_len, -side_len, side_len},
-                {side_len, -side_len, side_len},
-                {-side_len, -side_len, -side_len},
-                {side_len, -side_len, side_len},
-                {side_len, -side_len, -side_len},
+  i += 6;
 
-                // y = 1 face
-                {-side_len, side_len, -side_len},
-                {-side_len, side_len, side_len},
-                {side_len, side_len, side_len},
-                {-side_len, side_len, -side_len},
-                {side_len, side_len, side_len},
-                {side_len, side_len, -side_len},
+  // x = 1 face
+  positions[i] = {side_len, -side_len, -side_len};
+  positions[i + 1] = {side_len, side_len, -side_len};
+  positions[i + 2] = {side_len, side_len, side_len};
+  positions[i + 3] = {side_len, -side_len, -side_len};
+  positions[i + 4] = {side_len, side_len, side_len};
+  positions[i + 5] = {side_len, -side_len, side_len};
 
-                // z = -1 face
-                {-side_len, -side_len, -side_len},
-                {-side_len, side_len, -side_len},
-                {side_len, side_len, -side_len},
-                {-side_len, -side_len, -side_len},
-                {side_len, side_len, -side_len},
-                {side_len, -side_len, -side_len},
+  i += 6;
 
-                // z = 1 face
-                {-side_len, -side_len, side_len},
-                {-side_len, side_len, side_len},
-                {side_len, side_len, side_len},
-                {-side_len, -side_len, side_len},
-                {side_len, side_len, side_len},
-                {side_len, -side_len, side_len}};
+  // y = -1 face
+  positions[i] = {-side_len, -side_len, -side_len};
+  positions[i + 1] = {-side_len, -side_len, side_len};
+  positions[i + 2] = {side_len, -side_len, side_len};
+  positions[i + 3] = {-side_len, -side_len, -side_len};
+  positions[i + 4] = {side_len, -side_len, side_len};
+  positions[i + 5] = {side_len, -side_len, -side_len};
 
-  for (auto &p : *positions) {
-    p *= 0.5f;
+  i += 6;
+
+  // y = 1 face
+  positions[i] = {-side_len, side_len, -side_len};
+  positions[i + 1] = {-side_len, side_len, side_len};
+  positions[i + 2] = {side_len, side_len, side_len};
+  positions[i + 3] = {-side_len, side_len, -side_len};
+  positions[i + 4] = {side_len, side_len, side_len};
+  positions[i + 5] = {side_len, side_len, -side_len};
+
+  i += 6;
+
+  // z = -1 face
+  positions[i] = {-side_len, -side_len, -side_len};
+  positions[i + 1] = {-side_len, side_len, -side_len};
+  positions[i + 2] = {side_len, side_len, -side_len};
+  positions[i + 3] = {-side_len, -side_len, -side_len};
+  positions[i + 4] = {side_len, side_len, -side_len};
+  positions[i + 5] = {side_len, -side_len, -side_len};
+
+  i += 6;
+
+  // z = 1 face
+  positions[i] = {-side_len, -side_len, side_len};
+  positions[i + 1] = {-side_len, side_len, side_len};
+  positions[i + 2] = {side_len, side_len, side_len};
+  positions[i + 3] = {-side_len, -side_len, side_len};
+  positions[i + 4] = {side_len, side_len, side_len};
+  positions[i + 5] = {side_len, -side_len, side_len};
+
+  for (uint j = 0; j < 36; ++j) {
+    positions[j] *= 0.5f;
   }
 
-  *tex_coords = {{0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0},
-                 {0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0},
-                 {0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0},
-                 {0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0},
-                 {0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0},
-                 {0, 0},
-                 {0, tex_repeat_count},
-                 {tex_repeat_count, tex_repeat_count},
-                 {0, 0},
-                 {tex_repeat_count, tex_repeat_count},
-                 {tex_repeat_count, 0}};
+  for (uint j = 0; j < 6; ++j) {
+    uint k = j * 6;
+    tex_coords[k] = {0, 0};
+    tex_coords[k + 1] = {0, tex_repeat_count};
+    tex_coords[k + 2] = {tex_repeat_count, tex_repeat_count};
+    tex_coords[k + 3] = {0, 0};
+    tex_coords[k + 4] = {tex_repeat_count, tex_repeat_count};
+    tex_coords[k + 5] = {tex_repeat_count, 0};
+  }
 }
 
 void CameraOrientation(const std::vector<glm::vec3> *tangents,
@@ -393,116 +379,152 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
 }
 
 void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
-                   float pos_offset_in_campath_norm_dir,
-                   std::vector<glm::vec3> *positions,
-                   std::vector<glm::vec2> *tex_coords) {
+                   float pos_offset_in_campath_norm_dir, glm::vec3 **positions,
+                   glm::vec2 **tex_coords, uint *count) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
-  static constexpr int kVertexCount = 8;
+  static constexpr int kUniqPosCountPerCrosstie = 8;
   static constexpr float kBarDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
 
   assert(campath);
   assert(positions);
   assert(tex_coords);
+  assert(count);
   assert(separation_dist + kTolerance > 0);
 
-  auto &p_pos = campath->positions;
-  auto &p_tan = campath->tangents;
-  auto &p_binorm = campath->binormals;
-  auto &p_norm = campath->normals;
-  uint p_count = Count(campath);
+  auto &path_pos = campath->positions;
+  auto &path_tan = campath->tangents;
+  auto &path_binorm = campath->binormals;
+  auto &path_norm = campath->normals;
+  uint path_count = Count(campath);
 
-  auto &pos = *positions;
-  auto &texc = *tex_coords;
+  uint max_vertex_count = 36 * (path_count - 1);
+  glm::vec3 *pos = new glm::vec3[max_vertex_count];
+  glm::vec2 *texc = new glm::vec2[max_vertex_count];
 
-  glm::vec3 v[kVertexCount];
+  glm::vec3 p[kUniqPosCountPerCrosstie];
   float dist_moved = 0;
-  for (uint i = 1; i < p_count; ++i) {
-    dist_moved += glm::length(p_pos[i] - p_pos[i - 1]);
+  uint posi = 0;
+  uint texci = 0;
+  for (uint i = 1; i < path_count; ++i) {
+    dist_moved += glm::length(path_pos[i] - path_pos[i - 1]);
 
     if (dist_moved < separation_dist + kTolerance) {
       continue;
     }
 
-    v[0] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) +
-           p_binorm[i];
-    v[1] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) + p_binorm[i];
-    v[2] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) -
-           p_binorm[i] - kAlpha * p_binorm[i];
-    v[3] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) - p_binorm[i] -
-           kAlpha * p_binorm[i];
+    p[0] = path_pos[i] +
+           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) +
+           path_binorm[i];
+    p[1] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) +
+           path_binorm[i];
+    p[2] = path_pos[i] +
+           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) -
+           path_binorm[i] - kAlpha * path_binorm[i];
+    p[3] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) -
+           path_binorm[i] - kAlpha * path_binorm[i];
 
-    v[4] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) +
-           p_binorm[i] + kBarDepth * p_tan[i];
-    v[5] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) + p_binorm[i] +
-           kBarDepth * p_tan[i];
-    v[6] = p_pos[i] + kAlpha * (-kBeta * p_norm[i] + p_binorm[i] * 0.5f) -
-           p_binorm[i] + kBarDepth * p_tan[i] - kAlpha * p_binorm[i];
-    v[7] = p_pos[i] + kAlpha * (-p_norm[i] + p_binorm[i] * 0.5f) - p_binorm[i] +
-           kBarDepth * p_tan[i] - kAlpha * p_binorm[i];
+    p[4] = path_pos[i] +
+           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) +
+           path_binorm[i] + kBarDepth * path_tan[i];
+    p[5] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) +
+           path_binorm[i] + kBarDepth * path_tan[i];
+    p[6] = path_pos[i] +
+           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) -
+           path_binorm[i] + kBarDepth * path_tan[i] - kAlpha * path_binorm[i];
+    p[7] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) -
+           path_binorm[i] + kBarDepth * path_tan[i] - kAlpha * path_binorm[i];
 
-    for (uint j = 0; j < kVertexCount; ++j) {
-      v[j] += pos_offset_in_campath_norm_dir * p_norm[i];
+    for (uint j = 0; j < kUniqPosCountPerCrosstie; ++j) {
+      p[j] += pos_offset_in_campath_norm_dir * path_norm[i];
     }
 
     // Top face
-    pos.push_back(v[6]);
-    pos.push_back(v[5]);
-    pos.push_back(v[2]);
-    pos.push_back(v[5]);
-    pos.push_back(v[1]);
-    pos.push_back(v[2]);
+    pos[posi] = p[6];
+    pos[posi + 1] = p[5];
+    pos[posi + 2] = p[2];
+    pos[posi + 3] = p[5];
+    pos[posi + 4] = p[1];
+    pos[posi + 5] = p[2];
+
+    posi += 6;
 
     // Right face
-    pos.push_back(v[5]);
-    pos.push_back(v[4]);
-    pos.push_back(v[1]);
-    pos.push_back(v[4]);
-    pos.push_back(v[0]);
-    pos.push_back(v[1]);
+    pos[posi] = p[5];
+    pos[posi + 1] = p[4];
+    pos[posi + 2] = p[1];
+    pos[posi + 3] = p[4];
+    pos[posi + 4] = p[0];
+    pos[posi + 5] = p[1];
+
+    posi += 6;
 
     // Bottom face
-    pos.push_back(v[4]);
-    pos.push_back(v[7]);
-    pos.push_back(v[0]);
-    pos.push_back(v[7]);
-    pos.push_back(v[3]);
-    pos.push_back(v[0]);
+    pos[posi] = p[4];
+    pos[posi + 1] = p[7];
+    pos[posi + 2] = p[0];
+    pos[posi + 3] = p[7];
+    pos[posi + 4] = p[3];
+    pos[posi + 5] = p[0];
+
+    posi += 6;
 
     // Left face
-    pos.push_back(v[7]);
-    pos.push_back(v[6]);
-    pos.push_back(v[3]);
-    pos.push_back(v[6]);
-    pos.push_back(v[2]);
-    pos.push_back(v[3]);
+    pos[posi] = p[7];
+    pos[posi + 1] = p[6];
+    pos[posi + 2] = p[3];
+    pos[posi + 3] = p[6];
+    pos[posi + 4] = p[2];
+    pos[posi + 5] = p[3];
+
+    posi += 6;
 
     // Back face
-    pos.push_back(v[5]);
-    pos.push_back(v[6]);
-    pos.push_back(v[4]);
-    pos.push_back(v[6]);
-    pos.push_back(v[7]);
-    pos.push_back(v[4]);
+    pos[posi] = p[5];
+    pos[posi + 1] = p[6];
+    pos[posi + 2] = p[4];
+    pos[posi + 3] = p[6];
+    pos[posi + 4] = p[7];
+    pos[posi + 5] = p[4];
+
+    posi += 6;
 
     // Front face
-    pos.push_back(v[2]);
-    pos.push_back(v[1]);
-    pos.push_back(v[3]);
-    pos.push_back(v[1]);
-    pos.push_back(v[0]);
-    pos.push_back(v[3]);
+    pos[posi] = p[2];
+    pos[posi + 1] = p[1];
+    pos[posi + 2] = p[3];
+    pos[posi + 3] = p[1];
+    pos[posi + 4] = p[0];
+    pos[posi + 5] = p[3];
+
+    posi += 6;
 
     for (uint j = 0; j < 6; ++j) {
-      texc.emplace_back(0, 1);
-      texc.emplace_back(1, 1);
-      texc.emplace_back(0, 0);
-      texc.emplace_back(1, 1);
-      texc.emplace_back(1, 0);
-      texc.emplace_back(0, 0);
+      texc[texci] = glm::vec2(0, 1);
+      texc[texci + 1] = glm::vec2(1, 1);
+      texc[texci + 2] = glm::vec2(0, 0);
+      texc[texci + 3] = glm::vec2(1, 1);
+      texc[texci + 4] = glm::vec2(1, 0);
+      texc[texci + 5] = glm::vec2(0, 0);
+
+      texci += 6;
     }
 
     dist_moved = 0;
   }
+
+  *count = posi;
+
+  *positions = new glm::vec3[*count];
+  for (uint i = 0; i < *count; ++i) {
+    (*positions)[i] = pos[i];
+  }
+  delete[] pos;
+
+  *tex_coords = new glm::vec2[*count];
+  for (uint i = 0; i < *count; ++i) {
+    (*tex_coords)[i] = texc[i];
+  }
+  delete[] texc;
 }

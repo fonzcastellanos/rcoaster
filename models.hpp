@@ -21,13 +21,21 @@ void EvalCatmullRomSpline(const std::vector<glm::vec3> *control_points,
                           float max_line_len, std::vector<glm::vec3> *positions,
                           std::vector<glm::vec3> *tangents);
 
-void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  std::vector<glm::vec3> *positions,
-                                  std::vector<glm::vec2> *tex_coords);
+/*
+Makes an axis-aligned xz square plane centered at the origin.
 
+6 positions and 6 texture coordinates will be produced.
+*/
+void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
+                                  glm::vec3 *positions, glm::vec2 *tex_coords);
+
+/*
+Makes an axis-aligned box centered at the origin.
+
+36 positions and 36 texture coordinates will be produced.
+*/
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        std::vector<glm::vec3> *positions,
-                        std::vector<glm::vec2> *tex_coords);
+                        glm::vec3 *positions, glm::vec2 *tex_coords);
 
 void CameraOrientation(const std::vector<glm::vec3> *tangents,
                        std::vector<glm::vec3> *normals,
@@ -62,8 +70,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                std::vector<glm::vec4> *colors, std::vector<uint> *indices);
 
 void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
-                   float pos_offset_in_campath_norm_dir,
-                   std::vector<glm::vec3> *positions,
-                   std::vector<glm::vec2> *tex_coords);
+                   float pos_offset_in_campath_norm_dir, glm::vec3 **positions,
+                   glm::vec2 **tex_coords, uint *count);
 
 #endif  // RCOASTER_MODELS_HPP

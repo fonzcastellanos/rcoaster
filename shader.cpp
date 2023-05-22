@@ -103,7 +103,7 @@ Status MakeShaderObj(const std::string *src, ShaderType type, GLuint *name) {
     return kStatus_GlError;
   }
 
-  const GLchar *srcs[1] = {src->data()};
+  const GLchar *const srcs[1] = {src->data()};
   const GLint lens[1] = {(GLint)src->size()};
 
   glShaderSource(*name, 1, srcs, lens);

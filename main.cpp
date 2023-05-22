@@ -13,6 +13,7 @@
 #include "main.hpp"
 #include "models.hpp"
 #include "opengl.hpp"
+#include "scene.hpp"
 #include "shader.hpp"
 #include "status.hpp"
 #include "stb_image.h"
@@ -35,28 +36,18 @@
 #define NEAR_Z 0.01
 #define FAR_Z 10000
 
-#define GROUND_TEX_REPEAT_COUNT 36
-#define SKY_TEX_REPEAT_COUNT 1
-
-#define RAIL_COLOR_RED 0.5
-#define RAIL_COLOR_BLUE 0.5
-#define RAIL_COLOR_GREEN 0.5
-#define RAIL_COLOR_ALPHA 1
-#define RAIL_HEAD_W 0.2
-#define RAIL_HEAD_H 0.1
-#define RAIL_WEB_W 0.1
-#define RAIL_WEB_H 0.1
-#define RAIL_GAUGE 2
-#define RAIL_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
-
-#define CROSSTIE_SEPARATION_DIST 1
-#define CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR -2
-
 #define SPLINE_MAX_LINE_LEN 0.5
-
 #define CAMERA_PATH_INDEX_STEP_PER_FRAME 3
 
-const char *kWindowTitle = "Roller Coaster";
+constexpr uint kGroundVertexCount = 6;
+constexpr uint kSkyVertexCount = 36;
+
+const glm::vec3 kGroundPosition = {0, -SCENE_AABB_SIDE_LEN * (1.0f / 4), 0};
+const glm::vec3 kSkyPosition = {};
+const glm::vec3 kRailsPosition = {};
+const glm::vec3 kCrosstiesPosition = {};
+
+const char *kWindowTitle = "rcoaster";
 
 const char *const kVertexFormatStrings[kVertexFormat__Count]{"untextured",
                                                              "textured"};
@@ -255,8 +246,6 @@ static uint camera_path_index;
 static CameraPathVertices camera_path_vertices;
 
 static uint rails_indices_count;
-static uint ground_vertex_count;
-static uint sky_vertex_count;
 static uint crossties_vertex_count;
 
 static GLuint program_names[kVertexFormat__Count];
@@ -265,11 +254,6 @@ static GLuint vao_names[kVertexFormat__Count];
 static GLuint vbo_names[kVbo__Count];
 
 static glm::mat4 projection;
-
-const glm::vec3 ground_position = {0, -SCENE_AABB_SIDE_LEN * (1.0f / 4), 0};
-const glm::vec3 sky_position = {};
-const glm::vec3 rails_position = {};
-const glm::vec3 crossties_position = {};
 
 static void OnWindowReshape(int w, int h) {
   window_w = w;
@@ -374,7 +358,7 @@ static void OnKeyPress(uchar key, int x, int y) {
   switch (key) {
     case 27: {  // ESC key
 #ifdef __APPLE__
-      exit(0);
+      std::exit(EXIT_SUCCESS);
 #elif defined(linux)
       glutLeaveMainLoop();
 #else
@@ -453,7 +437,7 @@ static void Display() {
 
   // Rails
 
-  glm::mat4 rails_model_view = glm::translate(model_view, rails_position);
+  glm::mat4 rails_model_view = glm::translate(model_view, kRailsPosition);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(rails_model_view));
@@ -484,32 +468,32 @@ static void Display() {
 
   // Ground
 
-  glm::mat4 ground_model_view = glm::translate(model_view, ground_position);
+  glm::mat4 ground_model_view = glm::translate(model_view, kGroundPosition);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(ground_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-  glDrawArrays(GL_TRIANGLES, first, ground_vertex_count);
-  first += ground_vertex_count;
+  glDrawArrays(GL_TRIANGLES, first, kGroundVertexCount);
+  first += kGroundVertexCount;
 
   // Sky
 
-  glm::mat4 sky_model_view = glm::translate(model_view, sky_position);
+  glm::mat4 sky_model_view = glm::translate(model_view, kSkyPosition);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(sky_model_view));
   glUniformMatrix4fv(proj_mat_loc, 1, is_row_major, glm::value_ptr(projection));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-  glDrawArrays(GL_TRIANGLES, first, sky_vertex_count);
-  first += sky_vertex_count;
+  glDrawArrays(GL_TRIANGLES, first, kSkyVertexCount);
+  first += kSkyVertexCount;
 
   // Crossties
 
   glm::mat4 crossties_model_view =
-      glm::translate(model_view, crossties_position);
+      glm::translate(model_view, kCrosstiesPosition);
 
   glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
                      glm::value_ptr(crossties_model_view));
@@ -523,6 +507,27 @@ static void Display() {
   glBindVertexArray(0);
 
   glutSwapBuffers();
+}
+
+static void Init(SceneConfig *cfg) {
+  assert(cfg);
+
+  cfg->aabb_side_len = SCENE_AABB_SIDE_LEN;
+
+  cfg->ground_tex_repeat_count = 36;
+
+  cfg->sky_tex_repeat_count = 1;
+
+  cfg->rails_color = {0.5, 0.5, 0.5, 1};
+  cfg->rails_head_w = 0.2;
+  cfg->rails_head_h = 0.1;
+  cfg->rails_web_w = 0.1;
+  cfg->rails_web_h = 0.1;
+  cfg->rails_gauge = 2;
+  cfg->rails_pos_offset_in_campath_norm_dir = -2;
+
+  cfg->crossties_separation_dist = 1;
+  cfg->crossties_pos_offset_in_campath_norm_dir = -2;
 }
 
 int main(int argc, char **argv) {
@@ -601,39 +606,13 @@ int main(int argc, char **argv) {
                     &camera_path_vertices.normals,
                     &camera_path_vertices.binormals);
 
-  /*************************************
-   * Create models.
-   *************************************/
+  SceneConfig scene_cfg;
+  Init(&scene_cfg);
 
-  std::vector<glm::vec3> ground_positions;
-  std::vector<glm::vec2> ground_tex_coords;
-  MakeAxisAlignedXzSquarePlane(SCENE_AABB_SIDE_LEN, GROUND_TEX_REPEAT_COUNT,
-                               &ground_positions, &ground_tex_coords);
-  ground_vertex_count = ground_positions.size();
-
-  std::vector<glm::vec3> sky_positions;
-  std::vector<glm::vec2> sky_tex_coords;
-  MakeAxisAlignedBox(SCENE_AABB_SIDE_LEN, SKY_TEX_REPEAT_COUNT, &sky_positions,
-                     &sky_tex_coords);
-  sky_vertex_count = sky_positions.size();
-
-  glm::vec4 rail_color(RAIL_COLOR_RED, RAIL_COLOR_GREEN, RAIL_COLOR_BLUE,
-                       RAIL_COLOR_ALPHA);
-  std::vector<glm::vec3> rail_positions;
-  std::vector<glm::vec4> rail_colors;
-  std::vector<GLuint> rail_indices;
-  MakeRails(&camera_path_vertices, &rail_color, RAIL_HEAD_W, RAIL_HEAD_H,
-            RAIL_WEB_W, RAIL_WEB_H, RAIL_GAUGE,
-            RAIL_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR, &rail_positions,
-            &rail_colors, &rail_indices);
-  rails_indices_count = rail_indices.size();
-
-  std::vector<glm::vec3> crossties_positions;
-  std::vector<glm::vec2> crossties_tex_coords;
-  MakeCrossties(&camera_path_vertices, CROSSTIE_SEPARATION_DIST,
-                CROSSTIE_POSITION_OFFSET_IN_CAMERA_PATH_NORMAL_DIR,
-                &crossties_positions, &crossties_tex_coords);
-  crossties_vertex_count = crossties_positions.size();
+  Scene scene;
+  Make(&scene_cfg, &camera_path_vertices, &scene);
+  rails_indices_count = scene.rails_vertex_indices.size();
+  crossties_vertex_count = scene.crossties_vertices.count;
 
   /************************************
    * Setup OpenGL state.
@@ -704,8 +683,8 @@ int main(int argc, char **argv) {
   glGenBuffers(kVbo__Count, vbo_names);
 
   uint textured_vertex_count =
-      ground_vertex_count + sky_vertex_count + crossties_vertex_count;
-  uint untextured_vertex_count = rail_positions.size();
+      kGroundVertexCount + kSkyVertexCount + crossties_vertex_count;
+  uint untextured_vertex_count = Count(&scene.rails_vertices);
 
   // Buffer textured vertices.
   {
@@ -716,24 +695,30 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = ground_vertex_count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_positions.data());
+    uint size = kGroundVertexCount * sizeof(glm::vec3);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.ground_vertices.positions);
     offset += size;
-    size = sky_vertex_count * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_positions.data());
+    size = kSkyVertexCount * sizeof(glm::vec3),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.sky_vertices.positions);
     offset += size;
     size = crossties_vertex_count * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_positions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.crossties_vertices.positions);
 
     offset += size;
-    size = ground_vertex_count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, ground_tex_coords.data());
+    size = kGroundVertexCount * sizeof(glm::vec2),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.ground_vertices.tex_coords);
     offset += size;
-    size = sky_vertex_count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, sky_tex_coords.data());
+    size = kSkyVertexCount * sizeof(glm::vec2),
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.sky_vertices.tex_coords);
     offset += size;
     size = crossties_vertex_count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, crossties_tex_coords.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.crossties_vertices.tex_coords);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -748,18 +733,20 @@ int main(int argc, char **argv) {
 
     uint offset = 0;
     uint size = untextured_vertex_count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, rail_positions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.rails_vertices.positions.data());
     offset += size;
     size = untextured_vertex_count * sizeof(glm::vec4),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, rail_colors.data());
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                    scene.rails_vertices.colors.data());
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
   // Buffer untextured indices.
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rails_indices_count * sizeof(GLuint),
-               rail_indices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, rails_indices_count * sizeof(uint),
+               scene.rails_vertex_indices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   glGenVertexArrays(kVertexFormat__Count, vao_names);
@@ -811,6 +798,8 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
+
+  Free(&scene);
 
   glutMainLoop();
 }
