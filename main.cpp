@@ -29,11 +29,6 @@
 
 #define FPS_DISPLAY_TIME_MSEC 1000
 
-// View frustum
-#define FOV_Y 45
-#define NEAR_Z 0.01
-#define FAR_Z 10000
-
 #define SPLINE_MAX_LINE_LEN 0.5
 #define CAMERA_PATH_INDEX_STEP_PER_FRAME 3
 
@@ -221,6 +216,7 @@ Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
   return kStatus_Ok;
 }
 
+static Config config;
 static Scene scene;
 
 static uint screenshot_count;
@@ -257,8 +253,9 @@ static void OnWindowReshape(int w, int h) {
 
   float aspect = (float)window_w / window_h;
 
-  projection = glm::perspective(glm::radians((float)FOV_Y), aspect,
-                                (float)NEAR_Z, (float)FAR_Z);
+  projection =
+      glm::perspective(glm::radians(config.view_frustum.fov_y), aspect,
+                       config.view_frustum.near_z, config.view_frustum.far_z);
 }
 
 static void OnPassiveMouseMotion(int x, int y) {
@@ -558,6 +555,11 @@ void ConfigureGlut(int argc, char **argv, uint window_w, uint window_h,
 
 void DefaultInit(Config *c) {
   assert(c);
+
+  c->view_frustum.fov_y = 60;
+  c->view_frustum.far_z = 10000;
+  c->view_frustum.near_z = 0.01;
+
   c->is_verbose = 0;
 }
 
@@ -620,15 +622,14 @@ static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
 int main(int argc, char **argv) {
   ConfigureGlut(argc, argv, window_w, window_h, 0, 0, kWindowTitle);
 
-  Config cfg;
-  DefaultInit(&cfg);
-  Status status = ParseConfig(argc, argv, &cfg);
+  DefaultInit(&config);
+  Status status = ParseConfig(argc, argv, &config);
   if (status != kStatus_Ok) {
     std::fprintf(stderr, "Failed to parse config.\n");
     return EXIT_FAILURE;
   }
 
-  if (cfg.is_verbose) {
+  if (config.is_verbose) {
     std::printf("OpenGL Info: \n");
     std::printf("  Version: %s\n", glGetString(GL_VERSION));
     std::printf("  Renderer: %s\n", glGetString(GL_RENDERER));
@@ -649,11 +650,11 @@ int main(int argc, char **argv) {
    ************************************/
 
   std::vector<std::vector<glm::vec3>> splines;
-  status = LoadSplines(cfg.track_filepath, &splines);
+  status = LoadSplines(config.track_filepath, &splines);
   if (status != kStatus_Ok) {
     std::fprintf(stderr, "Could not load splines.\n");
   }
-  if (cfg.is_verbose) {
+  if (config.is_verbose) {
     std::printf("Loaded spline count: %lu\n", splines.size());
     for (uint i = 0; i < splines.size(); ++i) {
       std::printf("Control point count in spline %u: %lu\n", i,
@@ -720,27 +721,27 @@ int main(int argc, char **argv) {
     GLfloat max_anisotropy_degree;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
 
-    if (cfg.is_verbose) {
+    if (config.is_verbose) {
       std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
     }
 
     GLfloat anisotropy_degree = max_anisotropy_degree * 0.5f;
 
-    status = InitTexture(cfg.ground_texture_filepath, textures[kTexture_Ground],
-                         anisotropy_degree);
+    status = InitTexture(config.ground_texture_filepath,
+                         textures[kTexture_Ground], anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize ground texture.\n");
       return EXIT_FAILURE;
     }
 
-    status = InitTexture(cfg.sky_texture_filepath, textures[kTexture_Sky],
+    status = InitTexture(config.sky_texture_filepath, textures[kTexture_Sky],
                          anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize sky texture.\n");
       return EXIT_FAILURE;
     }
 
-    status = InitTexture(cfg.crossties_texture_filepath,
+    status = InitTexture(config.crossties_texture_filepath,
                          textures[kTexture_Crossties], anisotropy_degree);
     if (status != kStatus_Ok) {
       std::fprintf(stderr, "Failed to initialize crosstie texture.\n");

@@ -4,11 +4,21 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+struct ViewFrustum {
+  float fov_y;
+  float near_z;
+  float far_z;
+};
+
 struct Config {
   char* track_filepath;
   char* ground_texture_filepath;
   char* sky_texture_filepath;
   char* crossties_texture_filepath;
+
+  ViewFrustum view_frustum;
+
+  int camera_speed;
   int is_verbose;
 };
 
