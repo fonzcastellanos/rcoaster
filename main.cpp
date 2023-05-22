@@ -23,9 +23,7 @@
 
 #define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
-#define SCREENSHOT_FILENAME_BUFFER_SIZE 8
 #define FILEPATH_BUFFER_SIZE 4096
-
 #define FPS_DISPLAY_PERIOD_MSEC 1000
 
 const char *kUsageMessage =
