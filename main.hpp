@@ -4,6 +4,8 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "types.hpp"
+
 struct ViewFrustum {
   float fov_y;
   float near_z;
@@ -18,7 +20,10 @@ struct Config {
 
   ViewFrustum view_frustum;
 
-  int camera_speed;
+  // Camera speed in spline segment per second.
+  float camera_speed;
+  float max_spline_segment_len;
+
   int is_verbose;
 };
 

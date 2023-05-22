@@ -23,7 +23,7 @@ static glm::vec3 CatmullRomSplineTangent(float u, const glm::mat4x3 *control) {
   return *control * kCatmullRomBasis * parameters;
 }
 
-static void Subdivide(float u0, float u1, float max_line_len,
+static void Subdivide(float u0, float u1, float max_segment_len,
                       const glm::mat4x3 *control,
                       std::vector<glm::vec3> *positions,
                       std::vector<glm::vec3> *tangents) {
@@ -34,16 +34,16 @@ static void Subdivide(float u0, float u1, float max_line_len,
 #ifndef NDEBUG
   static constexpr float kTolerance = 0.00001;
 #endif
-  assert(max_line_len + kTolerance > 0);
+  assert(max_segment_len + kTolerance > 0);
 
   glm::vec3 p0 = CatmullRomSplinePosition(u0, control);
   glm::vec3 p1 = CatmullRomSplinePosition(u1, control);
 
-  if (glm::length(p1 - p0) > max_line_len) {
+  if (glm::length(p1 - p0) > max_segment_len) {
     float umid = (u0 + u1) * 0.5f;
 
-    Subdivide(u0, umid, max_line_len, control, positions, tangents);
-    Subdivide(umid, u1, max_line_len, control, positions, tangents);
+    Subdivide(u0, umid, max_segment_len, control, positions, tangents);
+    Subdivide(umid, u1, max_segment_len, control, positions, tangents);
   } else {
     positions->push_back(p0);
     positions->push_back(p1);
@@ -60,7 +60,7 @@ static void Subdivide(float u0, float u1, float max_line_len,
 }
 
 void EvalCatmullRomSpline(const glm::vec3 *control_points,
-                          uint control_point_count, float max_line_len,
+                          uint control_point_count, float max_segment_len,
                           glm::vec3 **positions, glm::vec3 **tangents,
                           uint *vertex_count) {
   assert(control_points);
@@ -71,7 +71,7 @@ void EvalCatmullRomSpline(const glm::vec3 *control_points,
 #ifndef NDEBUG
   static constexpr float kTolerance = 0.00001;
 #endif
-  assert(max_line_len + kTolerance > 0);
+  assert(max_segment_len + kTolerance > 0);
 
   std::vector<glm::vec3> positions_vec;
   std::vector<glm::vec3> tangents_vec;
@@ -86,7 +86,7 @@ void EvalCatmullRomSpline(const glm::vec3 *control_points,
       cp[i + 2].x, cp[i + 2].y, cp[i + 2].z
     );
     // clang-format on
-    Subdivide(0, 1, max_line_len, &control, &positions_vec, &tangents_vec);
+    Subdivide(0, 1, max_segment_len, &control, &positions_vec, &tangents_vec);
   }
 
   assert(positions_vec.size() == tangents_vec.size());

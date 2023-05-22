@@ -27,13 +27,10 @@
 #define SCREENSHOT_FILENAME_BUFFER_SIZE 8
 #define FILEPATH_BUFFER_SIZE 4096
 
-#define FPS_DISPLAY_TIME_MSEC 1000
-
-#define SPLINE_MAX_LINE_LEN 0.5
-#define CAMERA_PATH_INDEX_STEP_PER_FRAME 3
+#define FPS_DISPLAY_PERIOD_MSEC 1000
 
 const char *kUsageMessage =
-    "usage: %s <track-filepath> <ground-texture-filepath> "
+    "usage: %s [options...] <track-filepath> <ground-texture-filepath> "
     "<sky-texture-filepath> <crosstie-texture-filepath>\n";
 
 const char *kWindowTitle = "rcoaster";
@@ -226,8 +223,10 @@ static uint window_w = 1280;
 static uint window_h = 720;
 
 static uint frame_count;
-static int previous_time;
+static int previous_fps_display_time;
 static uint avg_fps;
+
+static int previous_idle_callback_time;
 
 static MouseState mouse_state;
 
@@ -372,17 +371,21 @@ static void OnKeyPress(uchar key, int x, int y) {
 }
 
 static void Idle() {
-  if (camera_path_index < camera_path_vertices.count) {
-    camera_path_index += CAMERA_PATH_INDEX_STEP_PER_FRAME;
+  int current_time = glutGet(GLUT_ELAPSED_TIME);
+
+  int time_since_fps_displayed = current_time - previous_fps_display_time;
+  if (time_since_fps_displayed > FPS_DISPLAY_PERIOD_MSEC) {
+    avg_fps = frame_count * (1000.0f / time_since_fps_displayed);
+    frame_count = 0;
+    previous_fps_display_time = current_time;
   }
 
-  int current_time = glutGet(GLUT_ELAPSED_TIME);
-  int elapsed_time = current_time - previous_time;
-  if (elapsed_time > FPS_DISPLAY_TIME_MSEC) {
-    avg_fps = frame_count * (1000.0f / elapsed_time);
-    frame_count = 0;
-    previous_time = current_time;
+  if (camera_path_index < camera_path_vertices.count) {
+    float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
+    camera_path_index += config.camera_speed * delta_time;
   }
+
+  previous_idle_callback_time = current_time;
 
   char *title = new char[WINDOW_TITLE_BUFFER_SIZE];
   std::sprintf(title, "%s: %d fps , %d x %d resolution", kWindowTitle, avg_fps,
@@ -560,6 +563,9 @@ void DefaultInit(Config *c) {
   c->view_frustum.far_z = 10000;
   c->view_frustum.near_z = 0.01;
 
+  c->max_spline_segment_len = 0.5;
+  c->camera_speed = 100;
+
   c->is_verbose = 0;
 }
 
@@ -568,8 +574,10 @@ static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
   assert(cfg);
 
   cli::Opt opts[] = {
-      {"verbose", cli::kOptArgType_Int, &cfg->is_verbose},
-  };
+      {"max-spline-segment-len", cli::kOptArgType_Float,
+       &cfg->max_spline_segment_len},
+      {"camera-speed", cli::kOptArgType_Float, &cfg->camera_speed},
+      {"verbose", cli::kOptArgType_Int, &cfg->is_verbose}};
   uint size = sizeof(opts) / sizeof(opts[0]);
   uint argi;
   cli::Status st = ParseOpts(argc, argv, opts, size, &argi);
@@ -664,10 +672,10 @@ int main(int argc, char **argv) {
 
   // TODO: Support for multiple splines.
   assert(splines.size() == 1);
-  EvalCatmullRomSpline(splines[0].data(), splines[0].size(),
-                       SPLINE_MAX_LINE_LEN, &camera_path_vertices.positions,
-                       &camera_path_vertices.tangents,
-                       &camera_path_vertices.count);
+  EvalCatmullRomSpline(
+      splines[0].data(), splines[0].size(), config.max_spline_segment_len,
+      &camera_path_vertices.positions, &camera_path_vertices.tangents,
+      &camera_path_vertices.count);
 
   camera_path_vertices.normals = new glm::vec3[camera_path_vertices.count];
   camera_path_vertices.binormals = new glm::vec3[camera_path_vertices.count];
