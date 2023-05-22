@@ -20,7 +20,7 @@ struct Config {
 
   ViewFrustum view_frustum;
 
-  // Camera speed in spline segment per second.
+  // Camera speed in spline segments per second.
   float camera_speed;
   float max_spline_segment_len;
 

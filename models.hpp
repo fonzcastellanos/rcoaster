@@ -41,12 +41,15 @@ struct CameraPathVertices {
 };
 
 void EvalCatmullRomSpline(const glm::vec3 *control_points,
-                          uint control_point_count, float max_line_len,
+                          uint control_point_count, float max_segment_len,
                           glm::vec3 **positions, glm::vec3 **tangents,
                           uint *vertices_count);
 
-void CameraOrientation(const glm::vec3 *tangents, uint vertex_count,
-                       glm::vec3 *normals, glm::vec3 *binormals);
+void CalcCameraOrientation(const glm::vec3 *tangents, uint vertex_count,
+                           glm::vec3 *normals, glm::vec3 *binormals);
+
+void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
+                    float max_segment_len, CameraPathVertices *campath);
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
                                   TexturedVertices *vertices);

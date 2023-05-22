@@ -101,8 +101,8 @@ void EvalCatmullRomSpline(const glm::vec3 *control_points,
   }
 }
 
-void CameraOrientation(const glm::vec3 *tangents, uint vertex_count,
-                       glm::vec3 *normals, glm::vec3 *binormals) {
+void CalcCameraOrientation(const glm::vec3 *tangents, uint vertex_count,
+                           glm::vec3 *normals, glm::vec3 *binormals) {
   assert(tangents);
   assert(normals);
   assert(binormals);
@@ -118,6 +118,26 @@ void CameraOrientation(const glm::vec3 *tangents, uint vertex_count,
     normals[i] = glm::normalize(glm::cross(binormals[i - 1], tangents[i]));
     binormals[i] = glm::normalize(glm::cross(tangents[i], normals[i]));
   }
+}
+
+void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
+                    float max_segment_len, CameraPathVertices *campath) {
+  assert(control_points);
+  assert(campath);
+
+#ifndef NDEBUG
+  static constexpr float kTolerance = 0.00001;
+#endif
+  assert(max_segment_len + kTolerance > 0);
+
+  EvalCatmullRomSpline(control_points, control_point_count, max_segment_len,
+                       &campath->positions, &campath->tangents,
+                       &campath->count);
+
+  campath->normals = new glm::vec3[campath->count];
+  campath->binormals = new glm::vec3[campath->count];
+  CalcCameraOrientation(campath->tangents, campath->count, campath->normals,
+                        campath->binormals);
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,

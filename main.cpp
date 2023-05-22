@@ -672,16 +672,8 @@ int main(int argc, char **argv) {
 
   // TODO: Support for multiple splines.
   assert(splines.size() == 1);
-  EvalCatmullRomSpline(
-      splines[0].data(), splines[0].size(), config.max_spline_segment_len,
-      &camera_path_vertices.positions, &camera_path_vertices.tangents,
-      &camera_path_vertices.count);
-
-  camera_path_vertices.normals = new glm::vec3[camera_path_vertices.count];
-  camera_path_vertices.binormals = new glm::vec3[camera_path_vertices.count];
-  CameraOrientation(camera_path_vertices.tangents, camera_path_vertices.count,
-                    camera_path_vertices.normals,
-                    camera_path_vertices.binormals);
+  MakeCameraPath(splines[0].data(), splines[0].size(),
+                 config.max_spline_segment_len, &camera_path_vertices);
 
   SceneConfig scene_cfg;
   Init(&scene_cfg);
