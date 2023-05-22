@@ -43,7 +43,7 @@ const char *const kVertexFormatStrings[kVertexFormat__Count]{"textured",
 
 const char *const kShaderFilepaths[kVertexFormat__Count][kShaderType__Count] = {
     {"shaders/textured.vert.glsl", "shaders/textured.frag.glsl"},
-    {"shaders/untextured.vert.glsl", "shaders/untextured.frag.glsl"}};
+    {"shaders/colored.vert.glsl", "shaders/colored.frag.glsl"}};
 
 static const char *String(VertexFormat f) {
   assert(f < kVertexFormat__Count);
