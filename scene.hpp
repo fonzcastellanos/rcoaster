@@ -1,33 +1,16 @@
 #ifndef RCOASTER_SCENE_HPP
 #define RCOASTER_SCENE_HPP
 
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
-#include <vector>
 
 #include "models.hpp"
 #include "types.hpp"
-
-struct ColoredVertices {
-  std::vector<glm::vec3> positions;
-  std::vector<glm::vec4> colors;
-};
-
-uint Count(const ColoredVertices* v);
-
-struct TexturedVertices {
-  glm::vec3* positions;
-  glm::vec2* tex_coords;
-  uint count;
-};
 
 struct Scene {
   TexturedVertices ground_vertices;
   TexturedVertices sky_vertices;
   TexturedVertices crossties_vertices;
   ColoredVertices rails_vertices;
-  std::vector<uint> rails_vertex_indices;
 };
 
 struct SceneConfig {
@@ -51,6 +34,6 @@ struct SceneConfig {
 void Make(const SceneConfig* cfg, const CameraPathVertices* campath,
           Scene* scene);
 
-void Free(Scene* scene);
+void FreeVertices(Scene* scene);
 
 #endif  // RCOASTER_SCENE_HPP

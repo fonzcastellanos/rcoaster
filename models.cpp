@@ -96,110 +96,125 @@ void EvalCatmullRomSpline(const std::vector<glm::vec3> *spline,
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  glm::vec3 *positions, glm::vec2 *tex_coords) {
+                                  TexturedVertices *vertices) {
+  constexpr uint kVertexCount = 6;
+
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
-  assert(positions);
-  assert(tex_coords);
+  assert(vertices);
 
-  positions[0] = {-side_len, 0, side_len};
-  positions[1] = {-side_len, 0, -side_len};
-  positions[2] = {side_len, 0, -side_len};
-  positions[3] = {-side_len, 0, side_len};
-  positions[4] = {side_len, 0, -side_len};
-  positions[5] = {side_len, 0, side_len};
+  vertices->count = kVertexCount;
+  vertices->positions = new glm::vec3[kVertexCount];
+  vertices->tex_coords = new glm::vec2[kVertexCount];
 
-  for (uint i = 0; i < 6; ++i) {
-    positions[i] *= 0.5f;
+  glm::vec3 *pos = vertices->positions;
+  glm::vec2 *texc = vertices->tex_coords;
+
+  pos[0] = {-side_len, 0, side_len};
+  pos[1] = {-side_len, 0, -side_len};
+  pos[2] = {side_len, 0, -side_len};
+  pos[3] = {-side_len, 0, side_len};
+  pos[4] = {side_len, 0, -side_len};
+  pos[5] = {side_len, 0, side_len};
+
+  for (uint i = 0; i < kVertexCount; ++i) {
+    pos[i] *= 0.5f;
   }
 
-  tex_coords[0] = {0, 0};
-  tex_coords[1] = {0, tex_repeat_count};
-  tex_coords[2] = {tex_repeat_count, tex_repeat_count};
-  tex_coords[3] = {0, 0};
-  tex_coords[4] = {tex_repeat_count, tex_repeat_count};
-  tex_coords[5] = {tex_repeat_count, 0};
+  texc[0] = {0, 0};
+  texc[1] = {0, tex_repeat_count};
+  texc[2] = {tex_repeat_count, tex_repeat_count};
+  texc[3] = {0, 0};
+  texc[4] = {tex_repeat_count, tex_repeat_count};
+  texc[5] = {tex_repeat_count, 0};
 }
 
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        glm::vec3 *positions, glm::vec2 *tex_coords) {
+                        TexturedVertices *vertices) {
+  constexpr uint kVertexCount = 36;
+
   assert(side_len > 0);
-  assert(positions);
-  assert(tex_coords);
+  assert(vertices);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
+
+  vertices->positions = new glm::vec3[kVertexCount];
+  vertices->tex_coords = new glm::vec2[kVertexCount];
+  vertices->count = kVertexCount;
+
+  glm::vec3 *pos = vertices->positions;
+  glm::vec2 *texc = vertices->tex_coords;
 
   uint i = 0;
 
   // x = -1 face
-  positions[i] = {-side_len, -side_len, -side_len};
-  positions[i + 1] = {-side_len, side_len, -side_len};
-  positions[i + 2] = {-side_len, side_len, side_len};
-  positions[i + 3] = {-side_len, -side_len, -side_len};
-  positions[i + 4] = {-side_len, side_len, side_len};
-  positions[i + 5] = {-side_len, -side_len, side_len};
+  pos[i] = {-side_len, -side_len, -side_len};
+  pos[i + 1] = {-side_len, side_len, -side_len};
+  pos[i + 2] = {-side_len, side_len, side_len};
+  pos[i + 3] = {-side_len, -side_len, -side_len};
+  pos[i + 4] = {-side_len, side_len, side_len};
+  pos[i + 5] = {-side_len, -side_len, side_len};
 
   i += 6;
 
   // x = 1 face
-  positions[i] = {side_len, -side_len, -side_len};
-  positions[i + 1] = {side_len, side_len, -side_len};
-  positions[i + 2] = {side_len, side_len, side_len};
-  positions[i + 3] = {side_len, -side_len, -side_len};
-  positions[i + 4] = {side_len, side_len, side_len};
-  positions[i + 5] = {side_len, -side_len, side_len};
+  pos[i] = {side_len, -side_len, -side_len};
+  pos[i + 1] = {side_len, side_len, -side_len};
+  pos[i + 2] = {side_len, side_len, side_len};
+  pos[i + 3] = {side_len, -side_len, -side_len};
+  pos[i + 4] = {side_len, side_len, side_len};
+  pos[i + 5] = {side_len, -side_len, side_len};
 
   i += 6;
 
   // y = -1 face
-  positions[i] = {-side_len, -side_len, -side_len};
-  positions[i + 1] = {-side_len, -side_len, side_len};
-  positions[i + 2] = {side_len, -side_len, side_len};
-  positions[i + 3] = {-side_len, -side_len, -side_len};
-  positions[i + 4] = {side_len, -side_len, side_len};
-  positions[i + 5] = {side_len, -side_len, -side_len};
+  pos[i] = {-side_len, -side_len, -side_len};
+  pos[i + 1] = {-side_len, -side_len, side_len};
+  pos[i + 2] = {side_len, -side_len, side_len};
+  pos[i + 3] = {-side_len, -side_len, -side_len};
+  pos[i + 4] = {side_len, -side_len, side_len};
+  pos[i + 5] = {side_len, -side_len, -side_len};
 
   i += 6;
 
   // y = 1 face
-  positions[i] = {-side_len, side_len, -side_len};
-  positions[i + 1] = {-side_len, side_len, side_len};
-  positions[i + 2] = {side_len, side_len, side_len};
-  positions[i + 3] = {-side_len, side_len, -side_len};
-  positions[i + 4] = {side_len, side_len, side_len};
-  positions[i + 5] = {side_len, side_len, -side_len};
+  pos[i] = {-side_len, side_len, -side_len};
+  pos[i + 1] = {-side_len, side_len, side_len};
+  pos[i + 2] = {side_len, side_len, side_len};
+  pos[i + 3] = {-side_len, side_len, -side_len};
+  pos[i + 4] = {side_len, side_len, side_len};
+  pos[i + 5] = {side_len, side_len, -side_len};
 
   i += 6;
 
   // z = -1 face
-  positions[i] = {-side_len, -side_len, -side_len};
-  positions[i + 1] = {-side_len, side_len, -side_len};
-  positions[i + 2] = {side_len, side_len, -side_len};
-  positions[i + 3] = {-side_len, -side_len, -side_len};
-  positions[i + 4] = {side_len, side_len, -side_len};
-  positions[i + 5] = {side_len, -side_len, -side_len};
+  pos[i] = {-side_len, -side_len, -side_len};
+  pos[i + 1] = {-side_len, side_len, -side_len};
+  pos[i + 2] = {side_len, side_len, -side_len};
+  pos[i + 3] = {-side_len, -side_len, -side_len};
+  pos[i + 4] = {side_len, side_len, -side_len};
+  pos[i + 5] = {side_len, -side_len, -side_len};
 
   i += 6;
 
   // z = 1 face
-  positions[i] = {-side_len, -side_len, side_len};
-  positions[i + 1] = {-side_len, side_len, side_len};
-  positions[i + 2] = {side_len, side_len, side_len};
-  positions[i + 3] = {-side_len, -side_len, side_len};
-  positions[i + 4] = {side_len, side_len, side_len};
-  positions[i + 5] = {side_len, -side_len, side_len};
+  pos[i] = {-side_len, -side_len, side_len};
+  pos[i + 1] = {-side_len, side_len, side_len};
+  pos[i + 2] = {side_len, side_len, side_len};
+  pos[i + 3] = {-side_len, -side_len, side_len};
+  pos[i + 4] = {side_len, side_len, side_len};
+  pos[i + 5] = {side_len, -side_len, side_len};
 
-  for (uint j = 0; j < 36; ++j) {
-    positions[j] *= 0.5f;
+  for (uint j = 0; j < kVertexCount; ++j) {
+    pos[j] *= 0.5f;
   }
 
-  for (uint j = 0; j < 6; ++j) {
-    uint k = j * 6;
-    tex_coords[k] = {0, 0};
-    tex_coords[k + 1] = {0, tex_repeat_count};
-    tex_coords[k + 2] = {tex_repeat_count, tex_repeat_count};
-    tex_coords[k + 3] = {0, 0};
-    tex_coords[k + 4] = {tex_repeat_count, tex_repeat_count};
-    tex_coords[k + 5] = {tex_repeat_count, 0};
+  for (uint j = 0; j < kVertexCount; j += 6) {
+    texc[j] = {0, 0};
+    texc[j + 1] = {0, tex_repeat_count};
+    texc[j + 2] = {tex_repeat_count, tex_repeat_count};
+    texc[j + 3] = {0, 0};
+    texc[j + 4] = {tex_repeat_count, tex_repeat_count};
+    texc[j + 5] = {tex_repeat_count, 0};
   }
 }
 
@@ -233,13 +248,10 @@ void CameraOrientation(const std::vector<glm::vec3> *tangents,
 void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
-               std::vector<glm::vec3> *positions,
-               std::vector<glm::vec4> *colors, std::vector<uint> *indices) {
+               ColoredVertices *vertices) {
   assert(campath);
   assert(color);
-  assert(positions);
-  assert(colors);
-  assert(indices);
+  assert(vertices);
 
   assert(head_w > 0);
   assert(web_w > 0);
@@ -255,14 +267,16 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   uint cv_count = Count(campath);
   uint rv_count = 2 * cv_count * kCrossSectionVertexCount;
 
-  positions->resize(rv_count);
-  colors->resize(rv_count);
+  vertices->count = rv_count;
+  vertices->positions = new glm::vec3[rv_count];
+  vertices->colors = new glm::vec4[rv_count];
 
-  for (auto &c : *colors) {
-    c = *color;
+  glm::vec3 *pos = vertices->positions;
+  glm::vec4 *colors = vertices->colors;
+
+  for (uint i = 0; i < vertices->count; ++i) {
+    colors[i] = *color;
   }
-
-  auto &pos = *positions;
 
   for (uint i = 0; i < 2; ++i) {
     for (uint j = 0; j < cv_count; ++j) {
@@ -305,7 +319,7 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
     }
   }
 
-  auto &ri = *indices;
+  auto &ri = vertices->indices;
 
   for (uint i = 0; i < 2; ++i) {
     for (uint j = i * rv_count / 2;
@@ -379,8 +393,8 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
 }
 
 void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
-                   float pos_offset_in_campath_norm_dir, glm::vec3 **positions,
-                   glm::vec2 **tex_coords, uint *count) {
+                   float pos_offset_in_campath_norm_dir,
+                   TexturedVertices *vertices) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
   static constexpr int kUniqPosCountPerCrosstie = 8;
@@ -388,9 +402,7 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
   static constexpr float kTolerance = 0.00001;
 
   assert(campath);
-  assert(positions);
-  assert(tex_coords);
-  assert(count);
+  assert(vertices);
   assert(separation_dist + kTolerance > 0);
 
   auto &path_pos = campath->positions;
@@ -514,17 +526,17 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
     dist_moved = 0;
   }
 
-  *count = posi;
+  vertices->count = posi;
 
-  *positions = new glm::vec3[*count];
-  for (uint i = 0; i < *count; ++i) {
-    (*positions)[i] = pos[i];
+  vertices->positions = new glm::vec3[vertices->count];
+  for (uint i = 0; i < vertices->count; ++i) {
+    vertices->positions[i] = pos[i];
   }
   delete[] pos;
 
-  *tex_coords = new glm::vec2[*count];
-  for (uint i = 0; i < *count; ++i) {
-    (*tex_coords)[i] = texc[i];
+  vertices->tex_coords = new glm::vec2[vertices->count];
+  for (uint i = 0; i < vertices->count; ++i) {
+    vertices->tex_coords[i] = texc[i];
   }
   delete[] texc;
 }
