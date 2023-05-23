@@ -8,7 +8,8 @@ A simulated roller coaster experience built with OpenGL.
 
 ## Description 
 
-- The track model and camera path are generated from using recursive subdivision to evaluate Catmull-Rom splines, each defined by the control points in its corresponding input spline file.
+- The track model and camera path are generated from evaluating Catmull-Rom splines via recursive subdivision. 
+    - Each spline is defined by the control points found in the corresponding input spline file.
 - The rails have T-shaped cross sections.
 - The crossties are placed between the rails at a regular distance interval.
 - Textures are mapped to the models for the sky, ground, and crossties.
@@ -65,9 +66,34 @@ The built targets are placed in the directory `build`. There is only one executa
 
 ## Usage
 
-```sh
-./build/rcoaster <track_file> <ground_texture> <sky_texture> <crossbar_texture>
 ```
+./build/rcoaster [options...] <track-file> <ground-texture> <sky-texture> <crossbar-texture>
+```
+
+Options:
+- `--max-spline-segment-len <length>`
+    - The maximum length of each spline segment generated from recursive subdivision.
+    - The default option argument is 0.5.
+- `--camera-speed <speed>`
+    - The camera movement rate in spline segments per second.
+    - The default option argument is 100.
+- `--screenshot-filename-prefix <prefix>`
+    - The filename prefix of any screenshots generated.
+    - Screenshot filenames follow the format `<prefix>_<count>.jpg`, where `count` is formatted as a 3 digit integer.
+        - For example, if `prefix` is "screenshot" and `count` is 17, then the filename would be "screenshot_017.jpg"
+    - The default option argument is "screenshot".
+- `screenshot-directory-path <path>`
+    - The directory path where any screenshots taken will be saved.
+    - The default option argument is ".", which is the current working directory.
+- `verbose <verbose_output>`
+    - An option argument of 1 enables verbose output to `stdout`, and an option argument of 0 disables it. 
+    - The default option argument is 0.
+
+Screenshots are in JPEG format. Video is a series of screenshots.
+
+To take a single screenshot, press `i`.
+
+To start recording video, press `v`. To stop recording video, press `v` again.
 
 To exit the program, have the window in focus and press `ESC`. You can also terminate the program by pressing `CTRL + C` in the terminal.
 
