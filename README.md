@@ -89,11 +89,7 @@ Options:
     - An option argument of 1 enables verbose output to `stdout`, and an option argument of 0 disables it. 
     - The default option argument is 0.
 
-Screenshots are in JPEG format. Video is a series of screenshots.
-
-To take a single screenshot, press `i`.
-
-To start recording video, press `v`. To stop recording video, press `v` again.
+Screenshots are in JPEG format. Video is a series of screenshots. To take a single screenshot, press `i`. To start recording video, press `v`. To stop recording video, press `v` again.
 
 To exit the program, have the window in focus and press `ESC`. You can also terminate the program by pressing `CTRL + C` in the terminal.
 
