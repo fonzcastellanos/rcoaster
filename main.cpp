@@ -93,8 +93,6 @@ static Status InitTexture(const char *img_filepath, GLuint texture_name,
 
 Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
   assert(filepath);
-  assert(window_w >= 0);
-  assert(window_h >= 0);
 
   uchar *buffer = new uchar[window_w * window_h * kRgbChannel__Count];
 
@@ -106,7 +104,7 @@ Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
   delete[] buffer;
 
   if (rc == 0) {
-    std::fprintf(stderr, "Could not write data to JPEG file %s\n", filepath);
+    std::fprintf(stderr, "Could not write data to JPEG file %s.\n", filepath);
     return kStatus_IoError;
   }
 
@@ -283,29 +281,38 @@ static void OnKeyPress(uchar key, int x, int y) {
   }
 }
 
-static void UpdateWindowTitle(uint update_period, uint current_time,
-                              const char *title_prefix, uint w, uint h,
-                              uint *frame_count) {
-  static char window_title_buffer[512];
+static Status UpdateWindowTitle(uint update_period, uint current_time,
+                                const char *title_prefix, uint w, uint h,
+                                uint *frame_count) {
   static uint previous_fps_display_time;
 
+  assert(title_prefix);
   assert(frame_count);
 
   uint delta_time = current_time - previous_fps_display_time;
 
   if (delta_time < update_period) {
-    return;
+    return kStatus_Ok;
   }
 
   uint fps = *frame_count * (1000.0f / delta_time);
 
-  std::sprintf(window_title_buffer, "%s: %u fps , %u x %u resolution",
-               title_prefix, fps, w, h);
+  char window_title_buffer[512];
+
+  int rc =
+      std::snprintf(window_title_buffer, 512, "%s: %u fps , %u x %u resolution",
+                    title_prefix, fps, w, h);
+  if (rc < 0 || rc >= 512) {
+    std::fprintf(stderr, "Failed to form window title.\n");
+    return kStatus_UnspecifiedError;
+  }
 
   glutSetWindowTitle(window_title_buffer);
 
   *frame_count = 0;
   previous_fps_display_time = current_time;
+
+  return kStatus_Ok;
 }
 
 static void Idle() {
@@ -313,8 +320,13 @@ static void Idle() {
 
   int current_time = glutGet(GLUT_ELAPSED_TIME);
 
-  UpdateWindowTitle(WINDOW_TITLE_UPDATE_PERIOD_MSEC, current_time,
-                    kWindowTitlePrefix, window_w, window_h, &frame_count);
+  Status status =
+      UpdateWindowTitle(WINDOW_TITLE_UPDATE_PERIOD_MSEC, current_time,
+                        kWindowTitlePrefix, window_w, window_h, &frame_count);
+  if (status != kStatus_Ok) {
+    std::fprintf(stderr, "Failed to update window title.\n");
+    ExitGlutMainLoop(EXIT_FAILURE);
+  }
 
   if (camera_path_index < scene.campath.count) {
     float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
@@ -453,6 +465,7 @@ static void Display() {
 }
 
 static void InitSceneConfig(const Config *cfg, SceneConfig *scene_cfg) {
+  assert(cfg);
   assert(scene_cfg);
 
   scene_cfg->aabb_side_len = 256;
@@ -564,7 +577,8 @@ static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
   ++argi;
   if (argi >= argc) {
     std::fprintf(stderr,
-                 "Missing required ground texture filepath argument.\n");
+                 "Missing required ground texture filepath "
+                 "argument.\n");
     std::fprintf(stderr, kUsageMessage, argv[0]);
     return kStatus_UnspecifiedError;
   }
@@ -583,7 +597,8 @@ static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
   ++argi;
   if (argi >= argc) {
     std::fprintf(stderr,
-                 "Missing required crossties texture filepath argument.\n");
+                 "Missing required crossties texture "
+                 "filepath argument.\n");
     std::fprintf(stderr, kUsageMessage, argv[0]);
     return kStatus_UnspecifiedError;
   }
@@ -657,7 +672,8 @@ int main(int argc, char **argv) {
     Status status = MakeShaderProg(&shader_names, &program_names[i]);
     if (status != kStatus_Ok) {
       std::fprintf(stderr,
-                   "Failed to make shader program for vertex format \"%s\".\n",
+                   "Failed to make shader program for vertex "
+                   "format \"%s\".\n",
                    String((VertexFormat)i));
       return EXIT_FAILURE;
     }

@@ -14,8 +14,8 @@
 #define FILENAME_BUFFER_SIZE 255
 
 const char* kUsageMessage =
-    "usage: %s [options...] <track-filepath> <ground-texture-filepath> "
-    "<sky-texture-filepath> <crosstie-texture-filepath>\n";
+    "usage: %s [options...] <track-file> <ground-texture> <sky-texture> "
+    "<crossties-texture>\n";
 
 const char* kWindowTitlePrefix = "rcoaster";
 
