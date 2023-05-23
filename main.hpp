@@ -4,7 +4,20 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "opengl.hpp"
+#include "shader.hpp"
 #include "types.hpp"
+
+#define BUFFER_OFFSET(offset) ((GLvoid*)(offset))
+#define WINDOW_TITLE_UPDATE_PERIOD_MSEC 1000
+#define FILEPATH_BUFFER_SIZE 4096
+#define FILENAME_BUFFER_SIZE 255
+
+const char* kUsageMessage =
+    "usage: %s [options...] <track-filepath> <ground-texture-filepath> "
+    "<sky-texture-filepath> <crosstie-texture-filepath>\n";
+
+const char* kWindowTitlePrefix = "rcoaster";
 
 struct ViewFrustum {
   float fov_y;
@@ -23,6 +36,9 @@ struct Config {
   // Camera speed in spline segments per second.
   float camera_speed;
   float max_spline_segment_len;
+
+  char screenshot_filename_prefix[FILENAME_BUFFER_SIZE];
+  char screenshot_directory_path[FILEPATH_BUFFER_SIZE];
 
   int is_verbose;
 };
@@ -81,5 +97,12 @@ enum Vbo {
   kVbo_RailIndices,
   kVbo__Count
 };
+
+const char* const kVertexFormatStrings[kVertexFormat__Count]{"textured",
+                                                             "colored"};
+
+const char* const kShaderFilepaths[kVertexFormat__Count][kShaderType__Count] = {
+    {"shaders/textured.vert.glsl", "shaders/textured.frag.glsl"},
+    {"shaders/colored.vert.glsl", "shaders/colored.frag.glsl"}};
 
 #endif  // RCOASTER_MAIN_HPP

@@ -21,23 +21,6 @@
 #include "stb_image_write.h"
 #include "types.hpp"
 
-#define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
-
-#define WINDOW_TITLE_UPDATE_PERIOD_MSEC 1000
-
-const char *kUsageMessage =
-    "usage: %s [options...] <track-filepath> <ground-texture-filepath> "
-    "<sky-texture-filepath> <crosstie-texture-filepath>\n";
-
-const char *kWindowTitlePrefix = "rcoaster";
-
-const char *const kVertexFormatStrings[kVertexFormat__Count]{"textured",
-                                                             "colored"};
-
-const char *const kShaderFilepaths[kVertexFormat__Count][kShaderType__Count] = {
-    {"shaders/textured.vert.glsl", "shaders/textured.frag.glsl"},
-    {"shaders/colored.vert.glsl", "shaders/colored.frag.glsl"}};
-
 static const char *String(VertexFormat f) {
   assert(f < kVertexFormat__Count);
   return kVertexFormatStrings[f];
@@ -206,8 +189,6 @@ Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
     return kStatus_IoError;
   }
 
-  std::printf("Saved screenshot to file %s.\n", filepath);
-
   return kStatus_Ok;
 }
 
@@ -333,27 +314,50 @@ static void OnMousePressOrRelease(int button, int state, int x, int y) {
   mouse_state.position.y = y;
 }
 
-static void OnKeyPress(uchar key, int x, int y) {
-  switch (key) {
-    case 27: {  // ESC key
+static void ExitGlutMainLoop(int status_code) {
 #ifdef __APPLE__
-      std::exit(EXIT_SUCCESS);
+  std::exit(status_code);
 #elif defined(linux)
-      glutLeaveMainLoop();
+  glutLeaveMainLoop();
 #else
 #error Unsupported platform.
 #endif
+}
+
+static void OnKeyPress(uchar key, int x, int y) {
+  switch (key) {
+    case 27: {  // ESC key
+      ExitGlutMainLoop(EXIT_SUCCESS);
       break;
     }
     case 'i': {
-      SaveScreenshot("screenshot.jpg", window_w, window_h);
+      char filepath[FILEPATH_BUFFER_SIZE];
+      int rc =
+          std::snprintf(filepath, FILEPATH_BUFFER_SIZE, "%s/%s_%03u.jpg",
+                        config.screenshot_directory_path,
+                        config.screenshot_filename_prefix, screenshot_count);
+
+      if (rc < 0 || rc >= FILEPATH_BUFFER_SIZE) {
+        std::fprintf(stderr, "Failed to make screenshot filepath.\n");
+        ExitGlutMainLoop(EXIT_FAILURE);
+      }
+
+      Status status = SaveScreenshot(filepath, window_w, window_h);
+      if (status != kStatus_Ok) {
+        std::fprintf(stderr, "Failed to save screenshot.\n");
+        ExitGlutMainLoop(EXIT_FAILURE);
+      }
+
+      if (config.is_verbose) {
+        std::printf("Saved screenshot to file %s.\n", filepath);
+      }
+
+      ++screenshot_count;
+
       break;
     }
     case 'v': {
       record_video = !record_video;
-      if (!record_video) {
-        screenshot_count = 0;
-      }
       break;
     }
   }
@@ -386,7 +390,6 @@ static void UpdateWindowTitle(uint update_period, uint current_time,
 
 static void Idle() {
   static uint previous_idle_callback_time;
-  static char screenshot_filename_buffer[8];
 
   int current_time = glutGet(GLUT_ELAPSED_TIME);
 
@@ -410,8 +413,21 @@ static void Idle() {
                        config.view_frustum.near_z, config.view_frustum.far_z);
 
   if (record_video) {
-    std::sprintf(screenshot_filename_buffer, "%03d.jpg", screenshot_count);
-    SaveScreenshot(screenshot_filename_buffer, window_w, window_h);
+    char filepath[FILEPATH_BUFFER_SIZE];
+    int rc = std::snprintf(filepath, FILEPATH_BUFFER_SIZE, "%s/%s_%03u.jpg",
+                           config.screenshot_directory_path,
+                           config.screenshot_filename_prefix, screenshot_count);
+    if (rc < 0 || rc >= FILEPATH_BUFFER_SIZE) {
+      std::fprintf(stderr, "Failed to make screenshot filepath.\n");
+      ExitGlutMainLoop(EXIT_FAILURE);
+    }
+
+    Status status = SaveScreenshot(filepath, window_w, window_h);
+    if (status != kStatus_Ok) {
+      std::fprintf(stderr, "Failed to save screenshot.\n");
+      ExitGlutMainLoop(EXIT_FAILURE);
+    }
+
     ++screenshot_count;
   }
 
@@ -567,17 +583,27 @@ void ConfigureGlut(int argc, char **argv, uint window_w, uint window_h,
   glutKeyboardFunc(OnKeyPress);
 }
 
-void DefaultInit(Config *c) {
-  assert(c);
+void DefaultInit(Config *cfg) {
+  assert(cfg);
 
-  c->view_frustum.fov_y = 60;
-  c->view_frustum.far_z = 10000;
-  c->view_frustum.near_z = 0.01;
+  cfg->view_frustum.fov_y = 60;
+  cfg->view_frustum.far_z = 10000;
+  cfg->view_frustum.near_z = 0.01;
 
-  c->max_spline_segment_len = 0.5;
-  c->camera_speed = 100;
+  cfg->max_spline_segment_len = 0.5;
+  cfg->camera_speed = 100;
 
-  c->is_verbose = 0;
+  int rc = std::snprintf(cfg->screenshot_directory_path,
+                         sizeof(cfg->screenshot_directory_path), ".");
+
+  assert(rc >= 0 && rc < (int)sizeof(cfg->screenshot_directory_path));
+
+  rc = std::snprintf(cfg->screenshot_filename_prefix,
+                     sizeof(cfg->screenshot_filename_prefix), "screenshot");
+
+  assert(rc >= 0 && rc < (int)sizeof(cfg->screenshot_filename_prefix));
+
+  cfg->is_verbose = 0;
 }
 
 static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
@@ -588,7 +614,12 @@ static Status ParseConfig(uint argc, char *argv[], Config *cfg) {
       {"max-spline-segment-len", cli::kOptArgType_Float,
        &cfg->max_spline_segment_len},
       {"camera-speed", cli::kOptArgType_Float, &cfg->camera_speed},
+      {"screenshot-filename-prefix", cli::kOptArgType_String,
+       &cfg->screenshot_filename_prefix},
+      {"screenshot-directory-path", cli::kOptArgType_String,
+       &cfg->screenshot_directory_path},
       {"verbose", cli::kOptArgType_Int, &cfg->is_verbose}};
+
   uint size = sizeof(opts) / sizeof(opts[0]);
   uint argi;
   cli::Status st = ParseOpts(argc, argv, opts, size, &argi);
