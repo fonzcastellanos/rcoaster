@@ -113,7 +113,7 @@ A spline file contains the control points of a spline. The first line consists o
 
 Currently the only supported spline type are Catmull-Rom splines. Use `0` in the spline file to indicate a Catmull-Rom spline.
 
-Example spline files are in the directory `splines`. I tailored the spline file [`custom.sp`](splines/custom.sp) to produce a track optimized for my hard-coded scene size, ground size, sky box size, and camera movement speed. The other spline files were for initial testing testing and unfortunately produce tracks that are too small for my current configuration.
+Example spline files are in the directory `splines`. I tailored the spline file [`custom.sp`](splines/custom.sp) to produce a track optimized for my hard-coded scene size, ground size, and sky box size. The other spline files were for initial testing testing and unfortunately produce tracks that are too small for my current configuration.
  
 ### Texture Files
 
