@@ -82,10 +82,10 @@ Options:
     - Screenshot filenames follow the format `<prefix>_<count>.jpg`, where `count` is formatted as a 3 digit integer.
         - For example, if `prefix` is "screenshot" and `count` is 17, then the filename would be "screenshot_017.jpg"
     - The default option argument is "screenshot".
-- `screenshot-directory-path <path>`
+- `--screenshot-directory-path <path>`
     - The directory path where any screenshots taken will be saved.
     - The default option argument is ".", which is the current working directory.
-- `verbose <verbose_output>`
+- `--verbose <verbose_output>`
     - An option argument of 1 enables verbose output to `stdout`, and an option argument of 0 disables it. 
     - The default option argument is 0.
 
