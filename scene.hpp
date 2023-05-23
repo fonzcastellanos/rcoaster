@@ -5,9 +5,11 @@
 #include <glm/vec4.hpp>
 
 #include "models.hpp"
+#include "status.hpp"
 #include "types.hpp"
 
 struct Scene {
+  CameraPathVertices campath;
   TexturedModel ground;
   TexturedModel sky;
   TexturedModel crossties;
@@ -15,6 +17,10 @@ struct Scene {
 };
 
 struct SceneConfig {
+  const char* track_filepath;
+  float max_spline_segment_len;
+  int is_verbose;
+
   float aabb_side_len;
 
   glm::vec3 ground_position;
@@ -37,9 +43,8 @@ struct SceneConfig {
   float crossties_pos_offset_in_campath_norm_dir;
 };
 
-void Make(const SceneConfig* cfg, const CameraPathVertices* campath,
-          Scene* scene);
+Status MakeScene(const SceneConfig* cfg, Scene* scene);
 
-void FreeVertices(Scene* scene);
+void FreeModelVertices(Scene* scene);
 
 #endif  // RCOASTER_SCENE_HPP

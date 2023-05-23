@@ -38,6 +38,8 @@ struct CameraPathVertices {
   glm::vec3 *normals;
   glm::vec3 *binormals;
   uint count;
+
+  ~CameraPathVertices();
 };
 
 void EvalCatmullRomSpline(const glm::vec3 *control_points,

@@ -1,7 +1,15 @@
 #include "models.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <glm/glm.hpp>
+
+CameraPathVertices::~CameraPathVertices() {
+  delete[] positions;
+  delete[] tangents;
+  delete[] normals;
+  delete[] binormals;
+}
 
 constexpr float kTension = 0.5;
 const glm::mat4x4 kCatmullRomBasis(-kTension, 2 - kTension, kTension - 2,

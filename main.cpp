@@ -58,85 +58,6 @@ static Button FromGlButton(int button) {
   }
 }
 
-static Status LoadSplines(const char *track_filepath,
-                          std::vector<std::vector<glm::vec3>> *splines) {
-  assert(track_filepath);
-  assert(splines);
-
-  auto &splines_ = *splines;
-
-  std::FILE *track_file = std::fopen(track_filepath, "r");
-  if (!track_file) {
-    std::fprintf(stderr, "Failed to open track file %s.\n", track_filepath);
-    return kStatus_IoError;
-  }
-
-  uint spline_count;
-  int rc = std::fscanf(track_file, "%u", &spline_count);
-  if (rc < 1) {
-    std::fprintf(stderr, "Failed to read spline count from track file %s.\n",
-                 track_filepath);
-    std::fclose(track_file);
-    return kStatus_IoError;
-  }
-
-  splines->resize(spline_count);
-
-  char filepath[4096];
-  for (uint i = 0; i < spline_count; ++i) {
-    rc = std::fscanf(track_file, "%s", filepath);
-    if (rc < 1) {
-      std::fprintf(stderr,
-                   "Failed to read path of spline file from track file %s.\n",
-                   track_filepath);
-      std::fclose(track_file);
-      return kStatus_IoError;
-    }
-
-    FILE *file = std::fopen(filepath, "r");
-    if (!file) {
-      std::fprintf(stderr, "Failed to open spline file %s.\n", filepath);
-      std::fclose(track_file);
-      return kStatus_IoError;
-    }
-
-    uint ctrl_point_count;
-    uint type;
-    rc = std::fscanf(file, "%u %u", &ctrl_point_count, &type);
-    if (rc < 1) {
-      std::fprintf(stderr,
-                   "Failed to read control point count and spline type from "
-                   "spline file %s.\n",
-                   filepath);
-      std::fclose(file);
-      std::fclose(track_file);
-      return kStatus_IoError;
-    }
-
-    splines_[i].resize(ctrl_point_count);
-
-    uint j = 0;
-    while ((rc = std::fscanf(file, "%f %f %f", &splines_[i][j].x,
-                             &splines_[i][j].y, &splines_[i][j].z)) > 0) {
-      ++j;
-    }
-    if (rc == 0) {
-      std::fprintf(stderr,
-                   "Failed to read control point from spline file %s.\n",
-                   filepath);
-      std::fclose(file);
-      std::fclose(track_file);
-      return kStatus_IoError;
-    }
-
-    std::fclose(file);
-  }
-
-  std::fclose(track_file);
-
-  return kStatus_Ok;
-}
-
 static Status InitTexture(const char *img_filepath, GLuint texture_name,
                           GLfloat anisotropy_degree) {
   assert(img_filepath);
@@ -210,7 +131,6 @@ static WorldStateOp world_state_op = kWorldStateOp_Rotate;
 static WorldState world_state = {{}, {}, {1, 1, 1}};
 
 static uint camera_path_index;
-static CameraPathVertices camera_path_vertices;
 
 static GLuint program_names[kVertexFormat__Count];
 static GLuint textures[kTexture__Count];
@@ -396,15 +316,15 @@ static void Idle() {
   UpdateWindowTitle(WINDOW_TITLE_UPDATE_PERIOD_MSEC, current_time,
                     kWindowTitlePrefix, window_w, window_h, &frame_count);
 
-  if (camera_path_index < camera_path_vertices.count) {
+  if (camera_path_index < scene.campath.count) {
     float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
     camera_path_index += config.camera_speed * delta_time;
   }
 
-  view_mat = glm::lookAt(camera_path_vertices.positions[camera_path_index],
-                         camera_path_vertices.positions[camera_path_index] +
-                             camera_path_vertices.tangents[camera_path_index],
-                         camera_path_vertices.normals[camera_path_index]);
+  view_mat = glm::lookAt(scene.campath.positions[camera_path_index],
+                         scene.campath.positions[camera_path_index] +
+                             scene.campath.tangents[camera_path_index],
+                         scene.campath.normals[camera_path_index]);
 
   assert(window_h > 0);
   float aspect = (float)window_w / window_h;
@@ -532,29 +452,33 @@ static void Display() {
   glutSwapBuffers();
 }
 
-static void Init(SceneConfig *cfg) {
-  assert(cfg);
+static void InitSceneConfig(const Config *cfg, SceneConfig *scene_cfg) {
+  assert(scene_cfg);
 
-  cfg->aabb_side_len = 256;
+  scene_cfg->aabb_side_len = 256;
 
-  cfg->ground_position = {0, -cfg->aabb_side_len * (1.0f / 4), 0};
-  cfg->ground_tex_repeat_count = 36;
+  scene_cfg->ground_position = {0, -scene_cfg->aabb_side_len * (1.0f / 4), 0};
+  scene_cfg->ground_tex_repeat_count = 36;
 
-  cfg->sky_position = {};
-  cfg->sky_tex_repeat_count = 1;
+  scene_cfg->sky_position = {};
+  scene_cfg->sky_tex_repeat_count = 1;
 
-  cfg->rails_position = {};
-  cfg->rails_color = {0.5, 0.5, 0.5, 1};
-  cfg->rails_head_w = 0.2;
-  cfg->rails_head_h = 0.1;
-  cfg->rails_web_w = 0.1;
-  cfg->rails_web_h = 0.1;
-  cfg->rails_gauge = 2;
-  cfg->rails_pos_offset_in_campath_norm_dir = -2;
+  scene_cfg->rails_position = {};
+  scene_cfg->rails_color = {0.5, 0.5, 0.5, 1};
+  scene_cfg->rails_head_w = 0.2;
+  scene_cfg->rails_head_h = 0.1;
+  scene_cfg->rails_web_w = 0.1;
+  scene_cfg->rails_web_h = 0.1;
+  scene_cfg->rails_gauge = 2;
+  scene_cfg->rails_pos_offset_in_campath_norm_dir = -2;
 
-  cfg->crossties_position = {};
-  cfg->crossties_separation_dist = 1;
-  cfg->crossties_pos_offset_in_campath_norm_dir = -2;
+  scene_cfg->crossties_position = {};
+  scene_cfg->crossties_separation_dist = 1;
+  scene_cfg->crossties_pos_offset_in_campath_norm_dir = -2;
+
+  scene_cfg->track_filepath = cfg->track_filepath;
+  scene_cfg->max_spline_segment_len = cfg->max_spline_segment_len;
+  scene_cfg->is_verbose = cfg->is_verbose;
 }
 
 void ConfigureGlut(int argc, char **argv, uint window_w, uint window_h,
@@ -695,31 +619,13 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  /************************************
-   * Create camera path.
-   ************************************/
-
-  std::vector<std::vector<glm::vec3>> splines;
-  status = LoadSplines(config.track_filepath, &splines);
-  if (status != kStatus_Ok) {
-    std::fprintf(stderr, "Could not load splines.\n");
-  }
-  if (config.is_verbose) {
-    std::printf("Loaded spline count: %lu\n", splines.size());
-    for (uint i = 0; i < splines.size(); ++i) {
-      std::printf("Control point count in spline %u: %lu\n", i,
-                  splines[i].size());
-    }
-  }
-
-  // TODO: Support for multiple splines.
-  assert(splines.size() == 1);
-  MakeCameraPath(splines[0].data(), splines[0].size(),
-                 config.max_spline_segment_len, &camera_path_vertices);
-
   SceneConfig scene_cfg;
-  Init(&scene_cfg);
-  Make(&scene_cfg, &camera_path_vertices, &scene);
+  InitSceneConfig(&config, &scene_cfg);
+  status = MakeScene(&scene_cfg, &scene);
+  if (status != kStatus_Ok) {
+    std::fprintf(stderr, "Failed to make scene.\n");
+    return EXIT_FAILURE;
+  }
 
   /************************************
    * Setup OpenGL state.
@@ -911,7 +817,7 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
-  FreeVertices(&scene);
+  FreeModelVertices(&scene);
 
   glutMainLoop();
 }
