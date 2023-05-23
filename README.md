@@ -8,15 +8,16 @@ A simulated roller coaster experience built with OpenGL.
 
 ## Description 
 
-- The track model and camera path are generated from evaluating Catmull-Rom splines via recursive subdivision. 
-    - Each spline is defined by the control points found in the corresponding input spline file.
-- The rails have T-shaped cross sections.
-- The crossties are placed between the rails at a regular distance interval.
+- Catmull-Rom splines are evaluated via recursive subdivision to determine the camera pose and track model along the spline.
+    - Each spline is defined by the control points found in the input spline file.
+    - The camera moves in a continuous path and orientation.
+- The track model consists of a pair of rails and a sequence of crossties.
+    - A rail has a T-shaped cross section.
+    - All neighboring pairs of crossties are separated by the same distance.
 - Textures are mapped to the models for the sky, ground, and crossties.
     - The image files corresponding to the textures are designated via command-line parameters.
-- The camera follows a continuous path and orientation.
-- The scene was displayed at 60 frames per second on a Retina display of a 13-inch Macbook Pro from early 2015.
-    - Vertical synchronization seemed to be enabled by default.
+- The scene was displayed at 60 frames per second on the Retina display of a 13-inch Macbook Pro from early 2015.
+    - Vertical synchronization seemed to be enabled by default on the Macbook Pro.
 
 ## Build Requirements
 
@@ -89,7 +90,7 @@ Options:
     - An option argument of 1 enables verbose output to `stdout`, and an option argument of 0 disables it. 
     - The default option argument is 0.
 
-Screenshots are in JPEG format. Video is a series of screenshots. To take a single screenshot, press `i`. To start recording video, press `v`. To stop recording video, press `v` again.
+Any screenshots taken are saved as JPEG files. Video is a series of screenshots. To take a single screenshot, press `i`. To start recording video, press `v`. To stop recording video, press `v` again.
 
 To exit the program, have the window in focus and press `ESC`. You can also terminate the program by pressing `CTRL + C` in the terminal.
 
@@ -118,3 +119,8 @@ Example spline files are in the directory `splines`. I tailored the spline file 
 ### Texture Files
 
 Textures are provided as either JPEG or PNG files. Example texture files are in the `textures` directory.
+
+## References
+- Calculation of Reference Frames along a Space Curve
+    - By Jules Bloomenthal
+    - Bloomenthal gives credit to Ken Sloan for the technique I implemented to propagate reference frames along the spline.
