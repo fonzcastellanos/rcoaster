@@ -725,11 +725,25 @@ int main(int argc, char **argv) {
 
   glGenBuffers(kVbo__Count, vbo_names);
 
-  uint textured_vertex_count = scene.ground.vertices.count +
-                               scene.sky.vertices.count +
-                               scene.crossties.vertices.count;
-  uint colored_vertex_count =
-      scene.left_rail.vertices.count + scene.right_rail.vertices.count;
+  TexturedVertexList *textured_vlists[] = {
+      &scene.ground.vertices, &scene.sky.vertices, &scene.crossties.vertices};
+
+  uint textured_vlist_count =
+      sizeof(textured_vlists) / sizeof(textured_vlists[0]);
+
+  uint textured_vertex_count = 0;
+  for (uint i = 0; i < textured_vlist_count; ++i) {
+    textured_vertex_count += textured_vlists[i]->count;
+  }
+
+  ColoredVertexList *colored_vlists[] = {&scene.left_rail.vertices,
+                                         &scene.right_rail.vertices};
+  uint colored_vlist_count = sizeof(colored_vlists) / sizeof(colored_vlists[0]);
+
+  uint colored_vertex_count = 0;
+  for (uint i = 0; i < colored_vlist_count; ++i) {
+    colored_vertex_count += colored_vlists[i]->count;
+  }
 
   // Buffer textured vertices.
   {
@@ -740,30 +754,20 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.ground.vertices.count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.ground.vertices.positions);
-    offset += size;
-    size = scene.sky.vertices.count * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.sky.vertices.positions);
-    offset += size;
-    size = scene.crossties.vertices.count * sizeof(glm::vec3),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.crossties.vertices.positions);
 
-    offset += size;
-    size = scene.ground.vertices.count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.ground.vertices.tex_coords);
-    offset += size;
-    size = scene.sky.vertices.count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.sky.vertices.tex_coords);
-    offset += size;
-    size = scene.crossties.vertices.count * sizeof(glm::vec2),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.crossties.vertices.tex_coords);
+    for (uint i = 0; i < textured_vlist_count; ++i) {
+      uint size = textured_vlists[i]->count * sizeof(glm::vec3);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                      textured_vlists[i]->positions);
+      offset += size;
+    }
+
+    for (uint i = 0; i < textured_vlist_count; ++i) {
+      uint size = textured_vlists[i]->count * sizeof(glm::vec2);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                      textured_vlists[i]->tex_coords);
+      offset += size;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -777,24 +781,19 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.left_rail.vertices.count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.vertices.positions);
 
-    offset += size;
-    size = scene.right_rail.vertices.count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.right_rail.vertices.positions);
+    for (uint i = 0; i < colored_vlist_count; ++i) {
+      uint size = colored_vlists[i]->count * sizeof(glm::vec3);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                      colored_vlists[i]->positions);
+      offset += size;
+    }
 
-    offset += size;
-    size = scene.left_rail.vertices.count * sizeof(glm::vec4),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.vertices.colors);
-
-    offset += size;
-    size = scene.right_rail.vertices.count * sizeof(glm::vec4),
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.right_rail.vertices.colors);
+    for (uint i = 0; i < colored_vlist_count; ++i) {
+      uint size = colored_vlists[i]->count * sizeof(glm::vec4);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size, colored_vlists[i]->colors);
+      offset += size;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
