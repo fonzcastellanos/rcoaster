@@ -7,24 +7,42 @@
 
 #include "types.hpp"
 
-struct VertexList {
+struct ColoredVertexList {
   glm::vec3 *positions;
-  glm::vec3 *tangents;
-  glm::vec3 *normals;
-  glm::vec3 *binormals;
   glm::vec4 *colors;
+  uint count;
+};
+
+struct TexturedVertexList {
+  glm::vec3 *positions;
   glm::vec2 *tex_coords;
   uint count;
 };
 
-struct Mesh {
-  VertexList vertices;
-  uint *indices;
-  uint index_count;
+struct CameraSplineVertexList {
+  glm::vec3 *positions;
+  glm::vec3 *tangents;
+  glm::vec3 *normals;
+  glm::vec3 *binormals;
+  uint count;
 };
 
-struct Model {
-  Mesh mesh;
+struct CameraSpline {
+  CameraSplineVertexList vertices;
+  glm::vec3 position;
+};
+
+struct IndexedColoredMesh {
+  ColoredVertexList vertices;
+
+  uint *indices;
+  uint index_count;
+
+  glm::vec3 position;
+};
+
+struct TexturedMesh {
+  TexturedVertexList vertices;
   glm::vec3 position;
 };
 
@@ -37,13 +55,13 @@ void CalcCameraOrientation(const glm::vec3 *tangents, uint vertex_count,
                            glm::vec3 *normals, glm::vec3 *binormals);
 
 void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
-                    float max_segment_len, VertexList *vertices);
+                    float max_segment_len, CameraSplineVertexList *vertices);
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  VertexList *vertices);
+                                  TexturedVertexList *vertices);
 
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        VertexList *vertices);
+                        TexturedVertexList *vertices);
 /*
 Gauge is the distance between the two rails.
 
@@ -66,13 +84,13 @@ Rail cross section:
           |          |
           7 -------- 0
 */
-void MakeRails(const VertexList *campath_vertices, const glm::vec4 *color,
-               float head_w, float head_h, float web_w, float web_h,
-               float gauge, float pos_offset_in_campath_normal_dir,
-               Mesh *left_rail, Mesh *right_rail);
+void MakeRails(const CameraSplineVertexList *camspl_vertices,
+               const glm::vec4 *color, float head_w, float head_h, float web_w,
+               float web_h, float gauge, float pos_offset_in_camspl_normal_dir,
+               IndexedColoredMesh *left_rail, IndexedColoredMesh *right_rail);
 
-void MakeCrossties(const VertexList *campath_vertices, float separation_dist,
-                   float pos_offset_in_campath_normal_dir,
-                   VertexList *vertices);
+void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
+                   float separation_dist, float pos_offset_in_camspl_normal_dir,
+                   TexturedVertexList *vertices);
 
 #endif  // RCOASTER_MODELS_HPP

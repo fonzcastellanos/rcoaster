@@ -328,15 +328,15 @@ static void Idle() {
     ExitGlutMainLoop(EXIT_FAILURE);
   }
 
-  if (camera_path_index < scene.campath.count) {
+  if (camera_path_index < scene.camspl.vertices.count) {
     float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
     camera_path_index += config.camera_speed * delta_time;
   }
 
-  view_mat = glm::lookAt(scene.campath.positions[camera_path_index],
-                         scene.campath.positions[camera_path_index] +
-                             scene.campath.tangents[camera_path_index],
-                         scene.campath.normals[camera_path_index]);
+  view_mat = glm::lookAt(scene.camspl.vertices.positions[camera_path_index],
+                         scene.camspl.vertices.positions[camera_path_index] +
+                             scene.camspl.vertices.tangents[camera_path_index],
+                         scene.camspl.vertices.normals[camera_path_index]);
 
   assert(window_h > 0);
   float aspect = (float)window_w / window_h;
@@ -397,8 +397,8 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
                        glm::value_ptr(projection_mat));
 
-    glDrawElements(GL_TRIANGLES, scene.left_rail.mesh.index_count,
-                   GL_UNSIGNED_INT, BUFFER_OFFSET(0));
+    glDrawElements(GL_TRIANGLES, scene.left_rail.index_count, GL_UNSIGNED_INT,
+                   BUFFER_OFFSET(0));
   }
   {
     glm::mat4 model_view = glm::translate(view_mat, scene.right_rail.position);
@@ -408,9 +408,8 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
                        glm::value_ptr(projection_mat));
 
-    glDrawElements(
-        GL_TRIANGLES, scene.right_rail.mesh.index_count, GL_UNSIGNED_INT,
-        BUFFER_OFFSET(scene.left_rail.mesh.index_count * sizeof(GLuint)));
+    glDrawElements(GL_TRIANGLES, scene.right_rail.index_count, GL_UNSIGNED_INT,
+                   BUFFER_OFFSET(scene.left_rail.index_count * sizeof(GLuint)));
   }
 
   glBindVertexArray(0);
@@ -439,8 +438,8 @@ static void Display() {
                      glm::value_ptr(projection_mat));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-  glDrawArrays(GL_TRIANGLES, first, scene.ground.mesh.vertices.count);
-  first += scene.ground.mesh.vertices.count;
+  glDrawArrays(GL_TRIANGLES, first, scene.ground.vertices.count);
+  first += scene.ground.vertices.count;
 
   // Sky
 
@@ -452,8 +451,8 @@ static void Display() {
                      glm::value_ptr(projection_mat));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-  glDrawArrays(GL_TRIANGLES, first, scene.sky.mesh.vertices.count);
-  first += scene.sky.mesh.vertices.count;
+  glDrawArrays(GL_TRIANGLES, first, scene.sky.vertices.count);
+  first += scene.sky.vertices.count;
 
   // Crossties
 
@@ -466,8 +465,7 @@ static void Display() {
                      glm::value_ptr(projection_mat));
 
   glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
-  for (uint offset = 0; offset < scene.crossties.mesh.vertices.count;
-       offset += 36) {
+  for (uint offset = 0; offset < scene.crossties.vertices.count; offset += 36) {
     glDrawArrays(GL_TRIANGLES, first + offset, 36);
   }
 
@@ -482,7 +480,7 @@ static void InitSceneConfig(const Config *cfg, SceneConfig *scene_cfg) {
 
   scene_cfg->aabb_side_len = 256;
 
-  scene_cfg->ground_position = {0, -scene_cfg->aabb_side_len * (1.0f / 4), 0};
+  scene_cfg->ground_position = {0, -scene_cfg->aabb_side_len * (1.0f / 8), 0};
   scene_cfg->ground_tex_repeat_count = 36;
 
   scene_cfg->sky_position = {};
@@ -727,11 +725,11 @@ int main(int argc, char **argv) {
 
   glGenBuffers(kVbo__Count, vbo_names);
 
-  uint textured_vertex_count = scene.ground.mesh.vertices.count +
-                               scene.sky.mesh.vertices.count +
-                               scene.crossties.mesh.vertices.count;
-  uint colored_vertex_count = scene.left_rail.mesh.vertices.count +
-                              scene.right_rail.mesh.vertices.count;
+  uint textured_vertex_count = scene.ground.vertices.count +
+                               scene.sky.vertices.count +
+                               scene.crossties.vertices.count;
+  uint colored_vertex_count =
+      scene.left_rail.vertices.count + scene.right_rail.vertices.count;
 
   // Buffer textured vertices.
   {
@@ -742,30 +740,30 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.ground.mesh.vertices.count * sizeof(glm::vec3);
+    uint size = scene.ground.vertices.count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.ground.mesh.vertices.positions);
+                    scene.ground.vertices.positions);
     offset += size;
-    size = scene.sky.mesh.vertices.count * sizeof(glm::vec3),
+    size = scene.sky.vertices.count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.sky.mesh.vertices.positions);
+                    scene.sky.vertices.positions);
     offset += size;
-    size = scene.crossties.mesh.vertices.count * sizeof(glm::vec3),
+    size = scene.crossties.vertices.count * sizeof(glm::vec3),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.crossties.mesh.vertices.positions);
+                    scene.crossties.vertices.positions);
 
     offset += size;
-    size = scene.ground.mesh.vertices.count * sizeof(glm::vec2),
+    size = scene.ground.vertices.count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.ground.mesh.vertices.tex_coords);
+                    scene.ground.vertices.tex_coords);
     offset += size;
-    size = scene.sky.mesh.vertices.count * sizeof(glm::vec2),
+    size = scene.sky.vertices.count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.sky.mesh.vertices.tex_coords);
+                    scene.sky.vertices.tex_coords);
     offset += size;
-    size = scene.crossties.mesh.vertices.count * sizeof(glm::vec2),
+    size = scene.crossties.vertices.count * sizeof(glm::vec2),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.crossties.mesh.vertices.tex_coords);
+                    scene.crossties.vertices.tex_coords);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
@@ -779,50 +777,50 @@ int main(int argc, char **argv) {
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.left_rail.mesh.vertices.count * sizeof(glm::vec3);
+    uint size = scene.left_rail.vertices.count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.mesh.vertices.positions);
+                    scene.left_rail.vertices.positions);
 
     offset += size;
-    size = scene.right_rail.mesh.vertices.count * sizeof(glm::vec3);
+    size = scene.right_rail.vertices.count * sizeof(glm::vec3);
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.right_rail.mesh.vertices.positions);
+                    scene.right_rail.vertices.positions);
 
     offset += size;
-    size = scene.left_rail.mesh.vertices.count * sizeof(glm::vec4),
+    size = scene.left_rail.vertices.count * sizeof(glm::vec4),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.mesh.vertices.colors);
+                    scene.left_rail.vertices.colors);
 
     offset += size;
-    size = scene.right_rail.mesh.vertices.count * sizeof(glm::vec4),
+    size = scene.right_rail.vertices.count * sizeof(glm::vec4),
     glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                    scene.right_rail.mesh.vertices.colors);
+                    scene.right_rail.vertices.colors);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
   // Buffer colored indices.
   {
-    for (uint i = 0; i < scene.right_rail.mesh.index_count; ++i) {
-      scene.right_rail.mesh.indices[i] += scene.left_rail.mesh.vertices.count;
+    for (uint i = 0; i < scene.right_rail.index_count; ++i) {
+      scene.right_rail.indices[i] += scene.left_rail.vertices.count;
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
 
     uint index_count =
-        scene.left_rail.mesh.index_count + scene.right_rail.mesh.index_count;
+        scene.left_rail.index_count + scene.right_rail.index_count;
     uint buffer_size = index_count * sizeof(uint);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.left_rail.mesh.index_count * sizeof(uint);
+    uint size = scene.left_rail.index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.mesh.indices);
+                    scene.left_rail.indices);
 
     offset += size;
-    size = scene.right_rail.mesh.index_count * sizeof(uint);
+    size = scene.right_rail.index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, size, offset,
-                    scene.right_rail.mesh.indices);
+                    scene.right_rail.indices);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }

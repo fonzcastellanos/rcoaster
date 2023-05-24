@@ -105,25 +105,25 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
   // TODO: Support for multiple splines.
   assert(splines.size() == 1);
   MakeCameraPath(splines[0].data(), splines[0].size(),
-                 cfg->max_spline_segment_len, &scene->campath);
+                 cfg->max_spline_segment_len, &scene->camspl.vertices);
 
   MakeAxisAlignedXzSquarePlane(cfg->aabb_side_len, cfg->ground_tex_repeat_count,
-                               &scene->ground.mesh.vertices);
+                               &scene->ground.vertices);
   scene->ground.position = cfg->ground_position;
 
   MakeAxisAlignedBox(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
-                     &scene->sky.mesh.vertices);
+                     &scene->sky.vertices);
 
-  MakeRails(&scene->campath, &cfg->rails_color, cfg->rails_head_w,
+  MakeRails(&scene->camspl.vertices, &cfg->rails_color, cfg->rails_head_w,
             cfg->rails_head_h, cfg->rails_web_w, cfg->rails_web_h,
             cfg->rails_gauge, cfg->rails_pos_offset_in_campath_norm_dir,
-            &scene->left_rail.mesh, &scene->right_rail.mesh);
+            &scene->left_rail, &scene->right_rail);
   scene->left_rail.position = cfg->rails_position;
   scene->right_rail.position = cfg->rails_position;
 
-  MakeCrossties(&scene->campath, cfg->crossties_separation_dist,
+  MakeCrossties(&scene->camspl.vertices, cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_campath_norm_dir,
-                &scene->crossties.mesh.vertices);
+                &scene->crossties.vertices);
 
   return kStatus_Ok;
 }
@@ -131,20 +131,20 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 void FreeModelVertices(Scene *scene) {
   assert(scene);
 
-  delete[] scene->ground.mesh.vertices.positions;
-  delete[] scene->ground.mesh.vertices.tex_coords;
+  delete[] scene->ground.vertices.positions;
+  delete[] scene->ground.vertices.tex_coords;
 
-  delete[] scene->sky.mesh.vertices.positions;
-  delete[] scene->sky.mesh.vertices.tex_coords;
+  delete[] scene->sky.vertices.positions;
+  delete[] scene->sky.vertices.tex_coords;
 
-  delete[] scene->crossties.mesh.vertices.positions;
-  delete[] scene->crossties.mesh.vertices.tex_coords;
+  delete[] scene->crossties.vertices.positions;
+  delete[] scene->crossties.vertices.tex_coords;
 
-  delete[] scene->left_rail.mesh.vertices.positions;
-  delete[] scene->left_rail.mesh.vertices.colors;
-  delete[] scene->left_rail.mesh.indices;
+  delete[] scene->left_rail.vertices.positions;
+  delete[] scene->left_rail.vertices.colors;
+  delete[] scene->left_rail.indices;
 
-  delete[] scene->right_rail.mesh.vertices.positions;
-  delete[] scene->right_rail.mesh.vertices.colors;
-  delete[] scene->right_rail.mesh.indices;
+  delete[] scene->right_rail.vertices.positions;
+  delete[] scene->right_rail.vertices.colors;
+  delete[] scene->right_rail.indices;
 }

@@ -123,7 +123,7 @@ void CalcCameraOrientation(const glm::vec3 *tangents, uint vertex_count,
 }
 
 void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
-                    float max_segment_len, VertexList *vertices) {
+                    float max_segment_len, CameraSplineVertexList *vertices) {
 #ifndef NDEBUG
   static constexpr float kTolerance = 0.00001;
 #endif
@@ -143,7 +143,7 @@ void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  VertexList *vertices) {
+                                  TexturedVertexList *vertices) {
   static constexpr uint kVertexCount = 6;
 
   assert(side_len > 0);
@@ -177,7 +177,7 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
 }
 
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        VertexList *vertices) {
+                        TexturedVertexList *vertices) {
   static constexpr uint kVertexCount = 36;
 
   assert(side_len > 0);
@@ -265,18 +265,18 @@ void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
   }
 }
 
-void MakeRails(const VertexList *campath_vertices, const glm::vec4 *color,
-               float head_w, float head_h, float web_w, float web_h,
-               float gauge, float pos_offset_in_campath_norm_dir,
-               Mesh *left_rail, Mesh *right_rail) {
+void MakeRails(const CameraSplineVertexList *camspl_vertices,
+               const glm::vec4 *color, float head_w, float head_h, float web_w,
+               float web_h, float gauge, float pos_offset_in_campath_norm_dir,
+               IndexedColoredMesh *left_rail, IndexedColoredMesh *right_rail) {
   static constexpr uint kCrossSectionVertexCount = 8;
 
   enum RailType { kRailType_Left, kRailType_Right, kRailType__Count };
 
-  assert(campath_vertices);
-  assert(campath_vertices->positions);
-  assert(campath_vertices->normals);
-  assert(campath_vertices->binormals);
+  assert(camspl_vertices);
+  assert(camspl_vertices->positions);
+  assert(camspl_vertices->normals);
+  assert(camspl_vertices->binormals);
   assert(color);
   assert(left_rail);
   assert(right_rail);
@@ -286,12 +286,12 @@ void MakeRails(const VertexList *campath_vertices, const glm::vec4 *color,
   assert(head_w > web_w);
   assert(gauge > 0);
 
-  glm::vec3 *cv_pos = campath_vertices->positions;
-  glm::vec3 *cv_norm = campath_vertices->normals;
-  glm::vec3 *cv_binorm = campath_vertices->binormals;
-  uint cv_count = campath_vertices->count;
+  glm::vec3 *cv_pos = camspl_vertices->positions;
+  glm::vec3 *cv_norm = camspl_vertices->normals;
+  glm::vec3 *cv_binorm = camspl_vertices->binormals;
+  uint cv_count = camspl_vertices->count;
 
-  Mesh *rails[kRailType__Count] = {left_rail, right_rail};
+  IndexedColoredMesh *rails[kRailType__Count] = {left_rail, right_rail};
   uint rv_count = cv_count * kCrossSectionVertexCount;
 
   for (int i = 0; i < kRailType__Count; ++i) {
@@ -453,27 +453,28 @@ void MakeRails(const VertexList *campath_vertices, const glm::vec4 *color,
   }
 }
 
-void MakeCrossties(const VertexList *campath_vertices, float separation_dist,
-                   float pos_offset_in_campath_norm_dir, VertexList *vertices) {
+void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
+                   float separation_dist, float pos_offset_in_camspl_norm_dir,
+                   TexturedVertexList *vertices) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
   static constexpr int kUniqPosCountPerCrosstie = 8;
   static constexpr float kBarDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
 
-  assert(campath_vertices);
-  assert(campath_vertices->positions);
-  assert(campath_vertices->tangents);
-  assert(campath_vertices->normals);
-  assert(campath_vertices->binormals);
+  assert(camspl_vertices);
+  assert(camspl_vertices->positions);
+  assert(camspl_vertices->tangents);
+  assert(camspl_vertices->normals);
+  assert(camspl_vertices->binormals);
   assert(separation_dist + kTolerance > 0);
   assert(vertices);
 
-  glm::vec3 *cv_pos = campath_vertices->positions;
-  glm::vec3 *cv_tan = campath_vertices->tangents;
-  glm::vec3 *cv_binorm = campath_vertices->binormals;
-  glm::vec3 *cv_norm = campath_vertices->normals;
-  uint path_count = campath_vertices->count;
+  glm::vec3 *cv_pos = camspl_vertices->positions;
+  glm::vec3 *cv_tan = camspl_vertices->tangents;
+  glm::vec3 *cv_binorm = camspl_vertices->binormals;
+  glm::vec3 *cv_norm = camspl_vertices->normals;
+  uint path_count = camspl_vertices->count;
 
   uint max_vertex_count = 36 * (path_count - 1);
   glm::vec3 *pos = new glm::vec3[max_vertex_count];
@@ -509,7 +510,7 @@ void MakeCrossties(const VertexList *campath_vertices, float separation_dist,
            cv_binorm[i] + kBarDepth * cv_tan[i] - kAlpha * cv_binorm[i];
 
     for (uint j = 0; j < kUniqPosCountPerCrosstie; ++j) {
-      p[j] += pos_offset_in_campath_norm_dir * cv_norm[i];
+      p[j] += pos_offset_in_camspl_norm_dir * cv_norm[i];
     }
 
     // Top face
