@@ -3,13 +3,7 @@
 #include <cassert>
 #include <cstdio>
 #include <glm/glm.hpp>
-
-CameraPathVertices::~CameraPathVertices() {
-  delete[] positions;
-  delete[] tangents;
-  delete[] normals;
-  delete[] binormals;
-}
+#include <vector>
 
 constexpr float kTension = 0.5;
 const glm::mat4x4 kCatmullRomBasis(-kTension, 2 - kTension, kTension - 2,
@@ -129,36 +123,36 @@ void CalcCameraOrientation(const glm::vec3 *tangents, uint vertex_count,
 }
 
 void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
-                    float max_segment_len, CameraPathVertices *campath) {
-  assert(control_points);
-  assert(campath);
-
+                    float max_segment_len, VertexList *vertices) {
 #ifndef NDEBUG
   static constexpr float kTolerance = 0.00001;
 #endif
+
+  assert(control_points);
   assert(max_segment_len + kTolerance > 0);
+  assert(vertices);
 
   EvalCatmullRomSpline(control_points, control_point_count, max_segment_len,
-                       &campath->positions, &campath->tangents,
-                       &campath->count);
+                       &vertices->positions, &vertices->tangents,
+                       &vertices->count);
 
-  campath->normals = new glm::vec3[campath->count];
-  campath->binormals = new glm::vec3[campath->count];
-  CalcCameraOrientation(campath->tangents, campath->count, campath->normals,
-                        campath->binormals);
+  vertices->normals = new glm::vec3[vertices->count];
+  vertices->binormals = new glm::vec3[vertices->count];
+  CalcCameraOrientation(vertices->tangents, vertices->count, vertices->normals,
+                        vertices->binormals);
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  TexturedVertices *vertices) {
-  constexpr uint kVertexCount = 6;
+                                  VertexList *vertices) {
+  static constexpr uint kVertexCount = 6;
 
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(vertices);
 
-  vertices->count = kVertexCount;
   vertices->positions = new glm::vec3[kVertexCount];
   vertices->tex_coords = new glm::vec2[kVertexCount];
+  vertices->count = kVertexCount;
 
   glm::vec3 *pos = vertices->positions;
   glm::vec2 *texc = vertices->tex_coords;
@@ -183,12 +177,12 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
 }
 
 void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        TexturedVertices *vertices) {
-  constexpr uint kVertexCount = 36;
+                        VertexList *vertices) {
+  static constexpr uint kVertexCount = 36;
 
   assert(side_len > 0);
-  assert(vertices);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
+  assert(vertices);
 
   vertices->positions = new glm::vec3[kVertexCount];
   vertices->tex_coords = new glm::vec2[kVertexCount];
@@ -271,42 +265,51 @@ void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
   }
 }
 
-void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
+void MakeRails(const VertexList *campath_vertices, const glm::vec4 *color,
                float head_w, float head_h, float web_w, float web_h,
                float gauge, float pos_offset_in_campath_norm_dir,
-               ColoredVertices *vertices) {
-  assert(campath);
+               Mesh *left_rail, Mesh *right_rail) {
+  static constexpr uint kCrossSectionVertexCount = 8;
+
+  enum RailType { kRailType_Left, kRailType_Right, kRailType__Count };
+
+  assert(campath_vertices);
+  assert(campath_vertices->positions);
+  assert(campath_vertices->normals);
+  assert(campath_vertices->binormals);
   assert(color);
-  assert(vertices);
+  assert(left_rail);
+  assert(right_rail);
 
   assert(head_w > 0);
   assert(web_w > 0);
   assert(head_w > web_w);
   assert(gauge > 0);
 
-  static constexpr uint kCrossSectionVertexCount = 8;
+  glm::vec3 *cv_pos = campath_vertices->positions;
+  glm::vec3 *cv_norm = campath_vertices->normals;
+  glm::vec3 *cv_binorm = campath_vertices->binormals;
+  uint cv_count = campath_vertices->count;
 
-  auto &cv_pos = campath->positions;
-  auto &cv_binorm = campath->binormals;
-  auto &cv_norm = campath->normals;
+  Mesh *rails[kRailType__Count] = {left_rail, right_rail};
+  uint rv_count = cv_count * kCrossSectionVertexCount;
 
-  uint cv_count = campath->count;
-  uint rv_count = 2 * cv_count * kCrossSectionVertexCount;
-
-  vertices->count = rv_count;
-  vertices->positions = new glm::vec3[rv_count];
-  vertices->colors = new glm::vec4[rv_count];
-
-  glm::vec3 *pos = vertices->positions;
-  glm::vec4 *colors = vertices->colors;
-
-  for (uint i = 0; i < vertices->count; ++i) {
-    colors[i] = *color;
+  for (int i = 0; i < kRailType__Count; ++i) {
+    rails[i]->vertices.positions = new glm::vec3[rv_count];
+    rails[i]->vertices.colors = new glm::vec4[rv_count];
+    rails[i]->vertices.count = rv_count;
   }
 
-  for (uint i = 0; i < 2; ++i) {
+  for (int i = 0; i < kRailType__Count; ++i) {
+    for (uint j = 0; j < rv_count; ++j) {
+      rails[i]->vertices.colors[j] = *color;
+    }
+  }
+
+  for (int i = 0; i < kRailType__Count; ++i) {
+    glm::vec3 *pos = rails[i]->vertices.positions;
     for (uint j = 0; j < cv_count; ++j) {
-      uint k = kCrossSectionVertexCount * (j + i * cv_count);
+      uint k = j * kCrossSectionVertexCount;
       // See the comment block above the function declaration in the header
       // file for the visual index-to-position mapping.
       pos[k] = cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
@@ -326,116 +329,151 @@ void MakeRails(const CameraPathVertices *campath, const glm::vec4 *color,
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      pos[j + k] += 0.5f * gauge * cv_binorm[i];
+      right_rail->vertices.positions[j + k] += 0.5f * gauge * cv_binorm[i];
     }
   }
   for (uint i = 0; i < cv_count; ++i) {
-    uint j = kCrossSectionVertexCount * (i + cv_count);
+    uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      pos[j + k] -= 0.5f * gauge * cv_binorm[i];
+      left_rail->vertices.positions[j + k] -= 0.5f * gauge * cv_binorm[i];
     }
   }
 
-  for (uint i = 0; i < 2; ++i) {
+  for (int i = 0; i < kRailType__Count; ++i) {
+    glm::vec3 *pos = rails[i]->vertices.positions;
     for (uint j = 0; j < cv_count; ++j) {
-      uint k = kCrossSectionVertexCount * (j + i * cv_count);
+      uint k = j * kCrossSectionVertexCount;
       for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
         pos[k + l] += pos_offset_in_campath_norm_dir * cv_norm[j];
       }
     }
   }
 
-  auto &ri = vertices->indices;
+  static constexpr uint kFaceVertexCount = 6;
+  static constexpr uint kFaceCount = 8;
+  // kFaceVertexCount * kFaceCount = 48 indices for every
+  // iteration of the inner loop, which processes 2 cross-sections
+  // (kCrossSectionVertexCount * 2 = 16 vertices).
+  //
+  // rv_count / kCrossSectionVertexCount - 1 is the number of iterations for
+  // the inner loop.
 
-  for (uint i = 0; i < 2; ++i) {
-    for (uint j = i * rv_count / 2;
-         j + kCrossSectionVertexCount < rv_count / (2 - i);
+  uint index_count =
+      (rv_count / kCrossSectionVertexCount - 1) * kFaceCount * kFaceVertexCount;
+
+  for (int i = 0; i < kRailType__Count; ++i) {
+    rails[i]->indices = new uint[index_count];
+    rails[i]->index_count = index_count;
+
+    uint *ri = rails[i]->indices;
+
+    uint k = 0;
+    for (uint j = 0; j + kCrossSectionVertexCount < rv_count;
          j += kCrossSectionVertexCount) {
       // Top face
-      ri.push_back(j + 4);
-      ri.push_back(j + 12);
-      ri.push_back(j + 3);
-      ri.push_back(j + 12);
-      ri.push_back(j + 11);
-      ri.push_back(j + 3);
+      ri[k] = j + 4;
+      ri[k + 1] = j + 12;
+      ri[k + 2] = j + 3;
+      ri[k + 3] = j + 12;
+      ri[k + 4] = j + 11;
+      ri[k + 5] = j + 3;
+
+      k += 6;
 
       // Top right right face
-      ri.push_back(j + 3);
-      ri.push_back(j + 11);
-      ri.push_back(j + 2);
-      ri.push_back(j + 11);
-      ri.push_back(j + 10);
-      ri.push_back(j + 2);
+      ri[k] = j + 3;
+      ri[k + 1] = j + 11;
+      ri[k + 2] = j + 2;
+      ri[k + 3] = j + 11;
+      ri[k + 4] = j + 10;
+      ri[k + 5] = j + 2;
+
+      k += 6;
 
       // Top right bottom face
-      ri.push_back(j + 2);
-      ri.push_back(j + 10);
-      ri.push_back(j + 1);
-      ri.push_back(j + 10);
-      ri.push_back(j + 9);
-      ri.push_back(j + 1);
+      ri[k] = j + 2;
+      ri[k + 1] = j + 10;
+      ri[k + 2] = j + 1;
+      ri[k + 3] = j + 10;
+      ri[k + 4] = j + 9;
+      ri[k + 5] = j + 1;
+
+      k += 6;
 
       // Bottom right face
-      ri.push_back(j + 1);
-      ri.push_back(j + 9);
-      ri.push_back(j);
-      ri.push_back(j + 9);
-      ri.push_back(j + 8);
-      ri.push_back(j);
+      ri[k] = j + 1;
+      ri[k + 1] = j + 9;
+      ri[k + 2] = j;
+      ri[k + 3] = j + 9;
+      ri[k + 4] = j + 8;
+      ri[k + 5] = j;
+
+      k += 6;
 
       // Bottom face
-      ri.push_back(j);
-      ri.push_back(j + 8);
-      ri.push_back(j + 7);
-      ri.push_back(j + 8);
-      ri.push_back(j + 15);
-      ri.push_back(j + 7);
+      ri[k] = j;
+      ri[k + 1] = j + 8;
+      ri[k + 2] = j + 7;
+      ri[k + 3] = j + 8;
+      ri[k + 4] = j + 15;
+      ri[k + 5] = j + 7;
+
+      k += 6;
 
       // Bottom left face
-      ri.push_back(j + 14);
-      ri.push_back(j + 6);
-      ri.push_back(j + 15);
-      ri.push_back(j + 6);
-      ri.push_back(j + 7);
-      ri.push_back(j + 15);
+      ri[k] = j + 14;
+      ri[k + 1] = j + 6;
+      ri[k + 2] = j + 15;
+      ri[k + 3] = j + 6;
+      ri[k + 4] = j + 7;
+      ri[k + 5] = j + 15;
+
+      k += 6;
 
       // Top left bottom face
-      ri.push_back(j + 13);
-      ri.push_back(j + 5);
-      ri.push_back(j + 14);
-      ri.push_back(j + 5);
-      ri.push_back(j + 6);
-      ri.push_back(j + 14);
+      ri[k] = j + 13;
+      ri[k + 1] = j + 5;
+      ri[k + 2] = j + 14;
+      ri[k + 3] = j + 5;
+      ri[k + 4] = j + 6;
+      ri[k + 5] = j + 14;
+
+      k += 6;
 
       // Top left left face
-      ri.push_back(j + 12);
-      ri.push_back(j + 4);
-      ri.push_back(j + 13);
-      ri.push_back(j + 4);
-      ri.push_back(j + 5);
-      ri.push_back(j + 13);
+      ri[k] = j + 12;
+      ri[k + 1] = j + 4;
+      ri[k + 2] = j + 13;
+      ri[k + 3] = j + 4;
+      ri[k + 4] = j + 5;
+      ri[k + 5] = j + 13;
+
+      k += 6;
     }
   }
 }
 
-void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
-                   float pos_offset_in_campath_norm_dir,
-                   TexturedVertices *vertices) {
+void MakeCrossties(const VertexList *campath_vertices, float separation_dist,
+                   float pos_offset_in_campath_norm_dir, VertexList *vertices) {
   static constexpr float kAlpha = 0.1;
   static constexpr float kBeta = 1.5;
   static constexpr int kUniqPosCountPerCrosstie = 8;
   static constexpr float kBarDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
 
-  assert(campath);
-  assert(vertices);
+  assert(campath_vertices);
+  assert(campath_vertices->positions);
+  assert(campath_vertices->tangents);
+  assert(campath_vertices->normals);
+  assert(campath_vertices->binormals);
   assert(separation_dist + kTolerance > 0);
+  assert(vertices);
 
-  auto &path_pos = campath->positions;
-  auto &path_tan = campath->tangents;
-  auto &path_binorm = campath->binormals;
-  auto &path_norm = campath->normals;
-  uint path_count = campath->count;
+  glm::vec3 *cv_pos = campath_vertices->positions;
+  glm::vec3 *cv_tan = campath_vertices->tangents;
+  glm::vec3 *cv_binorm = campath_vertices->binormals;
+  glm::vec3 *cv_norm = campath_vertices->normals;
+  uint path_count = campath_vertices->count;
 
   uint max_vertex_count = 36 * (path_count - 1);
   glm::vec3 *pos = new glm::vec3[max_vertex_count];
@@ -446,36 +484,32 @@ void MakeCrossties(const CameraPathVertices *campath, float separation_dist,
   uint posi = 0;
   uint texci = 0;
   for (uint i = 1; i < path_count; ++i) {
-    dist_moved += glm::length(path_pos[i] - path_pos[i - 1]);
+    dist_moved += glm::length(cv_pos[i] - cv_pos[i - 1]);
 
     if (dist_moved < separation_dist + kTolerance) {
       continue;
     }
 
-    p[0] = path_pos[i] +
-           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) +
-           path_binorm[i];
-    p[1] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) +
-           path_binorm[i];
-    p[2] = path_pos[i] +
-           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) -
-           path_binorm[i] - kAlpha * path_binorm[i];
-    p[3] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) -
-           path_binorm[i] - kAlpha * path_binorm[i];
+    p[0] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) +
+           cv_binorm[i];
+    p[1] =
+        cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) + cv_binorm[i];
+    p[2] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) -
+           cv_binorm[i] - kAlpha * cv_binorm[i];
+    p[3] = cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) -
+           cv_binorm[i] - kAlpha * cv_binorm[i];
 
-    p[4] = path_pos[i] +
-           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) +
-           path_binorm[i] + kBarDepth * path_tan[i];
-    p[5] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) +
-           path_binorm[i] + kBarDepth * path_tan[i];
-    p[6] = path_pos[i] +
-           kAlpha * (-kBeta * path_norm[i] + path_binorm[i] * 0.5f) -
-           path_binorm[i] + kBarDepth * path_tan[i] - kAlpha * path_binorm[i];
-    p[7] = path_pos[i] + kAlpha * (-path_norm[i] + path_binorm[i] * 0.5f) -
-           path_binorm[i] + kBarDepth * path_tan[i] - kAlpha * path_binorm[i];
+    p[4] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) +
+           cv_binorm[i] + kBarDepth * cv_tan[i];
+    p[5] = cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) +
+           cv_binorm[i] + kBarDepth * cv_tan[i];
+    p[6] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) -
+           cv_binorm[i] + kBarDepth * cv_tan[i] - kAlpha * cv_binorm[i];
+    p[7] = cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) -
+           cv_binorm[i] + kBarDepth * cv_tan[i] - kAlpha * cv_binorm[i];
 
     for (uint j = 0; j < kUniqPosCountPerCrosstie; ++j) {
-      p[j] += pos_offset_in_campath_norm_dir * path_norm[i];
+      p[j] += pos_offset_in_campath_norm_dir * cv_norm[i];
     }
 
     // Top face

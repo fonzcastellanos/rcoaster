@@ -108,19 +108,22 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
                  cfg->max_spline_segment_len, &scene->campath);
 
   MakeAxisAlignedXzSquarePlane(cfg->aabb_side_len, cfg->ground_tex_repeat_count,
-                               &scene->ground.vertices);
+                               &scene->ground.mesh.vertices);
+  scene->ground.position = cfg->ground_position;
 
   MakeAxisAlignedBox(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
-                     &scene->sky.vertices);
+                     &scene->sky.mesh.vertices);
 
   MakeRails(&scene->campath, &cfg->rails_color, cfg->rails_head_w,
             cfg->rails_head_h, cfg->rails_web_w, cfg->rails_web_h,
             cfg->rails_gauge, cfg->rails_pos_offset_in_campath_norm_dir,
-            &scene->rails.vertices);
+            &scene->left_rail.mesh, &scene->right_rail.mesh);
+  scene->left_rail.position = cfg->rails_position;
+  scene->right_rail.position = cfg->rails_position;
 
   MakeCrossties(&scene->campath, cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_campath_norm_dir,
-                &scene->crossties.vertices);
+                &scene->crossties.mesh.vertices);
 
   return kStatus_Ok;
 }
@@ -128,15 +131,20 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 void FreeModelVertices(Scene *scene) {
   assert(scene);
 
-  delete[] scene->ground.vertices.positions;
-  delete[] scene->ground.vertices.tex_coords;
+  delete[] scene->ground.mesh.vertices.positions;
+  delete[] scene->ground.mesh.vertices.tex_coords;
 
-  delete[] scene->sky.vertices.positions;
-  delete[] scene->sky.vertices.tex_coords;
+  delete[] scene->sky.mesh.vertices.positions;
+  delete[] scene->sky.mesh.vertices.tex_coords;
 
-  delete[] scene->crossties.vertices.positions;
-  delete[] scene->crossties.vertices.tex_coords;
+  delete[] scene->crossties.mesh.vertices.positions;
+  delete[] scene->crossties.mesh.vertices.tex_coords;
 
-  delete[] scene->rails.vertices.positions;
-  delete[] scene->rails.vertices.colors;
+  delete[] scene->left_rail.mesh.vertices.positions;
+  delete[] scene->left_rail.mesh.vertices.colors;
+  delete[] scene->left_rail.mesh.indices;
+
+  delete[] scene->right_rail.mesh.vertices.positions;
+  delete[] scene->right_rail.mesh.vertices.colors;
+  delete[] scene->right_rail.mesh.indices;
 }

@@ -9,11 +9,12 @@
 #include "types.hpp"
 
 struct Scene {
-  CameraPathVertices campath;
-  TexturedModel ground;
-  TexturedModel sky;
-  TexturedModel crossties;
-  ColoredModel rails;
+  VertexList campath;
+  Model ground;
+  Model sky;
+  Model crossties;
+  Model left_rail;
+  Model right_rail;
 };
 
 struct SceneConfig {
