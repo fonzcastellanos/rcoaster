@@ -113,17 +113,19 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 
   MakeAxisAlignedBox(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
                      &scene->sky.vertices);
+  scene->sky.position = cfg->sky_position;
 
   MakeRails(&scene->camspl.vertices, &cfg->rails_color, cfg->rails_head_w,
             cfg->rails_head_h, cfg->rails_web_w, cfg->rails_web_h,
-            cfg->rails_gauge, cfg->rails_pos_offset_in_campath_norm_dir,
+            cfg->rails_gauge, cfg->rails_pos_offset_in_camspl_norm_dir,
             &scene->left_rail, &scene->right_rail);
   scene->left_rail.position = cfg->rails_position;
   scene->right_rail.position = cfg->rails_position;
 
   MakeCrossties(&scene->camspl.vertices, cfg->crossties_separation_dist,
-                cfg->crossties_pos_offset_in_campath_norm_dir,
+                cfg->crossties_pos_offset_in_camspl_norm_dir,
                 &scene->crossties.vertices);
+  scene->crossties.position = cfg->crossties_position;
 
   return kStatus_Ok;
 }

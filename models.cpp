@@ -267,7 +267,7 @@ void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
 
 void MakeRails(const CameraSplineVertexList *camspl_vertices,
                const glm::vec4 *color, float head_w, float head_h, float web_w,
-               float web_h, float gauge, float pos_offset_in_campath_norm_dir,
+               float web_h, float gauge, float pos_offset_in_camspl_norm_dir,
                IndexedColoredMesh *left_rail, IndexedColoredMesh *right_rail) {
   static constexpr uint kCrossSectionVertexCount = 8;
 
@@ -344,7 +344,7 @@ void MakeRails(const CameraSplineVertexList *camspl_vertices,
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
-        pos[k + l] += pos_offset_in_campath_norm_dir * cv_norm[j];
+        pos[k + l] += pos_offset_in_camspl_norm_dir * cv_norm[j];
       }
     }
   }
@@ -474,22 +474,23 @@ void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
   glm::vec3 *cv_tan = camspl_vertices->tangents;
   glm::vec3 *cv_binorm = camspl_vertices->binormals;
   glm::vec3 *cv_norm = camspl_vertices->normals;
-  uint path_count = camspl_vertices->count;
+  uint cv_count = camspl_vertices->count;
 
-  uint max_vertex_count = 36 * (path_count - 1);
+  uint max_vertex_count = 36 * (cv_count - 1);
   glm::vec3 *pos = new glm::vec3[max_vertex_count];
   glm::vec2 *texc = new glm::vec2[max_vertex_count];
 
-  glm::vec3 p[kUniqPosCountPerCrosstie];
   float dist_moved = 0;
   uint posi = 0;
   uint texci = 0;
-  for (uint i = 1; i < path_count; ++i) {
+  for (uint i = 1; i < cv_count; ++i) {
     dist_moved += glm::length(cv_pos[i] - cv_pos[i - 1]);
 
     if (dist_moved < separation_dist + kTolerance) {
       continue;
     }
+
+    glm::vec3 p[kUniqPosCountPerCrosstie];
 
     p[0] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) +
            cv_binorm[i];

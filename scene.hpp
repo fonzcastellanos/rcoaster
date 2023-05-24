@@ -37,11 +37,11 @@ struct SceneConfig {
   float rails_web_w;
   float rails_web_h;
   float rails_gauge;
-  float rails_pos_offset_in_campath_norm_dir;
+  float rails_pos_offset_in_camspl_norm_dir;
 
   glm::vec3 crossties_position;
   float crossties_separation_dist;
-  float crossties_pos_offset_in_campath_norm_dir;
+  float crossties_pos_offset_in_camspl_norm_dir;
 };
 
 Status MakeScene(const SceneConfig* cfg, Scene* scene);

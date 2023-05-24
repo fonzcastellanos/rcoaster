@@ -493,11 +493,11 @@ static void InitSceneConfig(const Config *cfg, SceneConfig *scene_cfg) {
   scene_cfg->rails_web_w = 0.1;
   scene_cfg->rails_web_h = 0.1;
   scene_cfg->rails_gauge = 2;
-  scene_cfg->rails_pos_offset_in_campath_norm_dir = -2;
+  scene_cfg->rails_pos_offset_in_camspl_norm_dir = -2;
 
   scene_cfg->crossties_position = {};
   scene_cfg->crossties_separation_dist = 1;
-  scene_cfg->crossties_pos_offset_in_campath_norm_dir = -2;
+  scene_cfg->crossties_pos_offset_in_camspl_norm_dir = -2;
 
   scene_cfg->track_filepath = cfg->track_filepath;
   scene_cfg->max_spline_segment_len = cfg->max_spline_segment_len;
