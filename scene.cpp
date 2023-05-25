@@ -118,7 +118,7 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
   MakeRails(&scene->camspl.vertices, &cfg->rails_color, cfg->rails_head_w,
             cfg->rails_head_h, cfg->rails_web_w, cfg->rails_web_h,
             cfg->rails_gauge, cfg->rails_pos_offset_in_camspl_norm_dir,
-            &scene->left_rail, &scene->right_rail);
+            &scene->left_rail.vertices, &scene->right_rail.vertices);
   scene->left_rail.position = cfg->rails_position;
   scene->right_rail.position = cfg->rails_position;
 
@@ -144,9 +144,9 @@ void FreeModelVertices(Scene *scene) {
 
   delete[] scene->left_rail.vertices.positions;
   delete[] scene->left_rail.vertices.colors;
-  delete[] scene->left_rail.indices;
+  delete[] scene->left_rail.vertices.indices;
 
   delete[] scene->right_rail.vertices.positions;
   delete[] scene->right_rail.vertices.colors;
-  delete[] scene->right_rail.indices;
+  delete[] scene->right_rail.vertices.indices;
 }

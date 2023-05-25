@@ -268,7 +268,8 @@ void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
 void MakeRails(const CameraSplineVertexList *camspl_vertices,
                const glm::vec4 *color, float head_w, float head_h, float web_w,
                float web_h, float gauge, float pos_offset_in_camspl_norm_dir,
-               IndexedColoredMesh *left_rail, IndexedColoredMesh *right_rail) {
+               IndexedColoredVertexList *left_rail,
+               IndexedColoredVertexList *right_rail) {
   static constexpr uint kCrossSectionVertexCount = 8;
 
   enum RailType { kRailType_Left, kRailType_Right, kRailType__Count };
@@ -291,23 +292,23 @@ void MakeRails(const CameraSplineVertexList *camspl_vertices,
   glm::vec3 *cv_binorm = camspl_vertices->binormals;
   uint cv_count = camspl_vertices->count;
 
-  IndexedColoredMesh *rails[kRailType__Count] = {left_rail, right_rail};
+  IndexedColoredVertexList *rails[kRailType__Count] = {left_rail, right_rail};
   uint rv_count = cv_count * kCrossSectionVertexCount;
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    rails[i]->vertices.positions = new glm::vec3[rv_count];
-    rails[i]->vertices.colors = new glm::vec4[rv_count];
-    rails[i]->vertices.count = rv_count;
+    rails[i]->positions = new glm::vec3[rv_count];
+    rails[i]->colors = new glm::vec4[rv_count];
+    rails[i]->count = rv_count;
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
     for (uint j = 0; j < rv_count; ++j) {
-      rails[i]->vertices.colors[j] = *color;
+      rails[i]->colors[j] = *color;
     }
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    glm::vec3 *pos = rails[i]->vertices.positions;
+    glm::vec3 *pos = rails[i]->positions;
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       // See the comment block above the function declaration in the header
@@ -329,18 +330,18 @@ void MakeRails(const CameraSplineVertexList *camspl_vertices,
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      right_rail->vertices.positions[j + k] += 0.5f * gauge * cv_binorm[i];
+      right_rail->positions[j + k] += 0.5f * gauge * cv_binorm[i];
     }
   }
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      left_rail->vertices.positions[j + k] -= 0.5f * gauge * cv_binorm[i];
+      left_rail->positions[j + k] -= 0.5f * gauge * cv_binorm[i];
     }
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    glm::vec3 *pos = rails[i]->vertices.positions;
+    glm::vec3 *pos = rails[i]->positions;
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       for (uint l = 0; l < kCrossSectionVertexCount; ++l) {

@@ -7,10 +7,13 @@
 
 #include "types.hpp"
 
-struct ColoredVertexList {
+struct IndexedColoredVertexList {
   glm::vec3 *positions;
   glm::vec4 *colors;
   uint count;
+
+  uint *indices;
+  uint index_count;
 };
 
 struct TexturedVertexList {
@@ -28,11 +31,7 @@ struct CameraSplineVertexList {
 };
 
 struct IndexedColoredMesh {
-  ColoredVertexList vertices;
-
-  uint *indices;
-  uint index_count;
-
+  IndexedColoredVertexList vertices;
   glm::vec3 position;
 };
 
@@ -87,7 +86,8 @@ Rail cross section:
 void MakeRails(const CameraSplineVertexList *camspl_vertices,
                const glm::vec4 *color, float head_w, float head_h, float web_w,
                float web_h, float gauge, float pos_offset_in_camspl_norm_dir,
-               IndexedColoredMesh *left_rail, IndexedColoredMesh *right_rail);
+               IndexedColoredVertexList *left_rail,
+               IndexedColoredVertexList *right_rail);
 
 void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
