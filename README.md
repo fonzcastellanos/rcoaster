@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/github/license/fonzcastellanos/rcoaster)
 
-A simulated roller coaster experience built with OpenGL.
+An OpenGL-powered roller coaster simulator with configurable spline-based tracks.
 
 ![Demo](demo.gif)
 
