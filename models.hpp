@@ -82,6 +82,19 @@ Rail cross section:
           |          |
           |          |
           7 -------- 0
+
+  `o` marks the camera spline vertex, which is used as the origin.
+  The gauge is the distance between points `c` and `d`.
+
+                        gauge
+          |-------------------------------|
+  4 --------------- 3             4 --------------- 3
+  |                 |             |                 |
+  |                 |             |                 |
+  5 -- 6   c   1 -- 2      o      5 -- 6   d   1 -- 2
+       |       |                       |       |
+       |       |                       |       |
+       7 ----- 0                       7 ----- 0
 */
 void MakeRails(const CameraSplineVertexList *camspl_vertices,
                const glm::vec4 *color, float head_w, float head_h, float web_w,
