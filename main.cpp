@@ -728,6 +728,7 @@ int main(int argc, char **argv) {
   }
 
   glGenBuffers(kVbo__Count, vbo_names);
+  glGenVertexArrays(kVertexFormat__Count, vao_names);
 
   TexturedVertexList *textured_vlists[] = {
       &scene.ground.vertices, &scene.sky.vertices, &scene.crossties.vertices};
@@ -774,6 +775,29 @@ int main(int argc, char **argv) {
       offset += size;
     }
 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+
+  // Setup textured VAO.
+  {
+    GLuint prog = program_names[kVertexFormat_Textured];
+    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
+    GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
+
+    glBindVertexArray(vao_names[kVertexFormat_Textured]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
+
+    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
+                          BUFFER_OFFSET(0));
+    glVertexAttribPointer(
+        tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
+        BUFFER_OFFSET(textured_vertex_count * sizeof(glm::vec3)));
+
+    glEnableVertexAttribArray(pos_loc);
+    glEnableVertexAttribArray(tex_coord_loc);
+
+    glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
@@ -828,31 +852,6 @@ int main(int argc, char **argv) {
                     scene.right_rail.vertices.indices);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  }
-
-  glGenVertexArrays(kVertexFormat__Count, vao_names);
-
-  // Setup textured VAO.
-  {
-    GLuint prog = program_names[kVertexFormat_Textured];
-    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
-    GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
-
-    glBindVertexArray(vao_names[kVertexFormat_Textured]);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
-
-    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
-                          BUFFER_OFFSET(0));
-    glVertexAttribPointer(
-        tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
-        BUFFER_OFFSET(textured_vertex_count * sizeof(glm::vec3)));
-
-    glEnableVertexAttribArray(pos_loc);
-    glEnableVertexAttribArray(tex_coord_loc);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
   // Setup colored VAO.
