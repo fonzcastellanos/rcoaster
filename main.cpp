@@ -373,7 +373,7 @@ static void Display() {
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  GLboolean is_row_major = GL_FALSE;
+  static constexpr GLboolean kIsRowMajor = GL_FALSE;
 
   /*********************
    * Colored models
@@ -392,9 +392,9 @@ static void Display() {
   {
     glm::mat4 model_view = glm::translate(view_mat, scene.left_rail.position);
 
-    glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
+    glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
-    glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
+    glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
     glDrawElements(GL_TRIANGLES, scene.left_rail.vertices.index_count,
@@ -403,9 +403,9 @@ static void Display() {
   {
     glm::mat4 model_view = glm::translate(view_mat, scene.right_rail.position);
 
-    glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
+    glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
-    glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
+    glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
     glDrawElements(
@@ -430,44 +430,47 @@ static void Display() {
   GLint first = 0;
 
   // Ground
+  {
+    glm::mat4 model_view = glm::translate(view_mat, scene.ground.position);
 
-  glm::mat4 ground_model_view = glm::translate(view_mat, scene.ground.position);
+    glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
+                       glm::value_ptr(model_view));
+    glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
+                       glm::value_ptr(projection_mat));
 
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
-                     glm::value_ptr(ground_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
-                     glm::value_ptr(projection_mat));
-
-  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-  glDrawArrays(GL_TRIANGLES, first, scene.ground.vertices.count);
-  first += scene.ground.vertices.count;
+    glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
+    glDrawArrays(GL_TRIANGLES, first, scene.ground.vertices.count);
+    first += scene.ground.vertices.count;
+  }
 
   // Sky
+  {
+    glm::mat4 model_view = glm::translate(view_mat, scene.sky.position);
 
-  glm::mat4 sky_model_view = glm::translate(view_mat, scene.sky.position);
+    glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
+                       glm::value_ptr(model_view));
+    glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
+                       glm::value_ptr(projection_mat));
 
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
-                     glm::value_ptr(sky_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
-                     glm::value_ptr(projection_mat));
-
-  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-  glDrawArrays(GL_TRIANGLES, first, scene.sky.vertices.count);
-  first += scene.sky.vertices.count;
+    glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
+    glDrawArrays(GL_TRIANGLES, first, scene.sky.vertices.count);
+    first += scene.sky.vertices.count;
+  }
 
   // Crossties
+  {
+    glm::mat4 model_view = glm::translate(view_mat, scene.crossties.position);
 
-  glm::mat4 crossties_model_view =
-      glm::translate(view_mat, scene.crossties.position);
+    glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
+                       glm::value_ptr(model_view));
+    glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
+                       glm::value_ptr(projection_mat));
 
-  glUniformMatrix4fv(model_view_mat_loc, 1, is_row_major,
-                     glm::value_ptr(crossties_model_view));
-  glUniformMatrix4fv(proj_mat_loc, 1, is_row_major,
-                     glm::value_ptr(projection_mat));
-
-  glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
-  for (uint offset = 0; offset < scene.crossties.vertices.count; offset += 36) {
-    glDrawArrays(GL_TRIANGLES, first + offset, 36);
+    glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
+    for (uint offset = 0; offset < scene.crossties.vertices.count;
+         offset += 36) {
+      glDrawArrays(GL_TRIANGLES, first + offset, 36);
+    }
   }
 
   glBindVertexArray(0);
