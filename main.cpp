@@ -328,15 +328,16 @@ static void Idle() {
     ExitGlutMainLoop(EXIT_FAILURE);
   }
 
-  if (camera_path_index < scene.camspl.vertices.count) {
+  if (camera_path_index < scene.camspl.mesh->vl1p1t1n1b.count) {
     float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
     camera_path_index += config.camera_speed * delta_time;
   }
 
-  view_mat = glm::lookAt(scene.camspl.vertices.positions[camera_path_index],
-                         scene.camspl.vertices.positions[camera_path_index] +
-                             scene.camspl.vertices.tangents[camera_path_index],
-                         scene.camspl.vertices.normals[camera_path_index]);
+  view_mat =
+      glm::lookAt(scene.camspl.mesh->vl1p1t1n1b.positions[camera_path_index],
+                  scene.camspl.mesh->vl1p1t1n1b.positions[camera_path_index] +
+                      scene.camspl.mesh->vl1p1t1n1b.tangents[camera_path_index],
+                  scene.camspl.mesh->vl1p1t1n1b.normals[camera_path_index]);
 
   assert(window_h > 0);
   float aspect = (float)window_w / window_h;

@@ -9,7 +9,7 @@
 #include "types.hpp"
 
 struct Scene {
-  CameraSpline camspl;
+  MeshInstance camspl;
   MeshInstance ground;
   MeshInstance sky;
   MeshInstance crossties;

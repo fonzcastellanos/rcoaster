@@ -106,34 +106,41 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 
   // TODO: Support for multiple splines.
   assert(splines.size() == 1);
+  scene->camspl.mesh = new Mesh;
+  scene->camspl.mesh->vertex_list_type = kVertexListType_1P1T1N1B;
   MakeCameraPath(splines[0].data(), splines[0].size(),
-                 cfg->max_spline_segment_len, &scene->camspl.vertices);
+                 cfg->max_spline_segment_len, &scene->camspl.mesh->vl1p1t1n1b);
 
   scene->ground.mesh = new Mesh;
+  scene->ground.mesh->vertex_list_type = kVertexListType_1P1UV;
   MakeAxisAlignedXzSquarePlane(cfg->aabb_side_len, cfg->ground_tex_repeat_count,
                                &scene->ground.mesh->vl1p1uv);
-
   scene->ground.world_transform =
       glm::translate(glm::mat4(1), cfg->ground_position);
 
   scene->sky.mesh = new Mesh;
+  scene->sky.mesh->vertex_list_type = kVertexListType_1P1UV;
   MakeAxisAlignedBox(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
                      &scene->sky.mesh->vl1p1uv);
   scene->sky.world_transform = glm::translate(glm::mat4(1), cfg->sky_position);
 
   scene->left_rail.mesh = new Mesh;
+  scene->left_rail.mesh->vertex_list_type = kVertexListType_1P1C;
   scene->right_rail.mesh = new Mesh;
-  MakeRails(&scene->camspl.vertices, &cfg->rails_color, cfg->rails_head_w,
-            cfg->rails_head_h, cfg->rails_web_w, cfg->rails_web_h,
-            cfg->rails_gauge, cfg->rails_pos_offset_in_camspl_norm_dir,
-            scene->left_rail.mesh, scene->right_rail.mesh);
+  scene->right_rail.mesh->vertex_list_type = kVertexListType_1P1C;
+  MakeRails(&scene->camspl.mesh->vl1p1t1n1b, &cfg->rails_color,
+            cfg->rails_head_w, cfg->rails_head_h, cfg->rails_web_w,
+            cfg->rails_web_h, cfg->rails_gauge,
+            cfg->rails_pos_offset_in_camspl_norm_dir, scene->left_rail.mesh,
+            scene->right_rail.mesh);
   scene->left_rail.world_transform =
       glm::translate(glm::mat4(1), cfg->rails_position);
   scene->right_rail.world_transform =
       glm::translate(glm::mat4(1), cfg->rails_position);
 
   scene->crossties.mesh = new Mesh;
-  MakeCrossties(&scene->camspl.vertices, cfg->crossties_separation_dist,
+  scene->crossties.mesh->vertex_list_type = kVertexListType_1P1UV;
+  MakeCrossties(&scene->camspl.mesh->vl1p1t1n1b, cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_camspl_norm_dir,
                 &scene->crossties.mesh->vl1p1uv);
   scene->crossties.world_transform =
