@@ -10,11 +10,11 @@
 
 struct Scene {
   CameraSpline camspl;
-  TexturedMesh ground;
-  TexturedMesh sky;
-  TexturedMesh crossties;
-  IndexedColoredMesh left_rail;
-  IndexedColoredMesh right_rail;
+  MeshInstance ground;
+  MeshInstance sky;
+  MeshInstance crossties;
+  MeshInstance left_rail;
+  MeshInstance right_rail;
 };
 
 struct SceneConfig {

@@ -2,6 +2,8 @@
 
 #include <cassert>
 #include <cstdio>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/mat4x4.hpp>
 #include <vector>
 
 static Status LoadSplines(const char *track_filepath,
@@ -107,25 +109,35 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
   MakeCameraPath(splines[0].data(), splines[0].size(),
                  cfg->max_spline_segment_len, &scene->camspl.vertices);
 
+  scene->ground.mesh = new Mesh;
   MakeAxisAlignedXzSquarePlane(cfg->aabb_side_len, cfg->ground_tex_repeat_count,
-                               &scene->ground.vertices);
-  scene->ground.position = cfg->ground_position;
+                               &scene->ground.mesh->vl1p1uv);
 
+  scene->ground.world_transform =
+      glm::translate(glm::mat4(1), cfg->ground_position);
+
+  scene->sky.mesh = new Mesh;
   MakeAxisAlignedBox(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
-                     &scene->sky.vertices);
-  scene->sky.position = cfg->sky_position;
+                     &scene->sky.mesh->vl1p1uv);
+  scene->sky.world_transform = glm::translate(glm::mat4(1), cfg->sky_position);
 
+  scene->left_rail.mesh = new Mesh;
+  scene->right_rail.mesh = new Mesh;
   MakeRails(&scene->camspl.vertices, &cfg->rails_color, cfg->rails_head_w,
             cfg->rails_head_h, cfg->rails_web_w, cfg->rails_web_h,
             cfg->rails_gauge, cfg->rails_pos_offset_in_camspl_norm_dir,
-            &scene->left_rail.vertices, &scene->right_rail.vertices);
-  scene->left_rail.position = cfg->rails_position;
-  scene->right_rail.position = cfg->rails_position;
+            scene->left_rail.mesh, scene->right_rail.mesh);
+  scene->left_rail.world_transform =
+      glm::translate(glm::mat4(1), cfg->rails_position);
+  scene->right_rail.world_transform =
+      glm::translate(glm::mat4(1), cfg->rails_position);
 
+  scene->crossties.mesh = new Mesh;
   MakeCrossties(&scene->camspl.vertices, cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_camspl_norm_dir,
-                &scene->crossties.vertices);
-  scene->crossties.position = cfg->crossties_position;
+                &scene->crossties.mesh->vl1p1uv);
+  scene->crossties.world_transform =
+      glm::translate(glm::mat4(1), cfg->crossties_position);
 
   return kStatus_Ok;
 }
@@ -133,20 +145,20 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 void FreeModelVertices(Scene *scene) {
   assert(scene);
 
-  delete[] scene->ground.vertices.positions;
-  delete[] scene->ground.vertices.tex_coords;
+  delete[] scene->ground.mesh->vl1p1uv.positions;
+  delete[] scene->ground.mesh->vl1p1uv.uv;
 
-  delete[] scene->sky.vertices.positions;
-  delete[] scene->sky.vertices.tex_coords;
+  delete[] scene->sky.mesh->vl1p1uv.positions;
+  delete[] scene->sky.mesh->vl1p1uv.uv;
 
-  delete[] scene->crossties.vertices.positions;
-  delete[] scene->crossties.vertices.tex_coords;
+  delete[] scene->crossties.mesh->vl1p1uv.positions;
+  delete[] scene->crossties.mesh->vl1p1uv.uv;
 
-  delete[] scene->left_rail.vertices.positions;
-  delete[] scene->left_rail.vertices.colors;
-  delete[] scene->left_rail.vertices.indices;
+  delete[] scene->left_rail.mesh->vl1p1c.positions;
+  delete[] scene->left_rail.mesh->vl1p1c.colors;
+  delete[] scene->left_rail.mesh->indices;
 
-  delete[] scene->right_rail.vertices.positions;
-  delete[] scene->right_rail.vertices.colors;
-  delete[] scene->right_rail.vertices.indices;
+  delete[] scene->right_rail.mesh->vl1p1c.positions;
+  delete[] scene->right_rail.mesh->vl1p1c.colors;
+  delete[] scene->right_rail.mesh->indices;
 }

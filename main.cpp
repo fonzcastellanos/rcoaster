@@ -390,18 +390,18 @@ static void Display() {
   glBindVertexArray(vao_names[kVertexFormat_Colored]);
 
   {
-    glm::mat4 model_view = glm::translate(view_mat, scene.left_rail.position);
+    glm::mat4 model_view = view_mat * scene.left_rail.world_transform;
 
     glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glDrawElements(GL_TRIANGLES, scene.left_rail.vertices.index_count,
+    glDrawElements(GL_TRIANGLES, scene.left_rail.mesh->index_count,
                    GL_UNSIGNED_INT, BUFFER_OFFSET(0));
   }
   {
-    glm::mat4 model_view = glm::translate(view_mat, scene.right_rail.position);
+    glm::mat4 model_view = view_mat * scene.right_rail.world_transform;
 
     glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
@@ -409,8 +409,8 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glDrawElements(
-        GL_TRIANGLES, scene.right_rail.vertices.index_count, GL_UNSIGNED_INT,
-        BUFFER_OFFSET(scene.left_rail.vertices.index_count * sizeof(GLuint)));
+        GL_TRIANGLES, scene.right_rail.mesh->index_count, GL_UNSIGNED_INT,
+        BUFFER_OFFSET(scene.left_rail.mesh->index_count * sizeof(GLuint)));
   }
 
   glBindVertexArray(0);
@@ -431,7 +431,7 @@ static void Display() {
 
   // Ground
   {
-    glm::mat4 model_view = glm::translate(view_mat, scene.ground.position);
+    glm::mat4 model_view = view_mat * scene.ground.world_transform;
 
     glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
@@ -439,13 +439,13 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-    glDrawArrays(GL_TRIANGLES, first, scene.ground.vertices.count);
-    first += scene.ground.vertices.count;
+    glDrawArrays(GL_TRIANGLES, first, scene.ground.mesh->vl1p1uv.count);
+    first += scene.ground.mesh->vl1p1uv.count;
   }
 
   // Sky
   {
-    glm::mat4 model_view = glm::translate(view_mat, scene.sky.position);
+    glm::mat4 model_view = view_mat * scene.sky.world_transform;
 
     glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
@@ -453,13 +453,13 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-    glDrawArrays(GL_TRIANGLES, first, scene.sky.vertices.count);
-    first += scene.sky.vertices.count;
+    glDrawArrays(GL_TRIANGLES, first, scene.sky.mesh->vl1p1uv.count);
+    first += scene.sky.mesh->vl1p1uv.count;
   }
 
   // Crossties
   {
-    glm::mat4 model_view = glm::translate(view_mat, scene.crossties.position);
+    glm::mat4 model_view = view_mat * scene.crossties.world_transform;
 
     glUniformMatrix4fv(model_view_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(model_view));
@@ -467,7 +467,7 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
-    for (uint offset = 0; offset < scene.crossties.vertices.count;
+    for (uint offset = 0; offset < scene.crossties.mesh->vl1p1uv.count;
          offset += 36) {
       glDrawArrays(GL_TRIANGLES, first + offset, 36);
     }
@@ -730,8 +730,9 @@ int main(int argc, char **argv) {
   glGenBuffers(kVbo__Count, vbo_names);
   glGenVertexArrays(kVertexFormat__Count, vao_names);
 
-  TexturedVertexList *textured_vlists[] = {
-      &scene.ground.vertices, &scene.sky.vertices, &scene.crossties.vertices};
+  VertexList1P1UV *textured_vlists[] = {&scene.ground.mesh->vl1p1uv,
+                                        &scene.sky.mesh->vl1p1uv,
+                                        &scene.crossties.mesh->vl1p1uv};
 
   uint textured_vlist_count =
       sizeof(textured_vlists) / sizeof(textured_vlists[0]);
@@ -741,14 +742,14 @@ int main(int argc, char **argv) {
     textured_vertex_count += textured_vlists[i]->count;
   }
 
-  IndexedColoredVertexList *indexed_colored_vlists[] = {
-      &scene.left_rail.vertices, &scene.right_rail.vertices};
-  uint colored_vlist_count =
+  VertexList1P1C *indexed_colored_vlists[] = {&scene.left_rail.mesh->vl1p1c,
+                                              &scene.right_rail.mesh->vl1p1c};
+  uint indexed_colored_vlist_count =
       sizeof(indexed_colored_vlists) / sizeof(indexed_colored_vlists[0]);
 
-  uint colored_vertex_count = 0;
-  for (uint i = 0; i < colored_vlist_count; ++i) {
-    colored_vertex_count += indexed_colored_vlists[i]->count;
+  uint indexed_colored_vertex_count = 0;
+  for (uint i = 0; i < indexed_colored_vlist_count; ++i) {
+    indexed_colored_vertex_count += indexed_colored_vlists[i]->count;
   }
 
   // Buffer textured vertices.
@@ -770,8 +771,7 @@ int main(int argc, char **argv) {
 
     for (uint i = 0; i < textured_vlist_count; ++i) {
       uint size = textured_vlists[i]->count * sizeof(glm::vec2);
-      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                      textured_vlists[i]->tex_coords);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size, textured_vlists[i]->uv);
       offset += size;
     }
 
@@ -806,19 +806,19 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_ColoredVertices]);
 
     uint buffer_size =
-        colored_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
+        indexed_colored_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
     glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
 
-    for (uint i = 0; i < colored_vlist_count; ++i) {
+    for (uint i = 0; i < indexed_colored_vlist_count; ++i) {
       uint size = indexed_colored_vlists[i]->count * sizeof(glm::vec3);
       glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                       indexed_colored_vlists[i]->positions);
       offset += size;
     }
 
-    for (uint i = 0; i < colored_vlist_count; ++i) {
+    for (uint i = 0; i < indexed_colored_vlist_count; ++i) {
       uint size = indexed_colored_vlists[i]->count * sizeof(glm::vec4);
       glBufferSubData(GL_ARRAY_BUFFER, offset, size,
                       indexed_colored_vlists[i]->colors);
@@ -830,26 +830,26 @@ int main(int argc, char **argv) {
 
   // Buffer colored indices.
   {
-    for (uint i = 0; i < scene.right_rail.vertices.index_count; ++i) {
-      scene.right_rail.vertices.indices[i] += scene.left_rail.vertices.count;
+    for (uint i = 0; i < scene.right_rail.mesh->index_count; ++i) {
+      scene.right_rail.mesh->indices[i] += scene.left_rail.mesh->vl1p1c.count;
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
 
-    uint index_count = scene.left_rail.vertices.index_count +
-                       scene.right_rail.vertices.index_count;
+    uint index_count =
+        scene.left_rail.mesh->index_count + scene.right_rail.mesh->index_count;
     uint buffer_size = index_count * sizeof(uint);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.left_rail.vertices.index_count * sizeof(uint);
+    uint size = scene.left_rail.mesh->index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.vertices.indices);
+                    scene.left_rail.mesh->indices);
 
     offset += size;
-    size = scene.right_rail.vertices.index_count * sizeof(uint);
+    size = scene.right_rail.mesh->index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, size, offset,
-                    scene.right_rail.vertices.indices);
+                    scene.right_rail.mesh->indices);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
@@ -867,7 +867,7 @@ int main(int argc, char **argv) {
                           BUFFER_OFFSET(0));
     glVertexAttribPointer(
         color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4),
-        BUFFER_OFFSET(colored_vertex_count * sizeof(glm::vec3)));
+        BUFFER_OFFSET(indexed_colored_vertex_count * sizeof(glm::vec3)));
 
     glEnableVertexAttribArray(pos_loc);
     glEnableVertexAttribArray(color_loc);
