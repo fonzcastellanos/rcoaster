@@ -16,21 +16,21 @@ add_library(cli cli.cpp)
 
 add_library(shader shader.cpp)
 
-add_library(models models.cpp)
-target_link_libraries(models PUBLIC glm)
+add_library(meshes meshes.cpp)
+target_link_libraries(meshes PUBLIC glm)
 
 add_library(scene scene.cpp)
-target_link_libraries(scene PUBLIC glm models)
+target_link_libraries(scene PUBLIC glm meshes)
 
 add_executable(rcoaster main.cpp)
-target_link_libraries(rcoaster PRIVATE glm scene shader models cli)
+target_link_libraries(rcoaster PRIVATE glm scene shader meshes cli)
 target_include_directories(rcoaster PRIVATE vendor)
 
 if(LINUX)
     target_link_libraries(rcoaster PRIVATE -lGLEW -lGL -lglut)
 elseif(APPLE)
     target_compile_options(shader PRIVATE -Wno-deprecated-declarations)
-    target_compile_options(models PRIVATE -Wno-deprecated-declarations)
+    target_compile_options(meshes PRIVATE -Wno-deprecated-declarations)
 
     target_link_libraries(rcoaster PRIVATE "-framework OpenGL" "-framework GLUT")
     target_compile_options(rcoaster PRIVATE -Wno-deprecated-declarations)

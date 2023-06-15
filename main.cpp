@@ -12,7 +12,7 @@
 
 #include "cli.hpp"
 #include "main.hpp"
-#include "models.hpp"
+#include "meshes.hpp"
 #include "opengl.hpp"
 #include "scene.hpp"
 #include "shader.hpp"
