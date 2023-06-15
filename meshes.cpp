@@ -1,7 +1,6 @@
 #include "meshes.hpp"
 
 #include <cassert>
-#include <cstdio>
 #include <glm/glm.hpp>
 #include <vector>
 
