@@ -457,11 +457,15 @@ void MakeRails(const CameraSplineVertexList *camspl_vertices,
 void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
                    TexturedVertexList *vertices) {
-  static constexpr float kAlpha = 0.1;
-  static constexpr float kBeta = 1.5;
   static constexpr int kUniqPosCountPerCrosstie = 8;
-  static constexpr float kBarDepth = 0.3;
+  static constexpr float kDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
+
+  static constexpr float kRailWebWidth = 0.1;
+  static constexpr float kRailHeight = 0.1;
+  static constexpr float kRailGauge = 2;
+  static constexpr float kHeight = kRailHeight / 2;
+  static constexpr float kHorizontalOffset = (kRailGauge - kRailWebWidth) / 2;
 
   assert(camspl_vertices);
   assert(camspl_vertices->positions);
@@ -493,55 +497,48 @@ void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
 
     glm::vec3 p[kUniqPosCountPerCrosstie];
 
-    p[0] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) +
-           cv_binorm[i];
-    p[1] =
-        cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) + cv_binorm[i];
-    p[2] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) -
-           cv_binorm[i] - kAlpha * cv_binorm[i];
-    p[3] = cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) -
-           cv_binorm[i] - kAlpha * cv_binorm[i];
+    // front vertices
+    p[0] = cv_pos[i] - kHeight * cv_norm[i] + kHorizontalOffset * cv_binorm[i];
+    p[1] = cv_pos[i] + kHorizontalOffset * cv_binorm[i];
+    p[2] = cv_pos[i] - kHorizontalOffset * cv_binorm[i];
+    p[3] = cv_pos[i] - kHeight * cv_norm[i] - kHorizontalOffset * cv_binorm[i];
 
-    p[4] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) +
-           cv_binorm[i] + kBarDepth * cv_tan[i];
-    p[5] = cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) +
-           cv_binorm[i] + kBarDepth * cv_tan[i];
-    p[6] = cv_pos[i] + kAlpha * (-kBeta * cv_norm[i] + cv_binorm[i] * 0.5f) -
-           cv_binorm[i] + kBarDepth * cv_tan[i] - kAlpha * cv_binorm[i];
-    p[7] = cv_pos[i] + kAlpha * (-cv_norm[i] + cv_binorm[i] * 0.5f) -
-           cv_binorm[i] + kBarDepth * cv_tan[i] - kAlpha * cv_binorm[i];
+    // back vertices
+    for (uint j = 0; j < 4; ++j) {
+      p[j + 4] = p[j] + kDepth * cv_tan[i];
+    }
 
     for (uint j = 0; j < kUniqPosCountPerCrosstie; ++j) {
       p[j] += pos_offset_in_camspl_norm_dir * cv_norm[i];
     }
 
     // Top face
-    pos[posi] = p[6];
-    pos[posi + 1] = p[5];
-    pos[posi + 2] = p[2];
-    pos[posi + 3] = p[5];
-    pos[posi + 4] = p[1];
-    pos[posi + 5] = p[2];
-
-    posi += 6;
-
-    // Right face
-    pos[posi] = p[5];
-    pos[posi + 1] = p[4];
+    pos[posi] = p[2];
+    pos[posi + 1] = p[6];
     pos[posi + 2] = p[1];
-    pos[posi + 3] = p[4];
-    pos[posi + 4] = p[0];
+    pos[posi + 3] = p[6];
+    pos[posi + 4] = p[5];
     pos[posi + 5] = p[1];
 
     posi += 6;
 
+    // Right face
+    pos[posi] = p[0];
+    pos[posi + 1] = p[1];
+    pos[posi + 2] = p[4];
+    pos[posi + 3] = p[1];
+    pos[posi + 4] = p[5];
+    pos[posi + 5] = p[4];
+
+    posi += 6;
+
     // Bottom face
-    pos[posi] = p[4];
-    pos[posi + 1] = p[7];
-    pos[posi + 2] = p[0];
-    pos[posi + 3] = p[7];
-    pos[posi + 4] = p[3];
-    pos[posi + 5] = p[0];
+    pos[posi] = p[7];
+    pos[posi + 1] = p[3];
+    pos[posi + 2] = p[4];
+    pos[posi + 3] = p[3];
+    pos[posi + 4] = p[0];
+    pos[posi + 5] = p[4];
 
     posi += 6;
 
@@ -556,32 +553,32 @@ void MakeCrossties(const CameraSplineVertexList *camspl_vertices,
     posi += 6;
 
     // Back face
-    pos[posi] = p[5];
+    pos[posi] = p[7];
     pos[posi + 1] = p[6];
     pos[posi + 2] = p[4];
     pos[posi + 3] = p[6];
-    pos[posi + 4] = p[7];
+    pos[posi + 4] = p[5];
     pos[posi + 5] = p[4];
 
     posi += 6;
 
     // Front face
-    pos[posi] = p[2];
-    pos[posi + 1] = p[1];
-    pos[posi + 2] = p[3];
-    pos[posi + 3] = p[1];
-    pos[posi + 4] = p[0];
-    pos[posi + 5] = p[3];
+    pos[posi] = p[3];
+    pos[posi + 1] = p[2];
+    pos[posi + 2] = p[0];
+    pos[posi + 3] = p[2];
+    pos[posi + 4] = p[1];
+    pos[posi + 5] = p[0];
 
     posi += 6;
 
     for (uint j = 0; j < 6; ++j) {
-      texc[texci] = glm::vec2(0, 1);
-      texc[texci + 1] = glm::vec2(1, 1);
-      texc[texci + 2] = glm::vec2(0, 0);
-      texc[texci + 3] = glm::vec2(1, 1);
-      texc[texci + 4] = glm::vec2(1, 0);
-      texc[texci + 5] = glm::vec2(0, 0);
+      texc[texci] = glm::vec2(0, 0);
+      texc[texci + 1] = glm::vec2(0, 1);
+      texc[texci + 2] = glm::vec2(1, 0);
+      texc[texci + 3] = glm::vec2(0, 1);
+      texc[texci + 4] = glm::vec2(1, 1);
+      texc[texci + 5] = glm::vec2(1, 0);
 
       texci += 6;
     }
