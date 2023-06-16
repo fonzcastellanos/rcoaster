@@ -118,8 +118,8 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
       glm::translate(glm::mat4(1), cfg->ground_position);
 
   scene->sky.mesh = new Mesh;
-  MakeAxisAlignedBox(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
-                     scene->sky.mesh);
+  MakeAxisAlignedCube(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
+                      scene->sky.mesh);
   scene->sky.world_transform = glm::translate(glm::mat4(1), cfg->sky_position);
 
   scene->left_rail.mesh = new Mesh;

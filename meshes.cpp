@@ -186,7 +186,7 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
   indices[5] = kTl;
 }
 
-void MakeAxisAlignedBox(float side_len, uint tex_repeat_count, Mesh *mesh) {
+void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh) {
   enum CubeCorner {
     kFbl,
     kFtl,

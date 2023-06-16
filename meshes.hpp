@@ -59,7 +59,7 @@ void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
                                   Mesh *mesh);
 
-void MakeAxisAlignedBox(float side_len, uint tex_repeat_count, Mesh *mesh);
+void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh);
 
 /*
 Gauge is the distance between the two rails.
