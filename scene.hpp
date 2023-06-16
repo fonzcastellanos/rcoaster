@@ -1,6 +1,7 @@
 #ifndef RCOASTER_SCENE_HPP
 #define RCOASTER_SCENE_HPP
 
+#include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
@@ -8,13 +9,18 @@
 #include "status.hpp"
 #include "types.hpp"
 
+struct Entity {
+  Mesh* mesh;
+  glm::mat4 world_transform;
+};
+
 struct Scene {
-  MeshInstance camspl;
-  MeshInstance ground;
-  MeshInstance sky;
-  MeshInstance crossties;
-  MeshInstance left_rail;
-  MeshInstance right_rail;
+  Entity camspl;
+  Entity ground;
+  Entity sky;
+  Entity crossties;
+  Entity left_rail;
+  Entity right_rail;
 };
 
 struct SceneConfig {

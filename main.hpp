@@ -64,6 +64,8 @@ enum VertexFormat {
   kVertexFormat__Count
 };
 
+enum Vao { kVao_Textured, kVao_IndexedTextured, kVao_Colored, kVao__Count };
+
 enum Button { kButton_Left, kButton_Middle, kButton_Right, kButton__Count };
 
 struct MouseState {
@@ -93,6 +95,8 @@ enum Texture {
 
 enum Vbo {
   kVbo_TexturedVertices,
+  kVbo_IndexedTexturedVertices,
+  kVbo_TexturedIndices,
   kVbo_ColoredVertices,
   kVbo_RailIndices,
   kVbo__Count

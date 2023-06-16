@@ -1,6 +1,7 @@
 #include "meshes.hpp"
 
 #include <cassert>
+#include <cstring>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -142,130 +143,147 @@ void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  VertexList1P1UV *vertices) {
-  static constexpr uint kVertexCount = 6;
+                                  Mesh *mesh) {
+  enum Corner { kBl, kTl, kTr, kBr, kCornerCount };
+
+  static constexpr uint kVertexCountPerTriangle = 3;
+  static constexpr uint kTriangleCount = 2;
+  static constexpr uint kIndexCount = kVertexCountPerTriangle * kTriangleCount;
 
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
-  assert(vertices);
+  assert(mesh);
 
-  vertices->count = kVertexCount;
-  vertices->positions = new glm::vec3[kVertexCount];
-  vertices->uv = new glm::vec2[kVertexCount];
+  mesh->vertex_list_type = kVertexListType_1P1UV;
+  mesh->vl1p1uv.count = kCornerCount;
+  mesh->vl1p1uv.positions = new glm::vec3[kCornerCount];
+  mesh->vl1p1uv.uv = new glm::vec2[kCornerCount];
 
-  glm::vec3 *pos = vertices->positions;
-  glm::vec2 *uv = vertices->uv;
-
-  pos[0] = {-side_len, 0, side_len};
-  pos[1] = {-side_len, 0, -side_len};
-  pos[2] = {side_len, 0, -side_len};
-  pos[3] = {-side_len, 0, side_len};
-  pos[4] = {side_len, 0, -side_len};
-  pos[5] = {side_len, 0, side_len};
-
-  for (uint i = 0; i < kVertexCount; ++i) {
+  glm::vec3 *pos = mesh->vl1p1uv.positions;
+  pos[kBl] = {-side_len, 0, -side_len};
+  pos[kTl] = {-side_len, 0, side_len};
+  pos[kTr] = {side_len, 0, side_len};
+  pos[kBr] = {side_len, 0, -side_len};
+  for (int i = 0; i < kCornerCount; ++i) {
     pos[i] *= 0.5f;
   }
 
-  uv[0] = {0, 0};
-  uv[1] = {0, tex_repeat_count};
-  uv[2] = {tex_repeat_count, tex_repeat_count};
-  uv[3] = {0, 0};
-  uv[4] = {tex_repeat_count, tex_repeat_count};
-  uv[5] = {tex_repeat_count, 0};
+  glm::vec2 *uv = mesh->vl1p1uv.uv;
+  uv[kBl] = {0, 0};
+  uv[kTl] = {0, tex_repeat_count};
+  uv[kTr] = {tex_repeat_count, tex_repeat_count};
+  uv[kBr] = {tex_repeat_count, 0};
+
+  mesh->index_count = kIndexCount;
+  mesh->indices = new uint[kIndexCount];
+
+  uint *indices = mesh->indices;
+  indices[0] = kBl;
+  indices[1] = kBr;
+  indices[2] = kTl;
+  indices[3] = kBr;
+  indices[4] = kTr;
+  indices[5] = kTl;
 }
 
-void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        VertexList1P1UV *vertices) {
-  static constexpr uint kVertexCountPerTriangle = 3;
-  static constexpr uint kTriangleCountPerFace = 2;
-  static constexpr uint kVertexCountPerFace =
-      kVertexCountPerTriangle * kTriangleCountPerFace;
+void MakeAxisAlignedBox(float side_len, uint tex_repeat_count, Mesh *mesh) {
+  enum CubeCorner {
+    kFbl,
+    kFtl,
+    kFtr,
+    kFbr,
+    kBbl,
+    kBtl,
+    kBtr,
+    kBbr,
+    kCubeCornerCount
+  };
+
+  enum FaceCorner { kBl, kTl, kBr, kTr, kFaceCornerCount };
+
   static constexpr uint kFaceCount = 6;
-  static constexpr uint kVertexCount = kFaceCount * kVertexCountPerFace;
+  static constexpr uint kVertexCount = kFaceCount * kFaceCornerCount;
+
+  static constexpr uint kTrianglesPerFace = 2;
+  static constexpr uint kIndicesPerTriangle = 3;
+  static constexpr uint kIndicesPerFace =
+      kIndicesPerTriangle * kTrianglesPerFace;
+  static constexpr uint kIndexCount = kFaceCount * kIndicesPerFace;
 
   assert(side_len > 0);
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
-  assert(vertices);
+  assert(mesh);
 
-  vertices->count = kVertexCount;
-  vertices->positions = new glm::vec3[kVertexCount];
-  vertices->uv = new glm::vec2[kVertexCount];
+  mesh->vertex_list_type = kVertexListType_1P1UV;
+  mesh->vl1p1uv.count = kVertexCount;
+  mesh->vl1p1uv.positions = new glm::vec3[kVertexCount];
+  mesh->vl1p1uv.uv = new glm::vec2[kVertexCount];
 
-  glm::vec3 *pos = vertices->positions;
-  glm::vec2 *uv = vertices->uv;
+  glm::vec3 uniq_pos[kCubeCornerCount];
+  uniq_pos[kFbl] = {-0.5, -0.5, 0.5};
+  uniq_pos[kFtl] = {-0.5, 0.5, 0.5};
+  uniq_pos[kFtr] = {0.5, 0.5, 0.5};
+  uniq_pos[kFbr] = {0.5, -0.5, 0.5};
+  uniq_pos[kBbl] = {-0.5, -0.5, -0.5};
+  uniq_pos[kBtl] = {-0.5, 0.5, -0.5};
+  uniq_pos[kBtr] = {0.5, 0.5, -0.5};
+  uniq_pos[kBbr] = {0.5, -0.5, -0.5};
 
-  uint i = 0;
+  glm::vec3 pos[kVertexCount] = {
+      // Back face
+      uniq_pos[kBbl], uniq_pos[kBbr], uniq_pos[kBtr], uniq_pos[kBtl],
 
-  // x = -1 face
-  pos[i] = {-side_len, -side_len, -side_len};
-  pos[i + 1] = {-side_len, side_len, -side_len};
-  pos[i + 2] = {-side_len, side_len, side_len};
-  pos[i + 3] = {-side_len, -side_len, -side_len};
-  pos[i + 4] = {-side_len, side_len, side_len};
-  pos[i + 5] = {-side_len, -side_len, side_len};
+      // Front face
+      uniq_pos[kFbl], uniq_pos[kFbr], uniq_pos[kFtr], uniq_pos[kFtl],
 
-  i += kVertexCountPerFace;
+      // Left face
+      uniq_pos[kBbl], uniq_pos[kFbl], uniq_pos[kFtl], uniq_pos[kBtl],
 
-  // x = 1 face
-  pos[i] = {side_len, -side_len, -side_len};
-  pos[i + 1] = {side_len, side_len, -side_len};
-  pos[i + 2] = {side_len, side_len, side_len};
-  pos[i + 3] = {side_len, -side_len, -side_len};
-  pos[i + 4] = {side_len, side_len, side_len};
-  pos[i + 5] = {side_len, -side_len, side_len};
+      // Right face
+      uniq_pos[kFbr], uniq_pos[kBbr], uniq_pos[kBtr], uniq_pos[kFtr],
 
-  i += kVertexCountPerFace;
+      // Top face
+      uniq_pos[kFtl], uniq_pos[kFtr], uniq_pos[kBtr], uniq_pos[kBtl],
 
-  // y = -1 face
-  pos[i] = {-side_len, -side_len, -side_len};
-  pos[i + 1] = {-side_len, -side_len, side_len};
-  pos[i + 2] = {side_len, -side_len, side_len};
-  pos[i + 3] = {-side_len, -side_len, -side_len};
-  pos[i + 4] = {side_len, -side_len, side_len};
-  pos[i + 5] = {side_len, -side_len, -side_len};
+      // Bottom face
+      uniq_pos[kBbl], uniq_pos[kBbr], uniq_pos[kFbr], uniq_pos[kFbl]};
 
-  i += kVertexCountPerFace;
-
-  // y = 1 face
-  pos[i] = {-side_len, side_len, -side_len};
-  pos[i + 1] = {-side_len, side_len, side_len};
-  pos[i + 2] = {side_len, side_len, side_len};
-  pos[i + 3] = {-side_len, side_len, -side_len};
-  pos[i + 4] = {side_len, side_len, side_len};
-  pos[i + 5] = {side_len, side_len, -side_len};
-
-  i += kVertexCountPerFace;
-
-  // z = -1 face
-  pos[i] = {-side_len, -side_len, -side_len};
-  pos[i + 1] = {-side_len, side_len, -side_len};
-  pos[i + 2] = {side_len, side_len, -side_len};
-  pos[i + 3] = {-side_len, -side_len, -side_len};
-  pos[i + 4] = {side_len, side_len, -side_len};
-  pos[i + 5] = {side_len, -side_len, -side_len};
-
-  i += kVertexCountPerFace;
-
-  // z = 1 face
-  pos[i] = {-side_len, -side_len, side_len};
-  pos[i + 1] = {-side_len, side_len, side_len};
-  pos[i + 2] = {side_len, side_len, side_len};
-  pos[i + 3] = {-side_len, -side_len, side_len};
-  pos[i + 4] = {side_len, side_len, side_len};
-  pos[i + 5] = {side_len, -side_len, side_len};
-
-  for (uint j = 0; j < kVertexCount; ++j) {
-    pos[j] *= 0.5f;
+  for (uint i = 0; i < kVertexCount; ++i) {
+    pos[i] *= side_len;
   }
 
-  for (uint j = 0; j < kVertexCount; j += kVertexCountPerFace) {
-    uv[j] = {0, 0};
-    uv[j + 1] = {0, tex_repeat_count};
-    uv[j + 2] = {tex_repeat_count, tex_repeat_count};
-    uv[j + 3] = {0, 0};
-    uv[j + 4] = {tex_repeat_count, tex_repeat_count};
-    uv[j + 5] = {tex_repeat_count, 0};
+  std::memcpy(mesh->vl1p1uv.positions, pos, kVertexCount * sizeof(glm::vec3));
+
+  glm::vec2 uniq_uv[kFaceCornerCount];
+  uniq_uv[kBl] = {0, 0};
+  uniq_uv[kTl] = {0, 1};
+  uniq_uv[kBr] = {1, 0};
+  uniq_uv[kTr] = {1, 1};
+
+  glm::vec2 *uv = mesh->vl1p1uv.uv;
+  for (uint i = 0; i < kVertexCount; i += kFaceCornerCount) {
+    uv[i] = uniq_uv[kBl];
+    uv[i + 1] = uniq_uv[kBr];
+    uv[i + 2] = uniq_uv[kTr];
+    uv[i + 3] = uniq_uv[kTl];
+  }
+  for (uint i = 0; i < kVertexCount; ++i) {
+    uv[i] *= tex_repeat_count;
+  }
+
+  mesh->index_count = kIndexCount;
+  mesh->indices = new uint[kIndexCount];
+
+  uint *indices = mesh->indices;
+  uint idx = 0;
+  for (uint i = 0; i < kIndexCount; i += kIndicesPerFace) {
+    indices[i] = idx;
+    indices[i + 1] = idx + 2;
+    indices[i + 2] = idx + 1;
+    indices[i + 3] = idx;
+    indices[i + 4] = idx + 3;
+    indices[i + 5] = idx + 2;
+    idx += kFaceCornerCount;
   }
 }
 

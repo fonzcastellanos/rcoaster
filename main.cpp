@@ -132,7 +132,7 @@ static uint camera_path_index;
 
 static GLuint program_names[kVertexFormat__Count];
 static GLuint textures[kTexture__Count];
-static GLuint vao_names[kVertexFormat__Count];
+static GLuint vao_names[kVao__Count];
 static GLuint vbo_names[kVbo__Count];
 
 static glm::mat4 view_mat;
@@ -388,7 +388,7 @@ static void Display() {
 
   // Rails
 
-  glBindVertexArray(vao_names[kVertexFormat_Colored]);
+  glBindVertexArray(vao_names[kVao_Colored]);
 
   {
     glm::mat4 model_view = view_mat * scene.left_rail.world_transform;
@@ -416,19 +416,18 @@ static void Display() {
 
   glBindVertexArray(0);
 
-  /*******************
-   * Textured models
-   *******************/
-
+  /**************************
+   * Indexed textured models
+   **************************/
   prog = program_names[kVertexFormat_Textured];
   model_view_mat_loc = glGetUniformLocation(prog, "model_view");
   proj_mat_loc = glGetUniformLocation(prog, "projection");
 
   glUseProgram(prog);
 
-  glBindVertexArray(vao_names[kVertexFormat_Textured]);
+  glBindVertexArray(vao_names[kVao_IndexedTextured]);
 
-  GLint first = 0;
+  GLuint buf_offset = 0;
 
   // Ground
   {
@@ -440,8 +439,11 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
-    glDrawArrays(GL_TRIANGLES, first, scene.ground.mesh->vl1p1uv.count);
-    first += scene.ground.mesh->vl1p1uv.count;
+
+    glDrawElements(GL_TRIANGLES, scene.ground.mesh->index_count,
+                   GL_UNSIGNED_INT, BUFFER_OFFSET(0));
+
+    buf_offset += scene.ground.mesh->index_count * sizeof(GLuint);
   }
 
   // Sky
@@ -454,9 +456,24 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
-    glDrawArrays(GL_TRIANGLES, first, scene.sky.mesh->vl1p1uv.count);
-    first += scene.sky.mesh->vl1p1uv.count;
+
+    glDrawElements(GL_TRIANGLES, scene.sky.mesh->index_count, GL_UNSIGNED_INT,
+                   BUFFER_OFFSET(buf_offset));
   }
+
+  glBindVertexArray(0);
+
+  /*******************
+   * Textured models
+   *******************/
+
+  prog = program_names[kVertexFormat_Textured];
+  model_view_mat_loc = glGetUniformLocation(prog, "model_view");
+  proj_mat_loc = glGetUniformLocation(prog, "projection");
+
+  glUseProgram(prog);
+
+  glBindVertexArray(vao_names[kVao_Textured]);
 
   // Crossties
   {
@@ -470,7 +487,7 @@ static void Display() {
     glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
     for (uint offset = 0; offset < scene.crossties.mesh->vl1p1uv.count;
          offset += 36) {
-      glDrawArrays(GL_TRIANGLES, first + offset, 36);
+      glDrawArrays(GL_TRIANGLES, offset, 36);
     }
   }
 
@@ -729,11 +746,10 @@ int main(int argc, char **argv) {
   }
 
   glGenBuffers(kVbo__Count, vbo_names);
-  glGenVertexArrays(kVertexFormat__Count, vao_names);
+  glGenVertexArrays(kVao__Count, vao_names);
 
-  VertexList1P1UV *textured_vlists[] = {&scene.ground.mesh->vl1p1uv,
-                                        &scene.sky.mesh->vl1p1uv,
-                                        &scene.crossties.mesh->vl1p1uv};
+  // textured
+  VertexList1P1UV *textured_vlists[] = {&scene.crossties.mesh->vl1p1uv};
 
   uint textured_vlist_count =
       sizeof(textured_vlists) / sizeof(textured_vlists[0]);
@@ -743,6 +759,18 @@ int main(int argc, char **argv) {
     textured_vertex_count += textured_vlists[i]->count;
   }
 
+  // indexed textured
+  VertexList1P1UV *indexed_textured_vlists[] = {&scene.ground.mesh->vl1p1uv,
+                                                &scene.sky.mesh->vl1p1uv};
+  uint indexed_textured_vlist_count =
+      sizeof(indexed_textured_vlists) / sizeof(indexed_textured_vlists[0]);
+
+  uint indexed_textured_vertex_count = 0;
+  for (uint i = 0; i < indexed_textured_vlist_count; ++i) {
+    indexed_textured_vertex_count += indexed_textured_vlists[i]->count;
+  }
+
+  // indexed colored
   VertexList1P1C *indexed_colored_vlists[] = {&scene.left_rail.mesh->vl1p1c,
                                               &scene.right_rail.mesh->vl1p1c};
   uint indexed_colored_vlist_count =
@@ -785,7 +813,7 @@ int main(int argc, char **argv) {
     GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
     GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
 
-    glBindVertexArray(vao_names[kVertexFormat_Textured]);
+    glBindVertexArray(vao_names[kVao_Textured]);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
 
@@ -800,6 +828,85 @@ int main(int argc, char **argv) {
 
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+
+  // Buffer indexed textured vertices.
+  {
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_IndexedTexturedVertices]);
+
+    uint buffer_size =
+        indexed_textured_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
+    glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
+
+    uint offset = 0;
+
+    for (uint i = 0; i < indexed_textured_vlist_count; ++i) {
+      uint size = indexed_textured_vlists[i]->count * sizeof(glm::vec3);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                      indexed_textured_vlists[i]->positions);
+      offset += size;
+    }
+
+    for (uint i = 0; i < indexed_textured_vlist_count; ++i) {
+      uint size = indexed_textured_vlists[i]->count * sizeof(glm::vec2);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
+                      indexed_textured_vlists[i]->uv);
+      offset += size;
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  }
+
+  // Buffer textured indices.
+  {
+    for (uint i = 0; i < scene.sky.mesh->index_count; ++i) {
+      scene.sky.mesh->indices[i] += scene.ground.mesh->vl1p1uv.count;
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_TexturedIndices]);
+
+    uint index_count =
+        scene.ground.mesh->index_count + scene.sky.mesh->index_count;
+    uint buffer_size = index_count * sizeof(uint);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
+
+    uint offset = 0;
+    uint size = scene.ground.mesh->index_count * sizeof(uint);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
+                    scene.ground.mesh->indices);
+
+    offset += size;
+    size = scene.sky.mesh->index_count * sizeof(uint);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
+                    scene.sky.mesh->indices);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  }
+
+  // Setup indexed textured VAO.
+  {
+    GLuint prog = program_names[kVertexFormat_Textured];
+    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
+    GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
+
+    glBindVertexArray(vao_names[kVao_IndexedTextured]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_IndexedTexturedVertices]);
+
+    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
+                          BUFFER_OFFSET(0));
+    glVertexAttribPointer(
+        tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
+        BUFFER_OFFSET(indexed_textured_vertex_count * sizeof(glm::vec3)));
+
+    glEnableVertexAttribArray(pos_loc);
+    glEnableVertexAttribArray(tex_coord_loc);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_TexturedIndices]);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
 
   // Buffer colored vertices.
@@ -861,7 +968,7 @@ int main(int argc, char **argv) {
     GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
     GLuint color_loc = glGetAttribLocation(prog, "vert_color");
 
-    glBindVertexArray(vao_names[kVertexFormat_Colored]);
+    glBindVertexArray(vao_names[kVao_Colored]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_ColoredVertices]);
 
     glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),

@@ -45,11 +45,6 @@ struct Mesh {
   uint index_count;
 };
 
-struct MeshInstance {
-  Mesh *mesh;
-  glm::mat4 world_transform;
-};
-
 void EvalCatmullRomSpline(const glm::vec3 *control_points,
                           uint control_point_count, float max_segment_len,
                           glm::vec3 **positions, glm::vec3 **tangents,
@@ -62,10 +57,10 @@ void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
                     float max_segment_len, VertexList1P1T1N1B *vertices);
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  VertexList1P1UV *vertices);
+                                  Mesh *mesh);
 
-void MakeAxisAlignedBox(float side_len, uint tex_repeat_count,
-                        VertexList1P1UV *vertices);
+void MakeAxisAlignedBox(float side_len, uint tex_repeat_count, Mesh *mesh);
+
 /*
 Gauge is the distance between the two rails.
 
