@@ -1,3 +1,5 @@
+#include "main.hpp"
+
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -7,13 +9,10 @@
 #include <string>
 #include <vector>
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
 #include "cli.hpp"
-#include "main.hpp"
 #include "meshes.hpp"
 #include "opengl.hpp"
+#include "opengl_renderer.hpp"
 #include "scene.hpp"
 #include "shader.hpp"
 #include "status.hpp"
@@ -58,39 +57,6 @@ static Button FromGlButton(int button) {
   }
 }
 
-static Status InitTexture(const char *img_filepath, GLuint texture_name,
-                          GLfloat anisotropy_degree) {
-  assert(img_filepath);
-
-  int w;
-  int h;
-  int channel_count;
-  uchar *data =
-      stbi_load(img_filepath, &w, &h, &channel_count, kRgbaChannel__Count);
-  if (!data) {
-    std::fprintf(stderr, "Failed to load image file %s.\n", img_filepath);
-    return kStatus_IoError;
-  }
-
-  glBindTexture(GL_TEXTURE_2D, texture_name);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-               data);
-  glGenerateMipmap(GL_TEXTURE_2D);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT,
-                  anisotropy_degree);
-
-  stbi_image_free(data);
-
-  return kStatus_Ok;
-}
-
 Status SaveScreenshot(const char *filepath, uint window_w, uint window_h) {
   assert(filepath);
 
@@ -131,9 +97,10 @@ static WorldState world_state = {{}, {}, {1, 1, 1}};
 static uint camera_path_index;
 
 static GLuint program_names[kVertexFormat__Count];
-static GLuint textures[kTexture__Count];
 static GLuint vao_names[kVao__Count];
 static GLuint vbo_names[kVbo__Count];
+
+static OpenGlRenderer renderer;
 
 static glm::mat4 view_mat;
 static glm::mat4 projection_mat;
@@ -438,7 +405,7 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glBindTexture(GL_TEXTURE_2D, textures[kTexture_Ground]);
+    glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Ground]);
 
     glDrawElements(GL_TRIANGLES, scene.ground.mesh->index_count,
                    GL_UNSIGNED_INT, BUFFER_OFFSET(0));
@@ -455,7 +422,7 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glBindTexture(GL_TEXTURE_2D, textures[kTexture_Sky]);
+    glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Sky]);
 
     glDrawElements(GL_TRIANGLES, scene.sky.mesh->index_count, GL_UNSIGNED_INT,
                    BUFFER_OFFSET(buf_offset));
@@ -484,7 +451,7 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glBindTexture(GL_TEXTURE_2D, textures[kTexture_Crossties]);
+    glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Crossties]);
     for (uint offset = 0; offset < scene.crossties.mesh->vl1p1uv.count;
          offset += 36) {
       glDrawArrays(GL_TRIANGLES, offset, 36);
@@ -678,8 +645,17 @@ int main(int argc, char **argv) {
    * Setup OpenGL state.
    ************************************/
 
-  glClearColor(0, 0, 0, 0);
-  glEnable(GL_DEPTH_TEST);
+  Setup(&renderer);
+  const char *tex_filepaths[3];
+  tex_filepaths[kTexture_Ground] = config.ground_texture_filepath;
+  tex_filepaths[kTexture_Sky] = config.sky_texture_filepath;
+  tex_filepaths[kTexture_Crossties] = config.crossties_texture_filepath;
+  status = SetupTextures(&renderer, tex_filepaths, kTexture__Count,
+                         renderer.max_anisotropy_degree * 0.5f);
+  if (status != kStatus_Ok) {
+    std::fprintf(stderr, "Failed to setup textures.\n");
+    return EXIT_FAILURE;
+  }
 
   // Setup shader programs.
   for (int i = 0; i < kVertexFormat__Count; ++i) {
@@ -707,40 +683,6 @@ int main(int argc, char **argv) {
                    "Failed to make shader program for vertex "
                    "format \"%s\".\n",
                    String((VertexFormat)i));
-      return EXIT_FAILURE;
-    }
-  }
-
-  // Setup textures.
-  glGenTextures(kTexture__Count, textures);
-  {
-    GLfloat max_anisotropy_degree;
-    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy_degree);
-
-    if (config.is_verbose) {
-      std::printf("Maximum degree of anisotropy: %f\n", max_anisotropy_degree);
-    }
-
-    GLfloat anisotropy_degree = max_anisotropy_degree * 0.5f;
-
-    status = InitTexture(config.ground_texture_filepath,
-                         textures[kTexture_Ground], anisotropy_degree);
-    if (status != kStatus_Ok) {
-      std::fprintf(stderr, "Failed to initialize ground texture.\n");
-      return EXIT_FAILURE;
-    }
-
-    status = InitTexture(config.sky_texture_filepath, textures[kTexture_Sky],
-                         anisotropy_degree);
-    if (status != kStatus_Ok) {
-      std::fprintf(stderr, "Failed to initialize sky texture.\n");
-      return EXIT_FAILURE;
-    }
-
-    status = InitTexture(config.crossties_texture_filepath,
-                         textures[kTexture_Crossties], anisotropy_degree);
-    if (status != kStatus_Ok) {
-      std::fprintf(stderr, "Failed to initialize crosstie texture.\n");
       return EXIT_FAILURE;
     }
   }
