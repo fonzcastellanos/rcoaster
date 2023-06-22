@@ -106,41 +106,39 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 
   // TODO: Support for multiple splines.
   assert(splines.size() == 1);
-  scene->camspl.mesh = new Mesh;
-  scene->camspl.mesh->vertex_list_type = kVertexListType_1P1T1N1B;
+  scene->camspl.mesh_1p1t1n1b = new Mesh1P1T1N1B;
   MakeCameraPath(splines[0].data(), splines[0].size(),
-                 cfg->max_spline_segment_len, &scene->camspl.mesh->vl1p1t1n1b);
+                 cfg->max_spline_segment_len,
+                 &scene->camspl.mesh_1p1t1n1b->vertices);
 
-  scene->ground.mesh = new Mesh;
+  scene->ground.mesh_1p1uv = new Mesh1P1UV;
   MakeAxisAlignedXzSquarePlane(cfg->aabb_side_len, cfg->ground_tex_repeat_count,
-                               scene->ground.mesh);
+                               scene->ground.mesh_1p1uv);
   scene->ground.world_transform =
       glm::translate(glm::mat4(1), cfg->ground_position);
 
-  scene->sky.mesh = new Mesh;
+  scene->sky.mesh_1p1uv = new Mesh1P1UV;
   MakeAxisAlignedCube(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
-                      scene->sky.mesh);
+                      scene->sky.mesh_1p1uv);
   scene->sky.world_transform = glm::translate(glm::mat4(1), cfg->sky_position);
 
-  scene->left_rail.mesh = new Mesh;
-  scene->left_rail.mesh->vertex_list_type = kVertexListType_1P1C;
-  scene->right_rail.mesh = new Mesh;
-  scene->right_rail.mesh->vertex_list_type = kVertexListType_1P1C;
-  MakeRails(&scene->camspl.mesh->vl1p1t1n1b, &cfg->rails_color,
+  scene->left_rail.mesh_1p1c = new Mesh1P1C;
+  scene->right_rail.mesh_1p1c = new Mesh1P1C;
+  MakeRails(&scene->camspl.mesh_1p1t1n1b->vertices, &cfg->rails_color,
             cfg->rails_head_w, cfg->rails_head_h, cfg->rails_web_w,
             cfg->rails_web_h, cfg->rails_gauge,
-            cfg->rails_pos_offset_in_camspl_norm_dir, scene->left_rail.mesh,
-            scene->right_rail.mesh);
+            cfg->rails_pos_offset_in_camspl_norm_dir,
+            scene->left_rail.mesh_1p1c, scene->right_rail.mesh_1p1c);
   scene->left_rail.world_transform =
       glm::translate(glm::mat4(1), cfg->rails_position);
   scene->right_rail.world_transform =
       glm::translate(glm::mat4(1), cfg->rails_position);
 
-  scene->crossties.mesh = new Mesh;
-  scene->crossties.mesh->vertex_list_type = kVertexListType_1P1UV;
-  MakeCrossties(&scene->camspl.mesh->vl1p1t1n1b, cfg->crossties_separation_dist,
+  scene->crossties.mesh_1p1uv = new Mesh1P1UV;
+  MakeCrossties(&scene->camspl.mesh_1p1t1n1b->vertices,
+                cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_camspl_norm_dir,
-                &scene->crossties.mesh->vl1p1uv);
+                &scene->crossties.mesh_1p1uv->vertices);
   scene->crossties.world_transform =
       glm::translate(glm::mat4(1), cfg->crossties_position);
 
@@ -150,22 +148,22 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 void FreeModelVertices(Scene *scene) {
   assert(scene);
 
-  delete[] scene->ground.mesh->vl1p1uv.positions;
-  delete[] scene->ground.mesh->vl1p1uv.uv;
-  delete[] scene->ground.mesh->indices;
+  delete[] scene->ground.mesh_1p1uv->vertices.positions;
+  delete[] scene->ground.mesh_1p1uv->vertices.uv;
+  delete[] scene->ground.mesh_1p1uv->indices;
 
-  delete[] scene->sky.mesh->vl1p1uv.positions;
-  delete[] scene->sky.mesh->vl1p1uv.uv;
-  delete[] scene->sky.mesh->indices;
+  delete[] scene->sky.mesh_1p1uv->vertices.positions;
+  delete[] scene->sky.mesh_1p1uv->vertices.uv;
+  delete[] scene->sky.mesh_1p1uv->indices;
 
-  delete[] scene->crossties.mesh->vl1p1uv.positions;
-  delete[] scene->crossties.mesh->vl1p1uv.uv;
+  delete[] scene->crossties.mesh_1p1uv->vertices.positions;
+  delete[] scene->crossties.mesh_1p1uv->vertices.uv;
 
-  delete[] scene->left_rail.mesh->vl1p1c.positions;
-  delete[] scene->left_rail.mesh->vl1p1c.colors;
-  delete[] scene->left_rail.mesh->indices;
+  delete[] scene->left_rail.mesh_1p1c->vertices.positions;
+  delete[] scene->left_rail.mesh_1p1c->vertices.colors;
+  delete[] scene->left_rail.mesh_1p1c->indices;
 
-  delete[] scene->right_rail.mesh->vl1p1c.positions;
-  delete[] scene->right_rail.mesh->vl1p1c.colors;
-  delete[] scene->right_rail.mesh->indices;
+  delete[] scene->right_rail.mesh_1p1c->vertices.positions;
+  delete[] scene->right_rail.mesh_1p1c->vertices.colors;
+  delete[] scene->right_rail.mesh_1p1c->indices;
 }

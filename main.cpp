@@ -295,16 +295,16 @@ static void Idle() {
     ExitGlutMainLoop(EXIT_FAILURE);
   }
 
-  if (camera_path_index < scene.camspl.mesh->vl1p1t1n1b.count) {
+  if (camera_path_index < scene.camspl.mesh_1p1t1n1b->vertices.count) {
     float delta_time = (current_time - previous_idle_callback_time) / 1000.0f;
     camera_path_index += config.camera_speed * delta_time;
   }
 
-  view_mat =
-      glm::lookAt(scene.camspl.mesh->vl1p1t1n1b.positions[camera_path_index],
-                  scene.camspl.mesh->vl1p1t1n1b.positions[camera_path_index] +
-                      scene.camspl.mesh->vl1p1t1n1b.tangents[camera_path_index],
-                  scene.camspl.mesh->vl1p1t1n1b.normals[camera_path_index]);
+  view_mat = glm::lookAt(
+      scene.camspl.mesh_1p1t1n1b->vertices.positions[camera_path_index],
+      scene.camspl.mesh_1p1t1n1b->vertices.positions[camera_path_index] +
+          scene.camspl.mesh_1p1t1n1b->vertices.tangents[camera_path_index],
+      scene.camspl.mesh_1p1t1n1b->vertices.normals[camera_path_index]);
 
   assert(window_h > 0);
   float aspect = (float)window_w / window_h;
@@ -365,7 +365,7 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glDrawElements(GL_TRIANGLES, scene.left_rail.mesh->index_count,
+    glDrawElements(GL_TRIANGLES, scene.left_rail.mesh_1p1c->index_count,
                    GL_UNSIGNED_INT, BUFFER_OFFSET(0));
   }
   {
@@ -377,8 +377,8 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glDrawElements(
-        GL_TRIANGLES, scene.right_rail.mesh->index_count, GL_UNSIGNED_INT,
-        BUFFER_OFFSET(scene.left_rail.mesh->index_count * sizeof(GLuint)));
+        GL_TRIANGLES, scene.right_rail.mesh_1p1c->index_count, GL_UNSIGNED_INT,
+        BUFFER_OFFSET(scene.left_rail.mesh_1p1c->index_count * sizeof(GLuint)));
   }
 
   glBindVertexArray(0);
@@ -407,10 +407,10 @@ static void Display() {
 
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Ground]);
 
-    glDrawElements(GL_TRIANGLES, scene.ground.mesh->index_count,
+    glDrawElements(GL_TRIANGLES, scene.ground.mesh_1p1uv->index_count,
                    GL_UNSIGNED_INT, BUFFER_OFFSET(0));
 
-    buf_offset += scene.ground.mesh->index_count * sizeof(GLuint);
+    buf_offset += scene.ground.mesh_1p1uv->index_count * sizeof(GLuint);
   }
 
   // Sky
@@ -424,8 +424,8 @@ static void Display() {
 
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Sky]);
 
-    glDrawElements(GL_TRIANGLES, scene.sky.mesh->index_count, GL_UNSIGNED_INT,
-                   BUFFER_OFFSET(buf_offset));
+    glDrawElements(GL_TRIANGLES, scene.sky.mesh_1p1uv->index_count,
+                   GL_UNSIGNED_INT, BUFFER_OFFSET(buf_offset));
   }
 
   glBindVertexArray(0);
@@ -452,7 +452,7 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Crossties]);
-    for (uint offset = 0; offset < scene.crossties.mesh->vl1p1uv.count;
+    for (uint offset = 0; offset < scene.crossties.mesh_1p1uv->vertices.count;
          offset += 36) {
       glDrawArrays(GL_TRIANGLES, offset, 36);
     }
@@ -691,7 +691,7 @@ int main(int argc, char **argv) {
   glGenVertexArrays(kVao__Count, vao_names);
 
   // textured
-  VertexList1P1UV *textured_vlists[] = {&scene.crossties.mesh->vl1p1uv};
+  VertexList1P1UV *textured_vlists[] = {&scene.crossties.mesh_1p1uv->vertices};
 
   uint textured_vlist_count =
       sizeof(textured_vlists) / sizeof(textured_vlists[0]);
@@ -702,8 +702,8 @@ int main(int argc, char **argv) {
   }
 
   // indexed textured
-  VertexList1P1UV *indexed_textured_vlists[] = {&scene.ground.mesh->vl1p1uv,
-                                                &scene.sky.mesh->vl1p1uv};
+  VertexList1P1UV *indexed_textured_vlists[] = {
+      &scene.ground.mesh_1p1uv->vertices, &scene.sky.mesh_1p1uv->vertices};
   uint indexed_textured_vlist_count =
       sizeof(indexed_textured_vlists) / sizeof(indexed_textured_vlists[0]);
 
@@ -713,8 +713,9 @@ int main(int argc, char **argv) {
   }
 
   // indexed colored
-  VertexList1P1C *indexed_colored_vlists[] = {&scene.left_rail.mesh->vl1p1c,
-                                              &scene.right_rail.mesh->vl1p1c};
+  VertexList1P1C *indexed_colored_vlists[] = {
+      &scene.left_rail.mesh_1p1c->vertices,
+      &scene.right_rail.mesh_1p1c->vertices};
   uint indexed_colored_vlist_count =
       sizeof(indexed_colored_vlists) / sizeof(indexed_colored_vlists[0]);
 
@@ -801,26 +802,27 @@ int main(int argc, char **argv) {
 
   // Buffer textured indices.
   {
-    for (uint i = 0; i < scene.sky.mesh->index_count; ++i) {
-      scene.sky.mesh->indices[i] += scene.ground.mesh->vl1p1uv.count;
+    for (uint i = 0; i < scene.sky.mesh_1p1uv->index_count; ++i) {
+      scene.sky.mesh_1p1uv->indices[i] +=
+          scene.ground.mesh_1p1uv->vertices.count;
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_TexturedIndices]);
 
-    uint index_count =
-        scene.ground.mesh->index_count + scene.sky.mesh->index_count;
+    uint index_count = scene.ground.mesh_1p1uv->index_count +
+                       scene.sky.mesh_1p1uv->index_count;
     uint buffer_size = index_count * sizeof(uint);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.ground.mesh->index_count * sizeof(uint);
+    uint size = scene.ground.mesh_1p1uv->index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.ground.mesh->indices);
+                    scene.ground.mesh_1p1uv->indices);
 
     offset += size;
-    size = scene.sky.mesh->index_count * sizeof(uint);
+    size = scene.sky.mesh_1p1uv->index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.sky.mesh->indices);
+                    scene.sky.mesh_1p1uv->indices);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
@@ -880,26 +882,27 @@ int main(int argc, char **argv) {
 
   // Buffer colored indices.
   {
-    for (uint i = 0; i < scene.right_rail.mesh->index_count; ++i) {
-      scene.right_rail.mesh->indices[i] += scene.left_rail.mesh->vl1p1c.count;
+    for (uint i = 0; i < scene.right_rail.mesh_1p1c->index_count; ++i) {
+      scene.right_rail.mesh_1p1c->indices[i] +=
+          scene.left_rail.mesh_1p1c->vertices.count;
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
 
-    uint index_count =
-        scene.left_rail.mesh->index_count + scene.right_rail.mesh->index_count;
+    uint index_count = scene.left_rail.mesh_1p1c->index_count +
+                       scene.right_rail.mesh_1p1c->index_count;
     uint buffer_size = index_count * sizeof(uint);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
 
     uint offset = 0;
-    uint size = scene.left_rail.mesh->index_count * sizeof(uint);
+    uint size = scene.left_rail.mesh_1p1c->index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.mesh->indices);
+                    scene.left_rail.mesh_1p1c->indices);
 
     offset += size;
-    size = scene.right_rail.mesh->index_count * sizeof(uint);
+    size = scene.right_rail.mesh_1p1c->index_count * sizeof(uint);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, size, offset,
-                    scene.right_rail.mesh->indices);
+                    scene.right_rail.mesh_1p1c->indices);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }

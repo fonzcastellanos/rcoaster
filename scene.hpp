@@ -10,7 +10,12 @@
 #include "types.hpp"
 
 struct Entity {
-  Mesh* mesh;
+  MeshType mesh_type;
+  union {
+    Mesh1P1C* mesh_1p1c;
+    Mesh1P1UV* mesh_1p1uv;
+    Mesh1P1T1N1B* mesh_1p1t1n1b;
+  };
   glm::mat4 world_transform;
 };
 

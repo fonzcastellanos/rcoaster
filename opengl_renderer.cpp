@@ -77,39 +77,45 @@ Status SetupTextures(OpenGlRenderer* renderer, const char* const* filepaths,
   return kStatus_Ok;
 }
 
-void SubmitVertexLists(const VertexList1P1UV* vertex_lists,
-                       uint vertex_list_count, GLuint vbo_name, GLuint vao_name,
+void SubmitVertexLists(const VertexList1P1UV* vert_lists, uint vert_list_count,
+                       GLuint vbo_name, GLuint vao_name,
                        GLuint position_attrib_loc,
                        GLuint tex_coord_attrib_loc) {
-  assert(vertex_lists);
+  assert(vert_lists);
 
-  uint vertex_count = 0;
-  for (uint i = 0; i < vertex_list_count; ++i) {
-    vertex_count += vertex_lists[i].count;
+  uint vert_count = 0;
+  for (uint i = 0; i < vert_list_count; ++i) {
+    vert_count += vert_lists[i].count;
   }
+
+  // Upload vertex attributes to VBO.
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_name);
 
-  uint buf_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
-  glBufferData(GL_ARRAY_BUFFER, buf_size, NULL, GL_STATIC_DRAW);
-
-  uint offset = 0;
-
-  for (uint i = 0; i < vertex_list_count; ++i) {
-    uint size = vertex_lists[i].count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, vertex_lists[i].positions);
-    offset += size;
+  {
+    GLsizeiptr size = vert_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
+    glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
   }
 
-  for (uint i = 0; i < vertex_list_count; ++i) {
-    uint size = vertex_lists[i].count * sizeof(glm::vec2);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, vertex_lists[i].uv);
-    offset += size;
+  {
+    GLintptr offset = 0;
+
+    for (uint i = 0; i < vert_list_count; ++i) {
+      GLsizeiptr size = vert_lists[i].count * sizeof(glm::vec3);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size, vert_lists[i].positions);
+      offset += size;
+    }
+
+    for (uint i = 0; i < vert_list_count; ++i) {
+      GLsizeiptr size = vert_lists[i].count * sizeof(glm::vec2);
+      glBufferSubData(GL_ARRAY_BUFFER, offset, size, vert_lists[i].uv);
+      offset += size;
+    }
   }
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  // Setup VAO
+  // Setup VAO.
 
   glBindVertexArray(vao_name);
 
@@ -119,7 +125,7 @@ void SubmitVertexLists(const VertexList1P1UV* vertex_lists,
                         sizeof(glm::vec3), BUFFER_OFFSET(0));
   glVertexAttribPointer(tex_coord_attrib_loc, 2, GL_FLOAT, GL_FALSE,
                         sizeof(glm::vec2),
-                        BUFFER_OFFSET(vertex_count * sizeof(glm::vec3)));
+                        BUFFER_OFFSET(vert_count * sizeof(glm::vec3)));
 
   glEnableVertexAttribArray(position_attrib_loc);
   glEnableVertexAttribArray(tex_coord_attrib_loc);
@@ -128,37 +134,56 @@ void SubmitVertexLists(const VertexList1P1UV* vertex_lists,
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void SubmitVertexLists(const VertexList1P1C* vertex_lists,
-                       uint vertex_list_count, GLuint vbo_name, GLuint vao_name,
+void SubmitVertexLists(const VertexList1P1C* vert_lists, uint vert_list_count,
+                       GLuint vbo_name, GLuint vao_name,
                        GLuint position_attrib_loc, GLuint color_attrib_loc) {
-  assert(vertex_lists);
+  assert(vert_lists);
+
+  uint vert_count = 0;
+  for (uint i = 0; i < vert_list_count; ++i) {
+    vert_count += vert_lists[i].count;
+  }
+
+  // Upload vertex attributes to VBO.
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo_name);
 
   {
-    uint vertex_count = 0;
-    for (uint i = 0; i < vertex_list_count; ++i) {
-      vertex_count += vertex_lists[i].count;
-    }
-
-    uint buf_size = vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
-
-    glBufferData(GL_ARRAY_BUFFER, buf_size, NULL, GL_STATIC_DRAW);
+    GLsizeiptr size = vert_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
+    glBufferData(GL_ARRAY_BUFFER, size, 0, GL_STATIC_DRAW);
   }
 
-  uint offset = 0;
+  GLintptr offset = 0;
 
-  for (uint i = 0; i < vertex_list_count; ++i) {
-    uint size = vertex_lists[i].count * sizeof(glm::vec3);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, vertex_lists[i].positions);
+  for (uint i = 0; i < vert_list_count; ++i) {
+    GLsizeiptr size = vert_lists[i].count * sizeof(glm::vec3);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, vert_lists[i].positions);
     offset += size;
   }
 
-  for (uint i = 0; i < vertex_list_count; ++i) {
-    uint size = vertex_lists[i].count * sizeof(glm::vec4);
-    glBufferSubData(GL_ARRAY_BUFFER, offset, size, vertex_lists[i].colors);
+  for (uint i = 0; i < vert_list_count; ++i) {
+    GLsizeiptr size = vert_lists[i].count * sizeof(glm::vec4);
+    glBufferSubData(GL_ARRAY_BUFFER, offset, size, vert_lists[i].colors);
     offset += size;
   }
 
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  // Setup VAO.
+
+  glBindVertexArray(vao_name);
+
+  glBindBuffer(GL_ARRAY_BUFFER, vbo_name);
+
+  glVertexAttribPointer(position_attrib_loc, 3, GL_FLOAT, GL_FALSE,
+                        sizeof(glm::vec3), BUFFER_OFFSET(0));
+  glVertexAttribPointer(color_attrib_loc, 4, GL_FLOAT, GL_FALSE,
+                        sizeof(glm::vec4),
+                        BUFFER_OFFSET(vert_count * sizeof(glm::vec3)));
+
+  glEnableVertexAttribArray(position_attrib_loc);
+  glEnableVertexAttribArray(color_attrib_loc);
+
+  glBindVertexArray(0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

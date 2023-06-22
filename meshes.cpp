@@ -143,7 +143,7 @@ void MakeCameraPath(const glm::vec3 *control_points, uint control_point_count,
 }
 
 void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
-                                  Mesh *mesh) {
+                                  Mesh1P1UV *mesh) {
   enum Corner { kBl, kTl, kTr, kBr, kCornerCount };
 
   static constexpr uint kVertexCountPerTriangle = 3;
@@ -154,12 +154,11 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(mesh);
 
-  mesh->vertex_list_type = kVertexListType_1P1UV;
-  mesh->vl1p1uv.count = kCornerCount;
-  mesh->vl1p1uv.positions = new glm::vec3[kCornerCount];
-  mesh->vl1p1uv.uv = new glm::vec2[kCornerCount];
+  mesh->vertices.count = kCornerCount;
+  mesh->vertices.positions = new glm::vec3[kCornerCount];
+  mesh->vertices.uv = new glm::vec2[kCornerCount];
 
-  glm::vec3 *pos = mesh->vl1p1uv.positions;
+  glm::vec3 *pos = mesh->vertices.positions;
   pos[kBl] = {-side_len, 0, -side_len};
   pos[kTl] = {-side_len, 0, side_len};
   pos[kTr] = {side_len, 0, side_len};
@@ -168,7 +167,7 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
     pos[i] *= 0.5f;
   }
 
-  glm::vec2 *uv = mesh->vl1p1uv.uv;
+  glm::vec2 *uv = mesh->vertices.uv;
   uv[kBl] = {0, 0};
   uv[kTl] = {0, tex_repeat_count};
   uv[kTr] = {tex_repeat_count, tex_repeat_count};
@@ -186,7 +185,8 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
   indices[5] = kTl;
 }
 
-void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh) {
+void MakeAxisAlignedCube(float side_len, uint tex_repeat_count,
+                         Mesh1P1UV *mesh) {
   enum CubeCorner {
     kFbl,
     kFtl,
@@ -214,10 +214,9 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh) {
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(mesh);
 
-  mesh->vertex_list_type = kVertexListType_1P1UV;
-  mesh->vl1p1uv.count = kVertexCount;
-  mesh->vl1p1uv.positions = new glm::vec3[kVertexCount];
-  mesh->vl1p1uv.uv = new glm::vec2[kVertexCount];
+  mesh->vertices.count = kVertexCount;
+  mesh->vertices.positions = new glm::vec3[kVertexCount];
+  mesh->vertices.uv = new glm::vec2[kVertexCount];
 
   glm::vec3 uniq_pos[kCubeCornerCount];
   uniq_pos[kFbl] = {-0.5, -0.5, 0.5};
@@ -252,7 +251,7 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh) {
     pos[i] *= side_len;
   }
 
-  std::memcpy(mesh->vl1p1uv.positions, pos, kVertexCount * sizeof(glm::vec3));
+  std::memcpy(mesh->vertices.positions, pos, kVertexCount * sizeof(glm::vec3));
 
   glm::vec2 uniq_uv[kFaceCornerCount];
   uniq_uv[kBl] = {0, 0};
@@ -260,7 +259,7 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh) {
   uniq_uv[kBr] = {1, 0};
   uniq_uv[kTr] = {1, 1};
 
-  glm::vec2 *uv = mesh->vl1p1uv.uv;
+  glm::vec2 *uv = mesh->vertices.uv;
   for (uint i = 0; i < kVertexCount; i += kFaceCornerCount) {
     uv[i] = uniq_uv[kBl];
     uv[i + 1] = uniq_uv[kBr];
@@ -290,7 +289,7 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count, Mesh *mesh) {
 void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
                const glm::vec4 *color, float head_w, float head_h, float web_w,
                float web_h, float gauge, float pos_offset_in_camspl_norm_dir,
-               Mesh *left_rail, Mesh *right_rail) {
+               Mesh1P1C *left_rail, Mesh1P1C *right_rail) {
   static constexpr uint kCrossSectionVertexCount = 8;
 
   enum RailType { kRailType_Left, kRailType_Right, kRailType__Count };
@@ -313,24 +312,23 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
   glm::vec3 *cv_binorm = camspl_vertices->binormals;
   uint cv_count = camspl_vertices->count;
 
-  Mesh *rails[kRailType__Count] = {left_rail, right_rail};
+  Mesh1P1C *rails[kRailType__Count] = {left_rail, right_rail};
   uint rv_count = cv_count * kCrossSectionVertexCount;
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    rails[i]->vertex_list_type = kVertexListType_1P1C;
-    rails[i]->vl1p1c.count = rv_count;
-    rails[i]->vl1p1c.positions = new glm::vec3[rv_count];
-    rails[i]->vl1p1c.colors = new glm::vec4[rv_count];
+    rails[i]->vertices.count = rv_count;
+    rails[i]->vertices.positions = new glm::vec3[rv_count];
+    rails[i]->vertices.colors = new glm::vec4[rv_count];
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
     for (uint j = 0; j < rv_count; ++j) {
-      rails[i]->vl1p1c.colors[j] = *color;
+      rails[i]->vertices.colors[j] = *color;
     }
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    glm::vec3 *pos = rails[i]->vl1p1c.positions;
+    glm::vec3 *pos = rails[i]->vertices.positions;
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       // See the comment block above the function declaration in the header
@@ -352,18 +350,18 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      right_rail->vl1p1c.positions[j + k] += 0.5f * gauge * cv_binorm[i];
+      right_rail->vertices.positions[j + k] += 0.5f * gauge * cv_binorm[i];
     }
   }
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      left_rail->vl1p1c.positions[j + k] -= 0.5f * gauge * cv_binorm[i];
+      left_rail->vertices.positions[j + k] -= 0.5f * gauge * cv_binorm[i];
     }
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    glm::vec3 *pos = rails[i]->vl1p1c.positions;
+    glm::vec3 *pos = rails[i]->vertices.positions;
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
