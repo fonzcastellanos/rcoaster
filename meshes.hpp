@@ -1,5 +1,5 @@
-#ifndef RCOASTER_MODELS_HPP
-#define RCOASTER_MODELS_HPP
+#ifndef RCOASTER_MESHES_HPP
+#define RCOASTER_MESHES_HPP
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -113,4 +113,4 @@ void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
                    VertexList1P1UV *vertices);
 
-#endif  // RCOASTER_MODELS_HPP
+#endif  // RCOASTER_MESHES_HPP
