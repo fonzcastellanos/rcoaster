@@ -154,35 +154,31 @@ void MakeAxisAlignedXzSquarePlane(float side_len, uint tex_repeat_count,
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(mesh);
 
-  mesh->vertices.count = kCornerCount;
-  mesh->vertices.positions = new glm::vec3[kCornerCount];
-  mesh->vertices.uv = new glm::vec2[kCornerCount];
+  mesh->vertex_count = kCornerCount;
+  mesh->vertices = new Vertex1P1UV[kCornerCount];
 
-  glm::vec3 *pos = mesh->vertices.positions;
-  pos[kBl] = {-side_len, 0, -side_len};
-  pos[kTl] = {-side_len, 0, side_len};
-  pos[kTr] = {side_len, 0, side_len};
-  pos[kBr] = {side_len, 0, -side_len};
+  mesh->vertices[kBl].position = {-side_len, 0, -side_len};
+  mesh->vertices[kTl].position = {-side_len, 0, side_len};
+  mesh->vertices[kTr].position = {side_len, 0, side_len};
+  mesh->vertices[kBr].position = {side_len, 0, -side_len};
   for (int i = 0; i < kCornerCount; ++i) {
-    pos[i] *= 0.5f;
+    mesh->vertices[i].position *= 0.5f;
   }
 
-  glm::vec2 *uv = mesh->vertices.uv;
-  uv[kBl] = {0, 0};
-  uv[kTl] = {0, tex_repeat_count};
-  uv[kTr] = {tex_repeat_count, tex_repeat_count};
-  uv[kBr] = {tex_repeat_count, 0};
+  mesh->vertices[kBl].uv = {0, 0};
+  mesh->vertices[kTl].uv = {0, tex_repeat_count};
+  mesh->vertices[kTr].uv = {tex_repeat_count, tex_repeat_count};
+  mesh->vertices[kBr].uv = {tex_repeat_count, 0};
 
   mesh->index_count = kIndexCount;
   mesh->indices = new uint[kIndexCount];
 
-  uint *indices = mesh->indices;
-  indices[0] = kBl;
-  indices[1] = kBr;
-  indices[2] = kTl;
-  indices[3] = kBr;
-  indices[4] = kTr;
-  indices[5] = kTl;
+  mesh->indices[0] = kBl;
+  mesh->indices[1] = kBr;
+  mesh->indices[2] = kTl;
+  mesh->indices[3] = kBr;
+  mesh->indices[4] = kTr;
+  mesh->indices[5] = kTl;
 }
 
 void MakeAxisAlignedCube(float side_len, uint tex_repeat_count,
@@ -214,9 +210,8 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count,
   assert(tex_repeat_count == 1 || tex_repeat_count % 2 == 0);
   assert(mesh);
 
-  mesh->vertices.count = kVertexCount;
-  mesh->vertices.positions = new glm::vec3[kVertexCount];
-  mesh->vertices.uv = new glm::vec2[kVertexCount];
+  mesh->vertex_count = kVertexCount;
+  mesh->vertices = new Vertex1P1UV[kVertexCount];
 
   glm::vec3 uniq_pos[kCubeCornerCount];
   uniq_pos[kFbl] = {-0.5, -0.5, 0.5};
@@ -248,10 +243,8 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count,
       uniq_pos[kBbl], uniq_pos[kBbr], uniq_pos[kFbr], uniq_pos[kFbl]};
 
   for (uint i = 0; i < kVertexCount; ++i) {
-    pos[i] *= side_len;
+    mesh->vertices[i].position = pos[i] * side_len;
   }
-
-  std::memcpy(mesh->vertices.positions, pos, kVertexCount * sizeof(glm::vec3));
 
   glm::vec2 uniq_uv[kFaceCornerCount];
   uniq_uv[kBl] = {0, 0};
@@ -259,29 +252,27 @@ void MakeAxisAlignedCube(float side_len, uint tex_repeat_count,
   uniq_uv[kBr] = {1, 0};
   uniq_uv[kTr] = {1, 1};
 
-  glm::vec2 *uv = mesh->vertices.uv;
   for (uint i = 0; i < kVertexCount; i += kFaceCornerCount) {
-    uv[i] = uniq_uv[kBl];
-    uv[i + 1] = uniq_uv[kBr];
-    uv[i + 2] = uniq_uv[kTr];
-    uv[i + 3] = uniq_uv[kTl];
+    mesh->vertices[i].uv = uniq_uv[kBl];
+    mesh->vertices[i + 1].uv = uniq_uv[kBr];
+    mesh->vertices[i + 2].uv = uniq_uv[kTr];
+    mesh->vertices[i + 3].uv = uniq_uv[kTl];
   }
   for (uint i = 0; i < kVertexCount; ++i) {
-    uv[i] *= tex_repeat_count;
+    mesh->vertices[i].uv *= tex_repeat_count;
   }
 
   mesh->index_count = kIndexCount;
   mesh->indices = new uint[kIndexCount];
 
-  uint *indices = mesh->indices;
   uint idx = 0;
   for (uint i = 0; i < kIndexCount; i += kIndicesPerFace) {
-    indices[i] = idx;
-    indices[i + 1] = idx + 2;
-    indices[i + 2] = idx + 1;
-    indices[i + 3] = idx;
-    indices[i + 4] = idx + 3;
-    indices[i + 5] = idx + 2;
+    mesh->indices[i] = idx;
+    mesh->indices[i + 1] = idx + 2;
+    mesh->indices[i + 2] = idx + 1;
+    mesh->indices[i + 3] = idx;
+    mesh->indices[i + 4] = idx + 3;
+    mesh->indices[i + 5] = idx + 2;
     idx += kFaceCornerCount;
   }
 }
@@ -316,33 +307,34 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
   uint rv_count = cv_count * kCrossSectionVertexCount;
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    rails[i]->vertices.count = rv_count;
-    rails[i]->vertices.positions = new glm::vec3[rv_count];
-    rails[i]->vertices.colors = new glm::vec4[rv_count];
+    rails[i]->vertex_count = rv_count;
+    rails[i]->vertices = new Vertex1P1C[rv_count];
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
     for (uint j = 0; j < rv_count; ++j) {
-      rails[i]->vertices.colors[j] = *color;
+      rails[i]->vertices[j].color = *color;
     }
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    glm::vec3 *pos = rails[i]->vertices.positions;
+    Vertex1P1C *v = rails[i]->vertices;
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       // See the comment block above the function declaration in the header
       // file for the visual index-to-position mapping.
-      pos[k] = cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
-      pos[k + 1] = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
-      pos[k + 2] = cv_pos[j] + 0.5f * head_w * cv_binorm[j];
-      pos[k + 3] =
+      v[k].position =
+          cv_pos[j] - web_h * cv_norm[j] + 0.5f * web_w * cv_binorm[j];
+      v[k + 1].position = cv_pos[j] + 0.5f * web_w * cv_binorm[j];
+      v[k + 2].position = cv_pos[j] + 0.5f * head_w * cv_binorm[j];
+      v[k + 3].position =
           cv_pos[j] + head_h * cv_norm[j] + 0.5f * head_w * cv_binorm[j];
-      pos[k + 4] =
+      v[k + 4].position =
           cv_pos[j] + head_h * cv_norm[j] - 0.5f * head_w * cv_binorm[j];
-      pos[k + 5] = cv_pos[j] - 0.5f * head_w * cv_binorm[j];
-      pos[k + 6] = cv_pos[j] - 0.5f * web_w * cv_binorm[j];
-      pos[k + 7] = cv_pos[j] - web_h * cv_norm[j] - 0.5f * web_w * cv_binorm[j];
+      v[k + 5].position = cv_pos[j] - 0.5f * head_w * cv_binorm[j];
+      v[k + 6].position = cv_pos[j] - 0.5f * web_w * cv_binorm[j];
+      v[k + 7].position =
+          cv_pos[j] - web_h * cv_norm[j] - 0.5f * web_w * cv_binorm[j];
     }
   }
 
@@ -350,22 +342,23 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      right_rail->vertices.positions[j + k] += 0.5f * gauge * cv_binorm[i];
+      right_rail->vertices[j + k].position += 0.5f * gauge * cv_binorm[i];
     }
   }
   for (uint i = 0; i < cv_count; ++i) {
     uint j = kCrossSectionVertexCount * i;
     for (uint k = 0; k < kCrossSectionVertexCount; ++k) {
-      left_rail->vertices.positions[j + k] -= 0.5f * gauge * cv_binorm[i];
+      left_rail->vertices[j + k].position -= 0.5f * gauge * cv_binorm[i];
     }
   }
 
   for (int i = 0; i < kRailType__Count; ++i) {
-    glm::vec3 *pos = rails[i]->vertices.positions;
+    // glm::vec3 *pos = rails[i]->vertices.positions;
+    Vertex1P1C *verts = rails[i]->vertices;
     for (uint j = 0; j < cv_count; ++j) {
       uint k = j * kCrossSectionVertexCount;
       for (uint l = 0; l < kCrossSectionVertexCount; ++l) {
-        pos[k + l] += pos_offset_in_camspl_norm_dir * cv_norm[j];
+        verts[k + l].position += pos_offset_in_camspl_norm_dir * cv_norm[j];
       }
     }
   }
@@ -476,7 +469,7 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
 
 void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
-                   VertexList1P1UV *vertices) {
+                   Vertex1P1UV **vertices, uint *vertex_count) {
   static constexpr int kUniqPosCountPerCrosstie = 8;
   static constexpr float kDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
@@ -494,6 +487,7 @@ void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
   assert(camspl_vertices->binormals);
   assert(separation_dist + kTolerance > 0);
   assert(vertices);
+  assert(vertex_count);
 
   glm::vec3 *cv_pos = camspl_vertices->positions;
   glm::vec3 *cv_tan = camspl_vertices->tangents;
@@ -606,17 +600,17 @@ void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
     dist_moved = 0;
   }
 
-  vertices->count = posi;
+  // vertices->count = posi;
+  *vertex_count = posi;
+  *vertices = new Vertex1P1UV[posi];
 
-  vertices->positions = new glm::vec3[vertices->count];
-  for (uint i = 0; i < vertices->count; ++i) {
-    vertices->positions[i] = pos[i];
+  for (uint i = 0; i < *vertex_count; ++i) {
+    (*vertices)[i].position = pos[i];
   }
   delete[] pos;
 
-  vertices->uv = new glm::vec2[vertices->count];
-  for (uint i = 0; i < vertices->count; ++i) {
-    vertices->uv[i] = uv[i];
+  for (uint i = 0; i < *vertex_count; ++i) {
+    (*vertices)[i].uv = uv[i];
   }
   delete[] uv;
 }

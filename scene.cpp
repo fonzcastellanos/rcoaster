@@ -144,7 +144,8 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
   MakeCrossties(&scene->camspl.mesh_1p1t1n1b->vertices,
                 cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_camspl_norm_dir,
-                &scene->crossties.mesh_1p1uv->vertices);
+                &scene->crossties.mesh_1p1uv->vertices,
+                &scene->crossties.mesh_1p1uv->vertex_count);
   scene->crossties.world_transform =
       glm::translate(glm::mat4(1), cfg->crossties_position);
 
@@ -164,14 +165,14 @@ void FreeModelVertices(Scene *scene) {
   // delete[] scene->sky.mesh_1p1uv->vertices.uv;
   delete[] scene->sky.mesh_1p1uv->indices;
 
-  delete[] scene->crossties.mesh_1p1uv->vertices.positions;
-  delete[] scene->crossties.mesh_1p1uv->vertices.uv;
+  // delete[] scene->crossties.mesh_1p1uv->vertices.positions;
+  // delete[] scene->crossties.mesh_1p1uv->vertices.uv;
 
-  delete[] scene->left_rail.mesh_1p1c->vertices.positions;
-  delete[] scene->left_rail.mesh_1p1c->vertices.colors;
-  delete[] scene->left_rail.mesh_1p1c->indices;
+  // delete[] scene->left_rail.mesh_1p1c->vertices.positions;
+  // delete[] scene->left_rail.mesh_1p1c->vertices.colors;
+  // delete[] scene->left_rail.mesh_1p1c->indices;
 
-  delete[] scene->right_rail.mesh_1p1c->vertices.positions;
-  delete[] scene->right_rail.mesh_1p1c->vertices.colors;
-  delete[] scene->right_rail.mesh_1p1c->indices;
+  // delete[] scene->right_rail.mesh_1p1c->vertices.positions;
+  // delete[] scene->right_rail.mesh_1p1c->vertices.colors;
+  // delete[] scene->right_rail.mesh_1p1c->indices;
 }

@@ -7,16 +7,14 @@
 
 #include "types.hpp"
 
-struct VertexList1P1C {
-  glm::vec3 *positions;
-  glm::vec4 *colors;
-  uint count;
+struct Vertex1P1C {
+  glm::vec3 position;
+  glm::vec4 color;
 };
 
-struct VertexList1P1UV {
-  glm::vec3 *positions;
-  glm::vec2 *uv;
-  uint count;
+struct Vertex1P1UV {
+  glm::vec3 position;
+  glm::vec2 uv;
 };
 
 struct VertexList1P1T1N1B {
@@ -35,13 +33,15 @@ enum MeshType {
 };
 
 struct Mesh1P1C {
-  VertexList1P1C vertices;
+  Vertex1P1C *vertices;
+  uint vertex_count;
   uint *indices;
   uint index_count;
 };
 
 struct Mesh1P1UV {
-  VertexList1P1UV vertices;
+  Vertex1P1UV *vertices;
+  uint vertex_count;
   uint *indices;
   uint index_count;
 };
@@ -111,6 +111,6 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
 
 void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
-                   VertexList1P1UV *vertices);
+                   Vertex1P1UV **vertices, uint *vertex_count);
 
 #endif  // RCOASTER_MESHES_HPP
