@@ -365,8 +365,9 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glDrawElements(GL_TRIANGLES, scene.left_rail.mesh_1p1c->index_count,
-                   GL_UNSIGNED_INT, BUFFER_OFFSET(0));
+    glDrawElementsBaseVertex(GL_TRIANGLES,
+                             scene.left_rail.mesh_1p1c->index_count,
+                             GL_UNSIGNED_INT, BUFFER_OFFSET(0), 0);
   }
   {
     glm::mat4 model_view = view_mat * scene.right_rail.world_transform;
@@ -376,9 +377,10 @@ static void Display() {
     glUniformMatrix4fv(proj_mat_loc, 1, kIsRowMajor,
                        glm::value_ptr(projection_mat));
 
-    glDrawElements(
+    glDrawElementsBaseVertex(
         GL_TRIANGLES, scene.right_rail.mesh_1p1c->index_count, GL_UNSIGNED_INT,
-        BUFFER_OFFSET(scene.left_rail.mesh_1p1c->index_count * sizeof(GLuint)));
+        BUFFER_OFFSET(scene.left_rail.mesh_1p1c->index_count * sizeof(GLuint)),
+        scene.left_rail.mesh_1p1c->vertices.count);
   }
 
   glBindVertexArray(0);
@@ -394,7 +396,7 @@ static void Display() {
 
   glBindVertexArray(vao_names[kVao_IndexedTextured]);
 
-  GLuint buf_offset = 0;
+  GLsizeiptr buf_offset = 0;
 
   // Ground
   {
@@ -407,8 +409,8 @@ static void Display() {
 
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Ground]);
 
-    glDrawElements(GL_TRIANGLES, scene.ground.mesh_1p1uv->index_count,
-                   GL_UNSIGNED_INT, BUFFER_OFFSET(0));
+    glDrawElementsBaseVertex(GL_TRIANGLES, scene.ground.mesh_1p1uv->index_count,
+                             GL_UNSIGNED_INT, BUFFER_OFFSET(0), 0);
 
     buf_offset += scene.ground.mesh_1p1uv->index_count * sizeof(GLuint);
   }
@@ -424,8 +426,9 @@ static void Display() {
 
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Sky]);
 
-    glDrawElements(GL_TRIANGLES, scene.sky.mesh_1p1uv->index_count,
-                   GL_UNSIGNED_INT, BUFFER_OFFSET(buf_offset));
+    glDrawElementsBaseVertex(GL_TRIANGLES, scene.sky.mesh_1p1uv->index_count,
+                             GL_UNSIGNED_INT, BUFFER_OFFSET(buf_offset),
+                             scene.ground.mesh_1p1uv->vertices.count);
   }
 
   glBindVertexArray(0);
@@ -701,29 +704,6 @@ int main(int argc, char **argv) {
     textured_vertex_count += textured_vlists[i]->count;
   }
 
-  // indexed textured
-  VertexList1P1UV *indexed_textured_vlists[] = {
-      &scene.ground.mesh_1p1uv->vertices, &scene.sky.mesh_1p1uv->vertices};
-  uint indexed_textured_vlist_count =
-      sizeof(indexed_textured_vlists) / sizeof(indexed_textured_vlists[0]);
-
-  uint indexed_textured_vertex_count = 0;
-  for (uint i = 0; i < indexed_textured_vlist_count; ++i) {
-    indexed_textured_vertex_count += indexed_textured_vlists[i]->count;
-  }
-
-  // indexed colored
-  VertexList1P1C *indexed_colored_vlists[] = {
-      &scene.left_rail.mesh_1p1c->vertices,
-      &scene.right_rail.mesh_1p1c->vertices};
-  uint indexed_colored_vlist_count =
-      sizeof(indexed_colored_vlists) / sizeof(indexed_colored_vlists[0]);
-
-  uint indexed_colored_vertex_count = 0;
-  for (uint i = 0; i < indexed_colored_vlist_count; ++i) {
-    indexed_colored_vertex_count += indexed_colored_vlists[i]->count;
-  }
-
   // Buffer textured vertices.
   {
     glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
@@ -773,166 +753,20 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
   }
 
-  // Buffer indexed textured vertices.
-  {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_IndexedTexturedVertices]);
+  GLuint prog = program_names[kVertexFormat_Textured];
+  GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
+  GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
+  SubmitMeshes(scene.meshes_1p1uv, scene.mesh_1p1uv_count,
+               vbo_names[kVbo_IndexedTexturedVertices],
+               vbo_names[kVbo_TexturedIndices], vao_names[kVao_IndexedTextured],
+               pos_loc, tex_coord_loc);
 
-    uint buffer_size =
-        indexed_textured_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec2));
-    glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
-
-    uint offset = 0;
-
-    for (uint i = 0; i < indexed_textured_vlist_count; ++i) {
-      uint size = indexed_textured_vlists[i]->count * sizeof(glm::vec3);
-      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                      indexed_textured_vlists[i]->positions);
-      offset += size;
-    }
-
-    for (uint i = 0; i < indexed_textured_vlist_count; ++i) {
-      uint size = indexed_textured_vlists[i]->count * sizeof(glm::vec2);
-      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                      indexed_textured_vlists[i]->uv);
-      offset += size;
-    }
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
-
-  // Buffer textured indices.
-  {
-    for (uint i = 0; i < scene.sky.mesh_1p1uv->index_count; ++i) {
-      scene.sky.mesh_1p1uv->indices[i] +=
-          scene.ground.mesh_1p1uv->vertices.count;
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_TexturedIndices]);
-
-    uint index_count = scene.ground.mesh_1p1uv->index_count +
-                       scene.sky.mesh_1p1uv->index_count;
-    uint buffer_size = index_count * sizeof(uint);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
-
-    uint offset = 0;
-    uint size = scene.ground.mesh_1p1uv->index_count * sizeof(uint);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.ground.mesh_1p1uv->indices);
-
-    offset += size;
-    size = scene.sky.mesh_1p1uv->index_count * sizeof(uint);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.sky.mesh_1p1uv->indices);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  }
-
-  // Setup indexed textured VAO.
-  {
-    GLuint prog = program_names[kVertexFormat_Textured];
-    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
-    GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
-
-    glBindVertexArray(vao_names[kVao_IndexedTextured]);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_IndexedTexturedVertices]);
-
-    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
-                          BUFFER_OFFSET(0));
-    glVertexAttribPointer(
-        tex_coord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2),
-        BUFFER_OFFSET(indexed_textured_vertex_count * sizeof(glm::vec3)));
-
-    glEnableVertexAttribArray(pos_loc);
-    glEnableVertexAttribArray(tex_coord_loc);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_TexturedIndices]);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  }
-
-  // Buffer colored vertices.
-  {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_ColoredVertices]);
-
-    uint buffer_size =
-        indexed_colored_vertex_count * (sizeof(glm::vec3) + sizeof(glm::vec4));
-    glBufferData(GL_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
-
-    uint offset = 0;
-
-    for (uint i = 0; i < indexed_colored_vlist_count; ++i) {
-      uint size = indexed_colored_vlists[i]->count * sizeof(glm::vec3);
-      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                      indexed_colored_vlists[i]->positions);
-      offset += size;
-    }
-
-    for (uint i = 0; i < indexed_colored_vlist_count; ++i) {
-      uint size = indexed_colored_vlists[i]->count * sizeof(glm::vec4);
-      glBufferSubData(GL_ARRAY_BUFFER, offset, size,
-                      indexed_colored_vlists[i]->colors);
-      offset += size;
-    }
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
-
-  // Buffer colored indices.
-  {
-    for (uint i = 0; i < scene.right_rail.mesh_1p1c->index_count; ++i) {
-      scene.right_rail.mesh_1p1c->indices[i] +=
-          scene.left_rail.mesh_1p1c->vertices.count;
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
-
-    uint index_count = scene.left_rail.mesh_1p1c->index_count +
-                       scene.right_rail.mesh_1p1c->index_count;
-    uint buffer_size = index_count * sizeof(uint);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer_size, NULL, GL_STATIC_DRAW);
-
-    uint offset = 0;
-    uint size = scene.left_rail.mesh_1p1c->index_count * sizeof(uint);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset, size,
-                    scene.left_rail.mesh_1p1c->indices);
-
-    offset += size;
-    size = scene.right_rail.mesh_1p1c->index_count * sizeof(uint);
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, size, offset,
-                    scene.right_rail.mesh_1p1c->indices);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  }
-
-  // Setup colored VAO.
-  {
-    GLuint prog = program_names[kVertexFormat_Colored];
-    GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
-    GLuint color_loc = glGetAttribLocation(prog, "vert_color");
-
-    glBindVertexArray(vao_names[kVao_Colored]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_ColoredVertices]);
-
-    glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3),
-                          BUFFER_OFFSET(0));
-    glVertexAttribPointer(
-        color_loc, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4),
-        BUFFER_OFFSET(indexed_colored_vertex_count * sizeof(glm::vec3)));
-
-    glEnableVertexAttribArray(pos_loc);
-    glEnableVertexAttribArray(color_loc);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbo_names[kVbo_RailIndices]);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  }
-
-  FreeModelVertices(&scene);
+  prog = program_names[kVertexFormat_Colored];
+  pos_loc = glGetAttribLocation(prog, "vert_position");
+  GLuint color_loc = glGetAttribLocation(prog, "vert_color");
+  SubmitMeshes(scene.meshes_1p1c, scene.mesh_1p1c_count,
+               vbo_names[kVbo_ColoredVertices], vbo_names[kVbo_RailIndices],
+               vao_names[kVao_Colored], pos_loc, color_loc);
 
   glutMainLoop();
 }

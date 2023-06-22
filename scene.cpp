@@ -111,19 +111,25 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
                  cfg->max_spline_segment_len,
                  &scene->camspl.mesh_1p1t1n1b->vertices);
 
-  scene->ground.mesh_1p1uv = new Mesh1P1UV;
+  scene->mesh_1p1uv_count = 2;
+  scene->meshes_1p1uv = new Mesh1P1UV[scene->mesh_1p1uv_count];
+
+  scene->ground.mesh_1p1uv = &scene->meshes_1p1uv[0];
   MakeAxisAlignedXzSquarePlane(cfg->aabb_side_len, cfg->ground_tex_repeat_count,
                                scene->ground.mesh_1p1uv);
   scene->ground.world_transform =
       glm::translate(glm::mat4(1), cfg->ground_position);
 
-  scene->sky.mesh_1p1uv = new Mesh1P1UV;
+  scene->sky.mesh_1p1uv = &scene->meshes_1p1uv[1];
   MakeAxisAlignedCube(cfg->aabb_side_len, cfg->sky_tex_repeat_count,
                       scene->sky.mesh_1p1uv);
   scene->sky.world_transform = glm::translate(glm::mat4(1), cfg->sky_position);
 
-  scene->left_rail.mesh_1p1c = new Mesh1P1C;
-  scene->right_rail.mesh_1p1c = new Mesh1P1C;
+  scene->mesh_1p1c_count = 2;
+  scene->meshes_1p1c = new Mesh1P1C[scene->mesh_1p1c_count];
+
+  scene->left_rail.mesh_1p1c = &scene->meshes_1p1c[0];
+  scene->right_rail.mesh_1p1c = &scene->meshes_1p1c[1];
   MakeRails(&scene->camspl.mesh_1p1t1n1b->vertices, &cfg->rails_color,
             cfg->rails_head_w, cfg->rails_head_h, cfg->rails_web_w,
             cfg->rails_web_h, cfg->rails_gauge,
@@ -148,12 +154,14 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
 void FreeModelVertices(Scene *scene) {
   assert(scene);
 
-  delete[] scene->ground.mesh_1p1uv->vertices.positions;
-  delete[] scene->ground.mesh_1p1uv->vertices.uv;
+  delete[] scene->meshes_1p1uv;
+
+  // delete[] scene->ground.mesh_1p1uv->vertices.positions;
+  // delete[] scene->ground.mesh_1p1uv->vertices.uv;
   delete[] scene->ground.mesh_1p1uv->indices;
 
-  delete[] scene->sky.mesh_1p1uv->vertices.positions;
-  delete[] scene->sky.mesh_1p1uv->vertices.uv;
+  // delete[] scene->sky.mesh_1p1uv->vertices.positions;
+  // delete[] scene->sky.mesh_1p1uv->vertices.uv;
   delete[] scene->sky.mesh_1p1uv->indices;
 
   delete[] scene->crossties.mesh_1p1uv->vertices.positions;

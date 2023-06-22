@@ -26,6 +26,12 @@ struct Scene {
   Entity crossties;
   Entity left_rail;
   Entity right_rail;
+
+  Mesh1P1C* meshes_1p1c;
+  uint mesh_1p1c_count;
+
+  Mesh1P1UV* meshes_1p1uv;
+  uint mesh_1p1uv_count;
 };
 
 struct SceneConfig {
