@@ -386,7 +386,7 @@ static void Display() {
   glBindVertexArray(0);
 
   /**************************
-   * Indexed textured models
+   * Textured models
    **************************/
   prog = program_names[kVertexFormat_Textured];
   model_view_mat_loc = glGetUniformLocation(prog, "model_view");
@@ -394,9 +394,10 @@ static void Display() {
 
   glUseProgram(prog);
 
-  glBindVertexArray(vao_names[kVao_IndexedTextured]);
+  glBindVertexArray(vao_names[kVao_Textured]);
 
   GLsizeiptr buf_offset = 0;
+  GLint base_vertex = 0;
 
   // Ground
   {
@@ -410,9 +411,11 @@ static void Display() {
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Ground]);
 
     glDrawElementsBaseVertex(GL_TRIANGLES, scene.ground.mesh_1p1uv->index_count,
-                             GL_UNSIGNED_INT, BUFFER_OFFSET(0), 0);
+                             GL_UNSIGNED_INT, BUFFER_OFFSET(buf_offset),
+                             base_vertex);
 
     buf_offset += scene.ground.mesh_1p1uv->index_count * sizeof(GLuint);
+    base_vertex += scene.ground.mesh_1p1uv->vertex_count;
   }
 
   // Sky
@@ -428,22 +431,11 @@ static void Display() {
 
     glDrawElementsBaseVertex(GL_TRIANGLES, scene.sky.mesh_1p1uv->index_count,
                              GL_UNSIGNED_INT, BUFFER_OFFSET(buf_offset),
-                             scene.ground.mesh_1p1uv->vertex_count);
+                             base_vertex);
+
+    buf_offset += scene.sky.mesh_1p1uv->index_count * sizeof(GLuint);
+    base_vertex += scene.sky.mesh_1p1uv->vertex_count;
   }
-
-  glBindVertexArray(0);
-
-  /*******************
-   * Textured models
-   *******************/
-
-  prog = program_names[kVertexFormat_Textured];
-  model_view_mat_loc = glGetUniformLocation(prog, "model_view");
-  proj_mat_loc = glGetUniformLocation(prog, "projection");
-
-  glUseProgram(prog);
-
-  glBindVertexArray(vao_names[kVao_Textured]);
 
   // Crossties
   {
@@ -455,9 +447,13 @@ static void Display() {
                        glm::value_ptr(projection_mat));
 
     glBindTexture(GL_TEXTURE_2D, renderer.texture_names[kTexture_Crossties]);
-    for (uint offset = 0; offset < scene.crossties.mesh_1p1uv->vertex_count;
+
+    for (uint offset = 0; offset < scene.crossties.mesh_1p1uv->index_count;
          offset += 36) {
-      glDrawArrays(GL_TRIANGLES, offset, 36);
+      glDrawElementsBaseVertex(
+          GL_TRIANGLES, 36, GL_UNSIGNED_INT,
+          BUFFER_OFFSET(buf_offset + offset * sizeof(GLuint)), base_vertex);
+      base_vertex += 24;
     }
   }
 
@@ -693,64 +689,12 @@ int main(int argc, char **argv) {
   glGenBuffers(kVbo__Count, vbo_names);
   glGenVertexArrays(kVao__Count, vao_names);
 
-  // Non-indexed textured vertices
-  {
-    Mesh1P1UV *meshes[] = {scene.crossties.mesh_1p1uv};
-
-    uint mesh_count = sizeof(meshes) / sizeof(meshes[0]);
-
-    uint vertex_count = 0;
-    for (uint i = 0; i < mesh_count; ++i) {
-      vertex_count += meshes[i]->vertex_count;
-    }
-
-    // Buffer vertices.
-    {
-      glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
-
-      GLsizeiptr buf_size = vertex_count * sizeof(Vertex1P1UV);
-      glBufferData(GL_ARRAY_BUFFER, buf_size, 0, GL_STATIC_DRAW);
-
-      GLintptr offset = 0;
-      for (uint i = 0; i < mesh_count; ++i) {
-        GLsizeiptr size = meshes[i]->vertex_count * sizeof(Vertex1P1UV);
-        glBufferSubData(GL_ARRAY_BUFFER, offset, size, meshes[i]->vertices);
-        offset += size;
-      }
-
-      glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-
-    // Setup textured VAO.
-    {
-      GLuint prog = program_names[kVertexFormat_Textured];
-      GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
-      GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
-
-      glBindVertexArray(vao_names[kVao_Textured]);
-
-      glBindBuffer(GL_ARRAY_BUFFER, vbo_names[kVbo_TexturedVertices]);
-
-      glVertexAttribPointer(pos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex1P1UV),
-                            BUFFER_OFFSET(0));
-      glVertexAttribPointer(tex_coord_loc, 2, GL_FLOAT, GL_FALSE,
-                            sizeof(Vertex1P1UV),
-                            BUFFER_OFFSET(offsetof(Vertex1P1UV, uv)));
-
-      glEnableVertexAttribArray(pos_loc);
-      glEnableVertexAttribArray(tex_coord_loc);
-
-      glBindVertexArray(0);
-      glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-  }
-
   GLuint prog = program_names[kVertexFormat_Textured];
   GLuint pos_loc = glGetAttribLocation(prog, "vert_position");
   GLuint tex_coord_loc = glGetAttribLocation(prog, "vert_tex_coord");
   SubmitMeshes(scene.meshes_1p1uv, scene.mesh_1p1uv_count,
-               vbo_names[kVbo_IndexedTexturedVertices],
-               vbo_names[kVbo_TexturedIndices], vao_names[kVao_IndexedTextured],
+               vbo_names[kVbo_TexturedVertices],
+               vbo_names[kVbo_TexturedIndices], vao_names[kVao_Textured],
                pos_loc, tex_coord_loc);
 
   prog = program_names[kVertexFormat_Colored];

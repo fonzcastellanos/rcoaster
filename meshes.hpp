@@ -111,6 +111,6 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
 
 void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
-                   Vertex1P1UV **vertices, uint *vertex_count);
+                   Mesh1P1UV *mesh);
 
 #endif  // RCOASTER_MESHES_HPP

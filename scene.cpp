@@ -111,7 +111,7 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
                  cfg->max_spline_segment_len,
                  &scene->camspl.mesh_1p1t1n1b->vertices);
 
-  scene->mesh_1p1uv_count = 2;
+  scene->mesh_1p1uv_count = 3;
   scene->meshes_1p1uv = new Mesh1P1UV[scene->mesh_1p1uv_count];
 
   scene->ground.mesh_1p1uv = &scene->meshes_1p1uv[0];
@@ -140,12 +140,11 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
   scene->right_rail.world_transform =
       glm::translate(glm::mat4(1), cfg->rails_position);
 
-  scene->crossties.mesh_1p1uv = new Mesh1P1UV;
+  scene->crossties.mesh_1p1uv = &scene->meshes_1p1uv[2];
   MakeCrossties(&scene->camspl.mesh_1p1t1n1b->vertices,
                 cfg->crossties_separation_dist,
                 cfg->crossties_pos_offset_in_camspl_norm_dir,
-                &scene->crossties.mesh_1p1uv->vertices,
-                &scene->crossties.mesh_1p1uv->vertex_count);
+                scene->crossties.mesh_1p1uv);
   scene->crossties.world_transform =
       glm::translate(glm::mat4(1), cfg->crossties_position);
 

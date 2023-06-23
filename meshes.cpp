@@ -1,7 +1,6 @@
 #include "meshes.hpp"
 
 #include <cassert>
-#include <cstring>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -469,8 +468,32 @@ void MakeRails(const VertexList1P1T1N1B *camspl_vertices,
 
 void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
                    float separation_dist, float pos_offset_in_camspl_norm_dir,
-                   Vertex1P1UV **vertices, uint *vertex_count) {
-  static constexpr int kUniqPosCountPerCrosstie = 8;
+                   Mesh1P1UV *mesh) {
+  enum CuboidCorner {
+    kFbl,
+    kFtl,
+    kFtr,
+    kFbr,
+    kBbl,
+    kBtl,
+    kBtr,
+    kBbr,
+    kCuboidCornerCount
+  };
+
+  enum FaceCorner { kBl, kTl, kBr, kTr, kFaceCornerCount };
+
+  static constexpr uint kFaceCount = 6;
+  static constexpr uint kTrianglesPerFace = 2;
+
+  static constexpr uint kIndicesPerTriangle = 3;
+  static constexpr uint kIndicesPerFace =
+      kIndicesPerTriangle * kTrianglesPerFace;
+
+  static constexpr uint kUniqVerticesPerCrosstie =
+      kFaceCount * kFaceCornerCount;
+  static constexpr uint kIndicesPerCrosstie = kIndicesPerFace * kFaceCount;
+
   static constexpr float kDepth = 0.3;
   static constexpr float kTolerance = 0.00001;
 
@@ -486,8 +509,7 @@ void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
   assert(camspl_vertices->normals);
   assert(camspl_vertices->binormals);
   assert(separation_dist + kTolerance > 0);
-  assert(vertices);
-  assert(vertex_count);
+  assert(mesh);
 
   glm::vec3 *cv_pos = camspl_vertices->positions;
   glm::vec3 *cv_tan = camspl_vertices->tangents;
@@ -495,13 +517,15 @@ void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
   glm::vec3 *cv_norm = camspl_vertices->normals;
   uint cv_count = camspl_vertices->count;
 
-  uint max_vertex_count = 36 * (cv_count - 1);
-  glm::vec3 *pos = new glm::vec3[max_vertex_count];
-  glm::vec2 *uv = new glm::vec2[max_vertex_count];
+  uint max_vertex_count = kUniqVerticesPerCrosstie * (cv_count - 1);
+  Vertex1P1UV *vertices = new Vertex1P1UV[max_vertex_count];
+
+  uint max_index_count = kIndicesPerCrosstie * (cv_count - 1);
+  uint *indices = new uint[max_index_count];
 
   float dist_moved = 0;
-  uint posi = 0;
-  uint uvi = 0;
+  uint vi = 0;
+  uint indi = 0;
   for (uint i = 1; i < cv_count; ++i) {
     dist_moved += glm::length(cv_pos[i] - cv_pos[i - 1]);
 
@@ -509,108 +533,91 @@ void MakeCrossties(const VertexList1P1T1N1B *camspl_vertices,
       continue;
     }
 
-    glm::vec3 p[kUniqPosCountPerCrosstie];
+    glm::vec3 uniq_pos[kCuboidCornerCount];
 
-    // front vertices
-    p[0] = cv_pos[i] - kHeight * cv_norm[i] + kHorizontalOffset * cv_binorm[i];
-    p[1] = cv_pos[i] + kHorizontalOffset * cv_binorm[i];
-    p[2] = cv_pos[i] - kHorizontalOffset * cv_binorm[i];
-    p[3] = cv_pos[i] - kHeight * cv_norm[i] - kHorizontalOffset * cv_binorm[i];
+    // Front vertices
+    uniq_pos[kFbl] =
+        cv_pos[i] - kHeight * cv_norm[i] - kHorizontalOffset * cv_binorm[i];
+    uniq_pos[kFtl] = cv_pos[i] - kHorizontalOffset * cv_binorm[i];
+    uniq_pos[kFtr] = cv_pos[i] + kHorizontalOffset * cv_binorm[i];
+    uniq_pos[kFbr] =
+        cv_pos[i] - kHeight * cv_norm[i] + kHorizontalOffset * cv_binorm[i];
 
-    // back vertices
-    for (uint j = 0; j < 4; ++j) {
-      p[j + 4] = p[j] + kDepth * cv_tan[i];
+    // Back vertices
+    for (int j = kBbl; j < kCuboidCornerCount; ++j) {
+      uniq_pos[j] = uniq_pos[j - kBbl] + kDepth * cv_tan[i];
+    }
+    for (int j = 0; j < kCuboidCornerCount; ++j) {
+      uniq_pos[j] += pos_offset_in_camspl_norm_dir * cv_norm[i];
     }
 
-    for (uint j = 0; j < kUniqPosCountPerCrosstie; ++j) {
-      p[j] += pos_offset_in_camspl_norm_dir * cv_norm[i];
+    glm::vec3 pos[kUniqVerticesPerCrosstie] = {
+        // Back face
+        uniq_pos[kBbl], uniq_pos[kBbr], uniq_pos[kBtr], uniq_pos[kBtl],
+
+        // Front face
+        uniq_pos[kFbl], uniq_pos[kFbr], uniq_pos[kFtr], uniq_pos[kFtl],
+
+        // Left face
+        uniq_pos[kBbl], uniq_pos[kFbl], uniq_pos[kFtl], uniq_pos[kBtl],
+
+        // Right face
+        uniq_pos[kFbr], uniq_pos[kBbr], uniq_pos[kBtr], uniq_pos[kFtr],
+
+        // Top face
+        uniq_pos[kFtl], uniq_pos[kFtr], uniq_pos[kBtr], uniq_pos[kBtl],
+
+        // Bottom face
+        uniq_pos[kBbl], uniq_pos[kBbr], uniq_pos[kFbr], uniq_pos[kFbl]};
+
+    for (uint j = 0; j < kUniqVerticesPerCrosstie; ++j) {
+      vertices[vi + j].position = pos[j];
     }
 
-    // Top face
-    pos[posi] = p[2];
-    pos[posi + 1] = p[6];
-    pos[posi + 2] = p[1];
-    pos[posi + 3] = p[6];
-    pos[posi + 4] = p[5];
-    pos[posi + 5] = p[1];
+    glm::vec2 uniq_uv[kFaceCornerCount];
+    uniq_uv[kBl] = {0, 0};
+    uniq_uv[kTl] = {0, 1};
+    uniq_uv[kBr] = {1, 0};
+    uniq_uv[kTr] = {1, 1};
 
-    posi += 6;
-
-    // Right face
-    pos[posi] = p[0];
-    pos[posi + 1] = p[1];
-    pos[posi + 2] = p[4];
-    pos[posi + 3] = p[1];
-    pos[posi + 4] = p[5];
-    pos[posi + 5] = p[4];
-
-    posi += 6;
-
-    // Bottom face
-    pos[posi] = p[7];
-    pos[posi + 1] = p[3];
-    pos[posi + 2] = p[4];
-    pos[posi + 3] = p[3];
-    pos[posi + 4] = p[0];
-    pos[posi + 5] = p[4];
-
-    posi += 6;
-
-    // Left face
-    pos[posi] = p[7];
-    pos[posi + 1] = p[6];
-    pos[posi + 2] = p[3];
-    pos[posi + 3] = p[6];
-    pos[posi + 4] = p[2];
-    pos[posi + 5] = p[3];
-
-    posi += 6;
-
-    // Back face
-    pos[posi] = p[7];
-    pos[posi + 1] = p[6];
-    pos[posi + 2] = p[4];
-    pos[posi + 3] = p[6];
-    pos[posi + 4] = p[5];
-    pos[posi + 5] = p[4];
-
-    posi += 6;
-
-    // Front face
-    pos[posi] = p[3];
-    pos[posi + 1] = p[2];
-    pos[posi + 2] = p[0];
-    pos[posi + 3] = p[2];
-    pos[posi + 4] = p[1];
-    pos[posi + 5] = p[0];
-
-    posi += 6;
-
-    for (uint j = 0; j < 6; ++j) {
-      uv[uvi] = glm::vec2(0, 0);
-      uv[uvi + 1] = glm::vec2(0, 1);
-      uv[uvi + 2] = glm::vec2(1, 0);
-      uv[uvi + 3] = glm::vec2(0, 1);
-      uv[uvi + 4] = glm::vec2(1, 1);
-      uv[uvi + 5] = glm::vec2(1, 0);
-
-      uvi += 6;
+    for (uint j = 0; j < kUniqVerticesPerCrosstie; j += kFaceCornerCount) {
+      uint k = vi + j;
+      vertices[k].uv = uniq_uv[kBl];
+      vertices[k + 1].uv = uniq_uv[kBr];
+      vertices[k + 2].uv = uniq_uv[kTr];
+      vertices[k + 3].uv = uniq_uv[kTl];
     }
+
+    int ind = 0;
+    for (uint j = 0; j < kIndicesPerCrosstie; j += kIndicesPerFace) {
+      uint k = indi + j;
+      indices[k] = ind;
+      indices[k + 1] = ind + 1;
+      indices[k + 2] = ind + 2;
+      indices[k + 3] = ind;
+      indices[k + 4] = ind + 2;
+      indices[k + 5] = ind + 3;
+      ind += kFaceCornerCount;
+    }
+
+    vi += kUniqVerticesPerCrosstie;
+    indi += kIndicesPerCrosstie;
 
     dist_moved = 0;
   }
 
-  // vertices->count = posi;
-  *vertex_count = posi;
-  *vertices = new Vertex1P1UV[posi];
-
-  for (uint i = 0; i < *vertex_count; ++i) {
-    (*vertices)[i].position = pos[i];
+  mesh->vertex_count = vi;
+  mesh->vertices = new Vertex1P1UV[vi];
+  for (uint i = 0; i < mesh->vertex_count; ++i) {
+    mesh->vertices[i].position = vertices[i].position;
+    mesh->vertices[i].uv = vertices[i].uv;
   }
-  delete[] pos;
+  delete[] vertices;
 
-  for (uint i = 0; i < *vertex_count; ++i) {
-    (*vertices)[i].uv = uv[i];
+  mesh->index_count = indi;
+  mesh->indices = new uint[indi];
+  for (uint i = 0; i < mesh->index_count; ++i) {
+    mesh->indices[i] = indices[i];
   }
-  delete[] uv;
+  delete[] indices;
 }
