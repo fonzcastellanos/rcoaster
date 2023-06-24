@@ -85,9 +85,9 @@ static Status LoadSplines(const char *track_filepath,
   return kStatus_Ok;
 }
 
-Status MakeScene(const SceneConfig *cfg, Scene *scene) {
-  assert(cfg);
+Status MakeScene(Scene *scene, const SceneConfig *cfg) {
   assert(scene);
+  assert(cfg);
 
   std::vector<std::vector<glm::vec3>> splines;
   Status status = LoadSplines(cfg->track_filepath, &splines);
@@ -151,27 +151,16 @@ Status MakeScene(const SceneConfig *cfg, Scene *scene) {
   return kStatus_Ok;
 }
 
-void FreeModelVertices(Scene *scene) {
+void FreeMeshArrays(Scene *scene) {
   assert(scene);
 
-  delete[] scene->meshes_1p1uv;
+  for (uint i = 0; i < scene->mesh_1p1uv_count; ++i) {
+    delete[] scene->meshes_1p1uv[i].vertices;
+    delete[] scene->meshes_1p1uv[i].indices;
+  }
 
-  // delete[] scene->ground.mesh_1p1uv->vertices.positions;
-  // delete[] scene->ground.mesh_1p1uv->vertices.uv;
-  delete[] scene->ground.mesh_1p1uv->indices;
-
-  // delete[] scene->sky.mesh_1p1uv->vertices.positions;
-  // delete[] scene->sky.mesh_1p1uv->vertices.uv;
-  delete[] scene->sky.mesh_1p1uv->indices;
-
-  // delete[] scene->crossties.mesh_1p1uv->vertices.positions;
-  // delete[] scene->crossties.mesh_1p1uv->vertices.uv;
-
-  // delete[] scene->left_rail.mesh_1p1c->vertices.positions;
-  // delete[] scene->left_rail.mesh_1p1c->vertices.colors;
-  // delete[] scene->left_rail.mesh_1p1c->indices;
-
-  // delete[] scene->right_rail.mesh_1p1c->vertices.positions;
-  // delete[] scene->right_rail.mesh_1p1c->vertices.colors;
-  // delete[] scene->right_rail.mesh_1p1c->indices;
+  for (uint i = 0; i < scene->mesh_1p1c_count; ++i) {
+    delete[] scene->meshes_1p1c[i].vertices;
+    delete[] scene->meshes_1p1c[i].indices;
+  }
 }

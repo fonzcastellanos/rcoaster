@@ -61,8 +61,8 @@ struct SceneConfig {
   float crossties_pos_offset_in_camspl_norm_dir;
 };
 
-Status MakeScene(const SceneConfig* cfg, Scene* scene);
+Status MakeScene(Scene* scene, const SceneConfig* cfg);
 
-void FreeModelVertices(Scene* scene);
+void FreeMeshArrays(Scene* scene);
 
 #endif  // RCOASTER_SCENE_HPP

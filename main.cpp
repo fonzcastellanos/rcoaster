@@ -634,7 +634,7 @@ int main(int argc, char **argv) {
 
   SceneConfig scene_cfg;
   InitSceneConfig(&config, &scene_cfg);
-  status = MakeScene(&scene_cfg, &scene);
+  status = MakeScene(&scene, &scene_cfg);
   if (status != kStatus_Ok) {
     std::fprintf(stderr, "Failed to make scene.\n");
     return EXIT_FAILURE;
@@ -703,6 +703,8 @@ int main(int argc, char **argv) {
   SubmitMeshes(scene.meshes_1p1c, scene.mesh_1p1c_count,
                vbo_names[kVbo_ColoredVertices], vbo_names[kVbo_RailIndices],
                vao_names[kVao_Colored], pos_loc, color_loc);
+
+  FreeMeshArrays(&scene);
 
   glutMainLoop();
 }
